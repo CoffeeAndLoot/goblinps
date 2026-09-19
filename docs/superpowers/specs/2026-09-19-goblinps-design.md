@@ -42,6 +42,10 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    where a pin lands in the wrong blob. The art is ours; the Forever Atlas
    fan map is the style reference only (it has no license). If the texture
    is missing, the planner is search + list and routing still works.
+   **Palette: green screen** (chosen from mockups over navy and amber).
+   Faction zones are subtle tints; the amber route is the only bright thing.
+   The art is greyscale layers (base, Horde zones, Alliance zones) tinted in
+   code, so the palette is colour constants, not a redraw.
 6. **v1 graph scope:** flight edges (generated), boats/zeppelins/tram
    (hand-written, about a dozen), hearthstone, and a straight-line "ride to
    the nearest stop" / "ride from the last stop to your pin" at each end.
