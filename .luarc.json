@@ -4,6 +4,7 @@
   "diagnostics.globals": [
     "SLASH_GOBLINPS1", "SlashCmdList",
     "UnitFactionGroup", "GetBindLocation",
-    "C_TaxiMap", "C_Map", "C_Item"
+    "C_TaxiMap", "C_Map", "C_Item",
+    "CreateFrame", "C_Timer"
   ]
 }

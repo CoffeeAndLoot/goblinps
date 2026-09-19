@@ -87,6 +87,8 @@ SlashCmdList.GOBLINPS = function(msg)
     command = command:lower()
     if command == "to" and rest ~= "" then
         routeTo(rest)
+    elseif command == "taxiprobe" then
+        API.StartTaxiProbe(say)
     elseif command == "probe" then
         probe()
     else

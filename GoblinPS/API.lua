@@ -96,4 +96,62 @@ function API.HearthBindName()
     return GetBindLocation()
 end
 
+-- THROWAWAY PROBE (2026-09-19): isUndiscovered is dead on this build, so we
+-- need to see what the client exposes while a flight master's map is open.
+-- `/gps taxiprobe` arms it; it prints on TAXIMAP_OPENED. Delete once
+-- KnownNodes is rebuilt on the answer.
+local probeFrame
+function API.StartTaxiProbe(say)
+    if probeFrame then
+        say("Taxi probe already armed. Open a flight master's map.")
+        return
+    end
+    local function call(name, ...)
+        local fn = _G[name]
+        if not fn then
+            return "missing"
+        end
+        local ok, result = pcall(fn, ...)
+        return ok and tostring(result) or ("error: " .. tostring(result))
+    end
+    local function dump(label)
+        local getTaxiMapID = rawget(_G, "GetTaxiMapID")
+        local taxiMap = getTaxiMapID and getTaxiMapID() or nil
+        say(label .. " GetTaxiMapID=" .. tostring(taxiMap) .. " NumTaxiNodes=" .. call("NumTaxiNodes")
+            .. " bestMap=" .. tostring(C_Map.GetBestMapForUnit("player")))
+        for _, map in ipairs({ taxiMap or false, 1414, 1415, 947, C_Map.GetBestMapForUnit("player") or false }) do
+            if map then
+                local ok, nodes = pcall(C_TaxiMap.GetAllTaxiNodes, map)
+                local counts, line = {}, {}
+                for _, n in ipairs(ok and nodes or {}) do
+                    counts[n.state] = (counts[n.state] or 0) + 1
+                    line[#line + 1] = n.nodeID .. ":" .. tostring(n.state)
+                end
+                say(("GetAllTaxiNodes(%s) ok=%s n=%d current=%s reachable=%s unreachable=%s"):format(
+                    tostring(map), tostring(ok), #line, tostring(counts[0]), tostring(counts[1]), tostring(counts[2])))
+                for i = 1, #line, 15 do
+                    say("  " .. table.concat(line, " ", i, math.min(i + 14, #line)))
+                end
+            end
+        end
+        local legacy = tonumber(call("NumTaxiNodes")) or 0
+        local types = {}
+        for i = 1, legacy do
+            types[#types + 1] = call("TaxiNodeName", i) .. "=" .. call("TaxiNodeGetType", i)
+        end
+        for i = 1, #types, 4 do
+            say("  legacy " .. table.concat(types, " | ", i, math.min(i + 3, #types)))
+        end
+    end
+    probeFrame = CreateFrame("Frame")
+    probeFrame:RegisterEvent("TAXIMAP_OPENED")
+    probeFrame:SetScript("OnEvent", function(_, _, system)
+        dump("TAXIMAP_OPENED system=" .. tostring(system) .. " (now)")
+        C_Timer.After(0.5, function()
+            dump("(0.5s later)")
+        end)
+    end)
+    say("Taxi probe armed. Open a flight master's map, then screenshot the chat.")
+end
+
 return API
