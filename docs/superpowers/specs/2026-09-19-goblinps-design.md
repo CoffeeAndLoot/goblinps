@@ -30,11 +30,18 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
      shows "Recalculating…" when the player strays, sets Blizzard's map
      waypoint/arrow on the current step.
 4. **Destination input, three ways:** type-ahead search over cities, zones
-   and flight masters with recents on top; click on the embedded map;
-   Ctrl-click on Blizzard's world map (react to its user waypoint).
-5. **Embedded map** is a Blizzard `MapCanvasFrameTemplate` canvas with
-   Blizzard's flight point data provider. Behind a fallback: if it fails to
-   build, the planner is search + list and routing still works.
+   and flight masters with recents on top; click a zone or stop on the
+   schematic map; Ctrl-click on Blizzard's world map for an exact spot
+   (react to its user waypoint).
+5. **Embedded map is our own schematic, not Blizzard's canvas.** One
+   hand-drawn world texture in a transit-map style (both continents, zone
+   blobs, the new Forever zones), tinted screen green. Our own pins for
+   stops; the route drawn over it with `CreateLine`. No zoom, no
+   `MapCanvasFrameTemplate`. Stop positions come from the generator: one
+   linear world-to-schematic transform per continent, with hand overrides
+   where a pin lands in the wrong blob. The art is ours; the Forever Atlas
+   fan map is the style reference only (it has no license). If the texture
+   is missing, the planner is search + list and routing still works.
 6. **v1 graph scope:** flight edges (generated), boats/zeppelins/tram
    (hand-written, about a dozen), hearthstone, and a straight-line "ride to
    the nearest stop" / "ride from the last stop to your pin" at each end.
