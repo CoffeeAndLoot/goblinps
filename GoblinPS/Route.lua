@@ -75,8 +75,10 @@ function Route.Plan(data, opts)
     return Route.Find(ns.Graph.Build(data, opts))
 end
 
--- Would knowing every flight path help? Returns { names = {...}, seconds =
--- saved or nil when there was no route at all }, or nil when it would not.
+-- Would knowing every flight path help? Returns { names = { first two short
+-- names }, more = count of further unknown stops beyond those two (0 if
+-- none), seconds = saved or nil when there was no route at all }, or nil
+-- when it would not.
 function Route.Hint(data, opts, result)
     local all, o = {}, {}
     for id in pairs(data.Nodes) do
@@ -93,21 +95,26 @@ function Route.Hint(data, opts, result)
     if result and result.seconds - better.seconds < Route.HINT_MIN_SECONDS then
         return nil
     end
-    local names, seen, known = {}, {}, opts.known or {}
+    local all_names, seen, known = {}, {}, opts.known or {}
     for _, s in ipairs(better.raw) do
         if s.kind == "fly" then
             for _, stop in ipairs({ s.from, s.to }) do
-                if not known[stop.nodeID] and not seen[stop.nodeID] and #names < 2 then
+                if not known[stop.nodeID] and not seen[stop.nodeID] then
                     seen[stop.nodeID] = true
-                    names[#names + 1] = ns.Search.ShortName(stop.name)
+                    all_names[#all_names + 1] = ns.Search.ShortName(stop.name)
                 end
             end
         end
     end
-    if #names == 0 then
+    if #all_names == 0 then
         return nil
     end
-    return { names = names, seconds = result and (result.seconds - better.seconds) or nil }
+    local names = {}
+    for i = 1, math.min(2, #all_names) do
+        names[i] = all_names[i]
+    end
+    return { names = names, more = math.max(0, #all_names - 2),
+             seconds = result and (result.seconds - better.seconds) or nil }
 end
 
 local VERB = {
@@ -142,7 +149,15 @@ function Route.StepText(step)
 end
 
 function Route.HintText(hint)
-    local who = table.concat(hint.names, " and ")
+    local more = hint.more or 0
+    local who
+    if #hint.names == 1 then
+        who = hint.names[1]
+    elseif more > 0 then
+        who = hint.names[1] .. ", " .. hint.names[2] .. " and " .. more .. " more"
+    else
+        who = hint.names[1] .. " and " .. hint.names[2]
+    end
     if hint.seconds then
         return "Discover " .. who .. " to save " .. Route.FormatTime(hint.seconds)
     end

@@ -74,6 +74,13 @@ return function(h, loaded)
             local o = { faction = "A", known = {}, from = nearAlpha, to = nearDelta }
             h.eq(Route.Hint(world, o, nil), nil)
         end)
+        h.it("names two stops and says how many more when the better route needs three", function()
+            local o = { faction = "H", known = {}, from = nearAlpha, to = nearCharlie }
+            local hint = Route.Hint(world, o, Route.Plan(world, o))
+            h.eq(table.concat(hint.names, ","), "Alpha,Bravo")
+            h.eq(hint.more, 1)
+            h.eq(Route.HintText(hint), "Discover Alpha, Bravo and 1 more to save ~11 min")
+        end)
     end)
 
     h.describe("Route text", function()
@@ -94,6 +101,10 @@ return function(h, loaded)
         end)
         h.it("words a hint with no existing route", function()
             h.eq(Route.HintText({ names = { "Ratchet" } }), "Discover Ratchet to open a route")
+        end)
+        h.it("words a hint with no existing route and more stops than shown", function()
+            h.eq(Route.HintText({ names = { "Alpha", "Bravo" }, more = 2 }),
+                 "Discover Alpha, Bravo and 2 more to open a route")
         end)
     end)
 end

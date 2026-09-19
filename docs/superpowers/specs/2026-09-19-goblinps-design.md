@@ -72,8 +72,9 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     "Zeppelin to Tirisfal (~5 min incl. wait)".
 12. **"Discover X to save ~N min" is in v1.** `Route` runs a second time with
     every faction-legal flight node treated as known. If that route is at
-    least 2 minutes faster, one line under the step list names the missing
-    node or two on it.
+    least 2 minutes faster, one line under the step list names the first two
+    missing stops and says how many more it needs when there are more
+    ("Discover Alpha, Bravo and 3 more to save ~8 min").
 13. **Two planner layouts with a toggle.** Wide (map left, steps right, about
     640×380) and tall (map on top, steps below, about 380×560). Hard rule:
     one set of widgets; a single `ApplyLayout(mode)` changes only anchors and
