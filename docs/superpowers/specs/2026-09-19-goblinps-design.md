@@ -81,5 +81,11 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
   Darkspear Islands, Riverglades, Shen'dralas)?
 - Planner layout: map left / steps right, or map on top? Needs mockups.
 - Minimap button and addon compartment entry: assumed yes, as in HealMe.
-- Does a similar addon already exist for Forever on Wago/CurseForge? Search
-  before building.
+- ~~Does a similar addon already exist?~~ Searched 2026-09-19. Nothing
+  Forever-specific found. Closest prior art is ClassicPathCalculator
+  (CurseForge): alt-click the map, shortest path with times over flights,
+  boats and zeppelins, for Classic; not checked against interface 16001. It
+  has no per-character live discovery, no dash unit and no fares, so GoblinPS
+  is still worth building. FlightPath, ClassicTravelPoints and
+  HandyNotes_TravelGuide are pins and lists only. classictinker.com's Flight
+  Master web tool is useful for checking the hand-written links.
