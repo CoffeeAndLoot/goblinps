@@ -10,8 +10,16 @@
 --
 -- Not listed until confirmed in game (see the spec): Stormwind Harbor to
 -- Auberdine, Menethil to Southshore to Auberdine, Steamwheedle to Powderfuse.
+--
+-- Sardor Isle (Feathermoon Stronghold, map 1444) is treated as joined to the
+-- mainland -- a short swim -- until ground crossings arrive, so its ferry
+-- (Feathermoon <-> Forgotten Coast) is left out for now: it returns with them.
 local _, ns = ...
 ns.Data = ns.Data or {}
+
+-- A ride edge never joins two different landmasses (see Graph.lua). Keyed by
+-- UiMap; a map not listed here is the mainland.
+ns.Data.Islands = { [1438] = "teldrassil", [1457] = "teldrassil" }
 
 ns.Data.Docks = {
     org_zep      = { name = "Orgrimmar Zeppelin Tower", map = 1411, mx = 0.508, my = 0.130 },
@@ -23,8 +31,6 @@ ns.Data.Docks = {
     rutheran     = { name = "Rut'theran Village Docks", map = 1438, mx = 0.549, my = 0.968 },
     bootybay     = { name = "Booty Bay Docks",          map = 1434, mx = 0.259, my = 0.731 },
     ratchet      = { name = "Ratchet Docks",            map = 1413, mx = 0.637, my = 0.386 },
-    feathermoon  = { name = "Feathermoon Docks",        map = 1444, mx = 0.310, my = 0.398 },
-    forgotten    = { name = "Forgotten Coast Docks",    map = 1444, mx = 0.434, my = 0.428 },
     tram_sw      = { name = "Stormwind Tram Station",   map = 1453, mx = 0.640, my = 0.080 },
     tram_if      = { name = "Ironforge Tram Station",   map = 1455, mx = 0.768, my = 0.512 },
 }
@@ -37,6 +43,5 @@ ns.Data.Links = {
     { from = "menethil",    to = "theramore",   kind = "boat",     minutes = 4, faction = "A" },
     { from = "auberdine",   to = "rutheran",    kind = "boat",     minutes = 3, faction = "A" },
     { from = "bootybay",    to = "ratchet",     kind = "boat",     minutes = 4, faction = "N" },
-    { from = "feathermoon", to = "forgotten",   kind = "boat",     minutes = 3, faction = "A" },
     { from = "tram_sw",     to = "tram_if",     kind = "tram",     minutes = 2, faction = "A" },
 }

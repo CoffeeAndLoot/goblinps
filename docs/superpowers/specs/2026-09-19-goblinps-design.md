@@ -128,6 +128,12 @@ Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
   destination are temporary nodes with "ride" edges to nearby stops on the
   same continent, timed as straight-line distance over mount speed. This
   undersells mountains; it is an honest "~" until ground crossings arrive.
+  A ride edge never joins two different landmasses, even on the same
+  continent: a hand-written `Islands` table (`Data/Links.lua`) names the
+  UiMaps that are their own landmass (Teldrassil today); a map not listed
+  is the mainland. Sardor Isle is treated as joined to the mainland until
+  ground crossings arrive, so its Feathermoon ↔ Forgotten Coast ferry is
+  deferred with them.
 - **`Route`** (pure): Dijkstra by seconds. Returns steps
   `{kind, from, to, seconds, copper}` plus totals. `Route.Hint` does the
   "discover X" comparison. One plain step-text formatter, no jokes.

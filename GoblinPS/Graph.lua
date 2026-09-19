@@ -5,7 +5,9 @@ local _, ns = ...
 local Graph = {}
 ns.Graph = Graph
 
-Graph.RIDE_YARDS_PER_SECOND = 11.2 -- a 100% mount; every ride time is a "~"
+-- A 60% mount: 7 yd/s run speed x 1.6, the conservative figure (a 100% mount
+-- is 14). Every ride time is a "~".
+Graph.RIDE_YARDS_PER_SECOND = 11.2
 Graph.RIDE_DETOUR = 1.3            -- roads are not straight lines
 Graph.TRANSFER_YARDS = 800         -- flight master to the dock in the same town, no further
 Graph.HEARTH_SECONDS = 20          -- cast plus loading screen
@@ -14,8 +16,16 @@ local function legal(stopFaction, faction)
     return stopFaction == "N" or stopFaction == faction
 end
 
-local function rideSeconds(a, b)
+-- Ride seconds between two world positions; math.huge across continents
+-- (Geo.Distance). Public so data tests can pin the real ride/link tradeoff.
+function Graph.RideSeconds(a, b)
     return ns.Geo.Distance(a, b) * Graph.RIDE_DETOUR / Graph.RIDE_YARDS_PER_SECOND
+end
+
+-- A stop's landmass: a hand-written island name, or "mainland". A ride edge
+-- never joins two different landmasses, even on the same continent.
+local function landOf(data, stop)
+    return (data.Islands and data.Islands[stop.map]) or "mainland"
 end
 
 local function addEdge(edges, from, to, kind, seconds, copper)
@@ -88,9 +98,9 @@ function Graph.Build(data, opts)
     for i = 1, #keys do
         for j = i + 1, #keys do
             local a, b = stops[keys[i]], stops[keys[j]]
-            if ns.Geo.Distance(a, b) <= Graph.TRANSFER_YARDS then
-                addEdge(edges, a.key, b.key, "ride", rideSeconds(a, b))
-                addEdge(edges, b.key, a.key, "ride", rideSeconds(b, a))
+            if ns.Geo.Distance(a, b) <= Graph.TRANSFER_YARDS and landOf(data, a) == landOf(data, b) then
+                addEdge(edges, a.key, b.key, "ride", Graph.RideSeconds(a, b))
+                addEdge(edges, b.key, a.key, "ride", Graph.RideSeconds(b, a))
             end
         end
     end
@@ -105,17 +115,17 @@ function Graph.Build(data, opts)
     end
     for _, origin in ipairs(origins) do
         for _, key in ipairs(keys) do
-            if stops[key].c == origin.c then
-                addEdge(edges, origin.key, key, "ride", rideSeconds(origin, stops[key]))
+            if stops[key].c == origin.c and landOf(data, stops[key]) == landOf(data, origin) then
+                addEdge(edges, origin.key, key, "ride", Graph.RideSeconds(origin, stops[key]))
             end
         end
-        if origin.c == stops.DEST.c then
-            addEdge(edges, origin.key, "DEST", "ride", rideSeconds(origin, stops.DEST))
+        if origin.c == stops.DEST.c and landOf(data, stops.DEST) == landOf(data, origin) then
+            addEdge(edges, origin.key, "DEST", "ride", Graph.RideSeconds(origin, stops.DEST))
         end
     end
     for _, key in ipairs(keys) do
-        if stops[key].c == stops.DEST.c then
-            addEdge(edges, key, "DEST", "ride", rideSeconds(stops[key], stops.DEST))
+        if stops[key].c == stops.DEST.c and landOf(data, stops[key]) == landOf(data, stops.DEST) then
+            addEdge(edges, key, "DEST", "ride", Graph.RideSeconds(stops[key], stops.DEST))
         end
     end
 
