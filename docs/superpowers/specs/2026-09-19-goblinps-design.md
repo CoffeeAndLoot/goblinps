@@ -63,6 +63,10 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     `minutes` is ride time plus about half its loop, so the router compares
     them fairly against flights. The step shows it plainly:
     "Zeppelin to Tirisfal (~5 min incl. wait)".
+12. **"Discover X to save ~N min" is in v1.** `Route` runs a second time with
+    every faction-legal flight node treated as known. If that route is at
+    least 2 minutes faster, one line under the step list names the missing
+    node or two on it. No new data, no new UI beyond that line.
 
 ## Sketch of the architecture (to be refined)
 
@@ -83,8 +87,6 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 - Does `isUndiscovered` work in game, and does API `nodeID` match
   `TaxiNodes.ID`? (First probes in the manual checklist. If not, fall back to
   recording `GetAllTaxiNodes` at flight masters.)
-- Keep the "with these flight paths it would be N minutes faster" line in v1,
-  or cut it?
 - How are the new Forever zones reached (Mount Hyjal, Zephras Isle,
   Darkspear Islands, Riverglades, Shen'dralas)?
 - Planner layout: map left / steps right, or map on top? Needs mockups.
