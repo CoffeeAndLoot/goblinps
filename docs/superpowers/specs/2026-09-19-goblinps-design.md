@@ -1,8 +1,8 @@
-# GoblinPS design — DRAFT
+# GoblinPS design
 
-Status: **brainstorm in progress, not approved.** Decisions below were made
-with the user on 2026-09-19. Open questions at the end must be settled, then
-this spec reviewed and approved, before an implementation plan is written.
+Status: **design complete, awaiting user review.** Decisions were made with
+the user on 2026-09-19. Once approved, an implementation plan is written from
+this spec. Update this file whenever behaviour changes.
 
 ## Purpose
 
@@ -15,52 +15,47 @@ Not a quest guide. It never says what to do, only how to get there.
 
 The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 
-## Decisions made
+## Decisions
 
 1. **Routing is per character.** A flight edge is usable only if both ends
    are discovered, read live from `C_TaxiMap.GetTaxiNodesForMap`
    (`isUndiscovered`). Never cached as truth.
-2. **Start defaults to where the player stands**; "plan from somewhere else"
-   is an optional override.
+2. **Start defaults to where the player stands**; a "From:" control can
+   change it to any stop or zone.
 3. **Two frames (Garmin model).**
-   - *Planner*: the big device. Search box, embedded zoomable map, step list,
-     route line drawn on the map.
-   - *Dash unit*: a small draggable device shown after "Go". Next step only
-     ("Fly to Orgrimmar · then Zeppelin to Tirisfal"), advances on arrival,
-     shows "Recalculating…" when the player strays, sets Blizzard's map
-     waypoint/arrow on the current step.
+   - *Planner*: the big device. Search box, schematic map, step list, route
+     line drawn on the map.
+   - *Dash unit*: a small draggable device shown after "Go". Current step
+     plus the next ("Fly to Orgrimmar · then Zeppelin to Tirisfal"), advances
+     on arrival, shows "Recalculating…" when the player strays, sets
+     Blizzard's map waypoint and arrow on the current step.
 4. **Destination input, three ways:** type-ahead search over cities, zones
    and flight masters with recents on top; click a zone or stop on the
    schematic map; Ctrl-click on Blizzard's world map for an exact spot
-   (react to its user waypoint).
-5. **Embedded map is our own schematic, not Blizzard's canvas.** One
-   hand-drawn world texture in a transit-map style (both continents, zone
-   blobs, the new Forever zones), tinted screen green. Our own pins for
-   stops; the route drawn over it with `CreateLine`. No zoom, no
-   `MapCanvasFrameTemplate`. Stop positions come from the generator: one
-   linear world-to-schematic transform per continent, with hand overrides
-   where a pin lands in the wrong blob. The art is ours; the Forever Atlas
-   fan map is the style reference only (it has no license). If the texture
-   is missing, the planner is search + list and routing still works.
+   (react to `USER_WAYPOINT_UPDATED`).
+5. **The map is our own schematic, not Blizzard's canvas.** One hand-drawn
+   world texture in a transit-map style (both continents, zone blobs, the
+   new Forever zones). Our own pins for stops; the route drawn over it with
+   `CreateLine`. No zoom, no `MapCanvasFrameTemplate`. Stop positions come
+   from the generator: one linear world-to-schematic transform per continent,
+   with hand overrides where a pin lands in the wrong blob. The art is ours;
+   the Forever Atlas fan map is a style reference only (it has no license).
    **Palette: green screen** (chosen from mockups over navy and amber).
    Faction zones are subtle tints; the amber route is the only bright thing.
    The art is greyscale layers (base, Horde zones, Alliance zones) tinted in
    code, so the palette is colour constants, not a redraw.
-6. **v1 graph scope:** flight edges (generated), boats/zeppelins/tram
-   (hand-written, about a dozen), hearthstone, and a straight-line "ride to
-   the nearest stop" / "ride from the last stop to your pin" at each end.
-   Zone-to-zone ground crossings are **later**, and must arrive as more rows
-   in the same links table, not a redesign.
+6. **v1 graph scope:** flight edges (generated), boats, zeppelins and the
+   tram (hand-written, about a dozen), the hearthstone, and a straight-line
+   ride at each end. Zone-to-zone ground crossings are **later**, and must
+   arrive as more rows in the same links table, not a redesign.
 7. **Look: "Goblin Gadget".** A dented brass device: rivets, hazard-stripe
-   trim, a green screen for the map and route. Palette: brass/copper, oily
-   dark steel, screen green, hazard orange. Humour in the frame, tagline and
-   tooltips ("Accuracy not guaranteed. No refunds.", "May explode."), never
-   in the directions, which stay plain and glanceable. A few small custom
-   textures; colours and fonts otherwise. Falls back to stock Blizzard
-   templates if a texture is missing.
-8. **Show the fare.** `TaxiPath.Cost` is in the data; a goblin device
-   obviously tells you what the trip costs.
-
+   trim, a green screen. Palette: brass/copper, oily dark steel, screen
+   green, hazard orange. Humour in the frame, tagline and tooltips
+   ("Accuracy not guaranteed. No refunds.", "May explode."), never in the
+   directions, which stay plain and glanceable. A few small custom textures;
+   colours and fonts otherwise. Falls back to stock Blizzard templates if a
+   texture is missing.
+8. **Show the fare.** `TaxiPath.Cost` is in the data; per step and in total.
 9. **No class travel in v1.** No mage teleports or portals, druid Moonglade
    or warlock summons. The hearthstone is the only personal teleport. The
    links table leaves room for a `requires` field later.
@@ -77,40 +72,135 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 12. **"Discover X to save ~N min" is in v1.** `Route` runs a second time with
     every faction-legal flight node treated as known. If that route is at
     least 2 minutes faster, one line under the step list names the missing
-    node or two on it. No new data, no new UI beyond that line.
+    node or two on it.
 13. **Two planner layouts with a toggle.** Wide (map left, steps right, about
     640×380) and tall (map on top, steps below, about 380×560). Hard rule:
     one set of widgets; a single `ApplyLayout(mode)` changes only anchors and
     frame size. The mode is a saved preference. Every planner UI change is
     checked in both modes. If it ever needs two sets of widgets, cut one.
+14. **Entry points:** `/gps`, a draggable minimap button, and an addon
+    compartment entry, as in HealMe.
 
-## Sketch of the architecture (to be refined)
+## Data
 
-- `Data/` generated by `tools/build_graph.py` from wago.tools (`TaxiNodes`,
-  `TaxiPath`, `TaxiPathNode`, `UiMap`, `UiMapAssignment`), pinned by
-  `tools/catalog.lock`. Flight time estimated from spline length.
-- `Data/Links.lua` hand-written: `{from, to, kind, minutes, faction}`.
-- `Graph` (pure): nodes and weighted edges; takes a "known nodes" set.
-- `Route` (pure): Dijkstra by travel time; returns steps and total time/fare.
-  Also the "if you had these flight paths" comparison, if kept (see below).
-- `API` the only file touching Blizzard globals.
-- `Planner`, `Dash`, `MapView`, `Widgets`, `Core`.
-- Arrival detection: player map position + `TAXI_NODE_STATUS_CHANGED`,
-  zone-change and taxi events. Verify each event name in the `forever` branch.
+Game data is fetched ahead of time and shipped as Lua. The addon never
+fetches anything in game.
 
-## Open questions
+**Generated** by `tools/build_graph.py` from wago.tools (`TaxiNodes`,
+`TaxiPath`, `TaxiPathNode`, `UiMap`, `UiMapAssignment`), pinned by
+`tools/catalog.lock`, modelled on `D:\looseEnds\tools\build_catalog.py`:
 
-- Does `isUndiscovered` work in game, and does API `nodeID` match
-  `TaxiNodes.ID`? (First probes in the manual checklist. If not, fall back to
-  recording `GetAllTaxiNodes` at flight masters.)
-- How are the new Forever zones reached (Mount Hyjal, Zephras Isle,
-  Darkspear Islands, Riverglades, Shen'dralas)?
-- Minimap button and addon compartment entry: assumed yes, as in HealMe.
-- ~~Does a similar addon already exist?~~ Searched 2026-09-19. Nothing
-  Forever-specific found. Closest prior art is ClassicPathCalculator
-  (CurseForge): alt-click the map, shortest path with times over flights,
-  boats and zeppelins, for Classic; not checked against interface 16001. It
-  has no per-character live discovery, no dash unit and no fares, so GoblinPS
-  is still worth building. FlightPath, ClassicTravelPoints and
-  HandyNotes_TravelGuide are pins and lists only. classictinker.com's Flight
-  Master web tool is useful for checking the hand-written links.
+- Flight nodes: id, name, faction, continent, zone, schematic position, real
+  map position (uiMapID, x, y) for the waypoint.
+- Flight edges: from, to, fare in copper, seconds. Seconds come from
+  measured InFlight addon times **if its license allows**; otherwise from
+  spline length divided by a flight-speed constant. The spline estimate is
+  always the fallback for unmeasured paths.
+- Search index: zones, cities and stops.
+
+The Blizzard developer web API is not a source: it has no taxi data and no
+beta build match.
+
+**Hand-written** `Data/Links.lua`: rows of
+`{from, to, kind, minutes, faction}` for boats, zeppelins and the tram, with
+hand-placed dock positions. New Forever routes (Stormwind Harbor ↔ Auberdine,
+Menethil ↔ Southshore ↔ Auberdine, Steamwheedle ↔ Powderfuse) go in only
+once confirmed in game.
+
+## Modules
+
+Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
+
+- **`API`**: the only file touching Blizzard globals. `KnownNodes()`,
+  `PlayerPosition()`, `HearthNode()` (nil when on cooldown or unmatched),
+  `SetWaypoint()` / `ClearWaypoint()`, faction. `KnownNodes()` reads
+  `isUndiscovered` live; if the in-game probe shows that is unreliable, only
+  this function changes, to recording `GetAllTaxiNodes` states at flight
+  masters. Nothing else knows the difference.
+- **`Graph`** (pure): takes the data, a known-node set, the faction and an
+  optional hearth node. Flight edges need both ends known; link edges are
+  filtered by faction; the hearth is one edge from the start. Start and
+  destination are temporary nodes with "ride" edges to nearby stops on the
+  same continent, timed as straight-line distance over mount speed. This
+  undersells mountains; it is an honest "~" until ground crossings arrive.
+- **`Route`** (pure): Dijkstra by seconds. Returns steps
+  `{kind, from, to, seconds, copper}` plus totals. `Route.Hint` does the
+  "discover X" comparison. One plain step-text formatter, no jokes.
+- **`Trip`** (pure): the arrival rules. Given the current step, a position
+  and an event, answers advance, recalculate or stay.
+- **`Events`**: pub/sub, as in LooseEnds.
+- **`Widgets`**: constructors that check for a template or atlas and fall
+  back to a plain control, as in HealMe.
+- **`Planner`**, **`MapView`**, **`Dash`**, **`SelfTest`**, **`Core`**.
+
+## Behaviour
+
+**Planner.** Re-plans when the start or destination changes and on
+`TAXI_NODE_STATUS_CHANGED`. Shows steps, the hint line, total time and fare,
+and Go.
+
+**Dash.** Sets the waypoint on the current step's target. Its close button
+ends the trip and clears the waypoint only if it is still the one we set.
+
+**Arrival detection**, one rule per step kind:
+
+- Ride: within a small radius of the stop. Position is polled about once a
+  second, only while a trip is active.
+- Flight: `PLAYER_CONTROL_GAINED` after being on a taxi, and near the
+  expected node.
+- Boat, zeppelin, tram: zone change (`ZONE_CHANGED_NEW_AREA`) and now on the
+  target continent or zone.
+- Hearthstone: zone change and near the bind node.
+- Strayed (far from the current step, or landed somewhere unexpected):
+  "Recalculating…" and re-plan from the current position. Only on those
+  triggers, never in a loop.
+- In an instance the position is nil: the dash pauses and does not guess.
+
+## Failure handling
+
+Degrade, never error.
+
+- Map texture missing: the planner is search + step list.
+- Template or atlas missing: plain control.
+- No route: "No route found. You may need to discover a flight path in
+  <zone>."
+- Unknown hearth bind name: no hearth edge, small note.
+- Every event name is checked against the local Forever source
+  (`D:\wow-api\1.60.1.69913`) before it is registered.
+- `/gps selftest` checks every template, atlas and texture in game.
+- No secure code, anywhere.
+
+## Saved variables
+
+Preferences only: layout mode, window positions, recent destinations,
+minimap button angle. Never "which flight paths are known".
+
+## Testing
+
+- `Graph`, `Route`, `Trip` and the step formatter: desktop unit tests over a
+  small fake world, run through lupa.
+- The generator: Python tests under `test/tools/`.
+- Frames and live game data: `docs/manual-test-checklist.md`, planner
+  entries in both layouts.
+- luacheck and lua-language-server stay at zero warnings.
+
+## Prior art (searched 2026-09-19)
+
+Nothing Forever-specific in game. ClassicPathCalculator (CurseForge) is the
+closest: alt-click the map, shortest path with times, for Classic; no live
+per-character discovery, no dash unit, no fares. FlightPath,
+ClassicTravelPoints and HandyNotes_TravelGuide are pins and lists. The
+Forever Atlas web map has a browser route planner that cannot know a
+character's flight paths or position. classictinker.com's Flight Master tool
+helps check the hand-written links.
+
+## Still to verify in game
+
+These do not block the plan; each has a designed fallback.
+
+- `isUndiscovered` is truthful and API `nodeID` equals `TaxiNodes.ID`
+  (fallback: record at flight masters, inside `API.KnownNodes`).
+- `TaxiNodes.Flags` faction bits (1 = Alliance, 2 = Horde).
+- How the new zones are reached (Mount Hyjal, Zephras Isle, Darkspear
+  Islands, Riverglades, Shen'dralas) and the three new boat routes.
+- The rest of the probes in `docs/manual-test-checklist.md`.

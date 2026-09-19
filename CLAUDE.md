@@ -14,9 +14,9 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: design in progress, no code yet.** The brainstorm is recorded in
-`docs/superpowers/specs/2026-09-19-goblinps-design.md` (DRAFT). Finish and
-approve that spec, then write an implementation plan, before any code. The
+**Status: design written, awaiting user approval; no code yet.** The design
+is `docs/superpowers/specs/2026-09-19-goblinps-design.md`. Once the user
+approves it, write an implementation plan, before any code. The
 spec is the authority on why things are the way they are; update it when
 behaviour changes.
 
@@ -34,7 +34,7 @@ GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram (and later ground crossings)
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
-GoblinPS/...                 # planner window, dash unit, map canvas, Core
+GoblinPS/...                 # Trip (pure arrival rules), planner window, dash unit, schematic map, Core
 tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
 tools/catalog.lock           # pinned client build
 test/run.lua                 # desktop Lua test runner
@@ -112,8 +112,9 @@ commit; re-read files before editing.
 - Never cache "this flight path is known" in saved variables as truth; the
   client is the source. Save only preferences, recents and window positions.
 - Every constructor that leans on a Blizzard template or atlas checks for it
-  and falls back to a plain control. If the map canvas fails to build, the
-  planner must still work as search + step list.
+  and falls back to a plain control. The map is our own schematic texture,
+  not Blizzard's map canvas; if it is missing, the planner must still work
+  as search + step list.
 - Route text must stay plain and glanceable. The goblin jokes live in the
   frame, the tagline and the tooltips, never in the directions.
 - Known Blizzard bug on 1.60.1.69913: all secure snippets fail
