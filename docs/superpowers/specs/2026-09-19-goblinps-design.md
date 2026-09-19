@@ -59,6 +59,10 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     matched by name against generated flight-node, zone and city names. No
     match means no hearth edge and a small "Hearth: unknown inn" note, never
     an error. Add hand-written name rows only for misses met in game.
+11. **Boats, zeppelins and the tram carry a fixed average wait.** Each link's
+    `minutes` is ride time plus about half its loop, so the router compares
+    them fairly against flights. The step shows it plainly:
+    "Zeppelin to Tirisfal (~5 min incl. wait)".
 
 ## Sketch of the architecture (to be refined)
 
@@ -81,8 +85,6 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
   recording `GetAllTaxiNodes` at flight masters.)
 - Keep the "with these flight paths it would be N minutes faster" line in v1,
   or cut it?
-- Boat/zeppelin wait time: a fixed average per link, or just label the step
-  "wait for the zeppelin" with no number?
 - How are the new Forever zones reached (Mount Hyjal, Zephras Isle,
   Darkspear Islands, Riverglades, Shen'dralas)?
 - Planner layout: map left / steps right, or map on top? Needs mockups.
