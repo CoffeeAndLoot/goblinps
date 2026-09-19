@@ -89,6 +89,11 @@ and grep:
 git clone --depth 1 --branch forever https://github.com/Gethe/wow-ui-source.git
 ```
 
+A local clone already lives at `D:\wow-api\1.60.1.69913` (check its
+`version.txt`; `git pull` or re-clone when the beta updates). The sibling
+folder `D:\wow-api\12.1.5.69594` is **Retail** source: fine for HealMe, never
+the authority for GoblinPS.
+
 API docs are in `Interface/AddOns/Blizzard_APIDocumentationGenerated/`.
 Game data tables come from `https://wago.tools/db2/<Table>/csv?build=<build>`.
 When the beta updates, re-check both against the new build number (read it
