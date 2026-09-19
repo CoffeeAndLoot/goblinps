@@ -1,0 +1,116 @@
+# CLAUDE.md
+
+Guidance for Claude Code when working in this repository.
+
+## What this is
+
+GoblinPS ("Goblin Positioning System") is a World of Warcraft addon for the
+**WoW Forever** client (beta build 1.60.1.69913, interface `16001`): a route
+planner. Pick a destination, get the fastest route from where you stand using
+flight paths *this character has discovered*, boats, zeppelins, the tram and
+the hearthstone. Forever has no flying, so travel is a real puzzle.
+
+Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
+libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
+borrow patterns from them, not code.
+
+**Status: design in progress, no code yet.** The brainstorm is recorded in
+`docs/superpowers/specs/2026-09-19-goblinps-design.md` (DRAFT). Finish and
+approve that spec, then write an implementation plan, before any code. The
+spec is the authority on why things are the way they are; update it when
+behaviour changes.
+
+Everything known about the client API and data sources is in
+`docs/research/2026-09-19-api-and-data-findings.md`. Read it first. It marks
+what is **verified in source** versus **unverified in game**; do not promote
+the second to the first without an in-game check.
+
+## Intended layout (from the sibling projects; nothing exists yet)
+
+```
+GoblinPS/GoblinPS.toc        # manifest; Interface 16001
+GoblinPS/API.lua             # the ONLY file that touches Blizzard globals (LooseEnds pattern)
+GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
+GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram (and later ground crossings)
+GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
+GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
+GoblinPS/...                 # planner window, dash unit, map canvas, Core
+tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
+tools/catalog.lock           # pinned client build
+test/run.lua                 # desktop Lua test runner
+docs/                        # specs, research, manual test checklist
+```
+
+Each module opens with `local addonName, ns = ...` and publishes itself on the
+shared `ns` table. Pure logic (graph, routing, step text) gets unit tests;
+frames and live game data are verified in game via
+`docs/manual-test-checklist.md`. This addon needs **no secure code**: no
+casting, no combat lockdown, no protected frames. Keep it that way.
+
+## Commands (same toolchain as the siblings; this Windows box)
+
+No Lua interpreter and Docker is usually off. Run Lua tests through `lupa`:
+
+```
+python -c "import lupa.lua51 as L; lua=L.LuaRuntime(unpack_returned_tuples=True); print(lua.execute(open('test/run.lua').read().replace('os.exit(harness.run())','return harness.run()')))"
+```
+
+luacheck from PowerShell:
+
+```
+$env:PATH = "$HOME\AppData\Local\Programs\Lua\bin;$env:PATH"
+$env:LUA_PATH = "$HOME\.luarocks\share\lua\5.4\?.lua;$HOME\.luarocks\share\lua\5.4\?\init.lua;;"
+lua "$HOME\.luarocks\share\lua\5.4\luacheck\main.lua" GoblinPS test --no-color --no-cache
+```
+
+lua-language-server batch check (run against the repo root so `.luarc.json`
+loads): `lua-language-server --check D:\goblinps --checklevel=Warning --check_out_path=<file.json>`
+
+Copy `.luacheckrc`, `.luarc.json` and the `test/` harness from `D:\looseEnds`
+when code starts; a new WoW global goes in both config files. Keep lint and
+the language server at zero warnings.
+
+In-game testing uses a directory junction, so `/reload` picks up edits:
+
+```
+New-Item -ItemType Junction -Path "D:\World of Warcraft\_classic_beta_\Interface\AddOns\GoblinPS" -Target "D:\goblinps\GoblinPS"
+```
+
+The beta client lives in `_classic_beta_`, not `_retail_`.
+
+## Verifying against Blizzard's UI source
+
+Never guess a template, atlas, event or API name. The beta's exact UI source
+is the **`forever` branch** of github.com/Gethe/wow-ui-source (its
+`version.txt` reads `1.60.1.69913`). Clone it shallow into a scratch folder
+and grep:
+
+```
+git clone --depth 1 --branch forever https://github.com/Gethe/wow-ui-source.git
+```
+
+API docs are in `Interface/AddOns/Blizzard_APIDocumentationGenerated/`.
+Game data tables come from `https://wago.tools/db2/<Table>/csv?build=<build>`.
+When the beta updates, re-check both against the new build number (read it
+from `D:\World of Warcraft\.build.info`, product `wow_classic_beta`).
+
+## Versions and git
+
+Calendar versions (`2026.09.19`, `.2` for a second release that day), written
+only in the TOC. Commit after each change. Another agent (Codex) may also
+commit; re-read files before editing.
+
+## Rules that are easy to break
+
+- `RegisterEvent` with a name the client does not know is a hard error.
+  Check every event against the `forever` branch first.
+- Never cache "this flight path is known" in saved variables as truth; the
+  client is the source. Save only preferences, recents and window positions.
+- Every constructor that leans on a Blizzard template or atlas checks for it
+  and falls back to a plain control. If the map canvas fails to build, the
+  planner must still work as search + step list.
+- Route text must stay plain and glanceable. The goblin jokes live in the
+  frame, the tagline and the tooltips, never in the directions.
+- Known Blizzard bug on 1.60.1.69913: all secure snippets fail
+  (`loadstring_untainted` is nil). GoblinPS uses none, so it is unaffected;
+  do not add any.

@@ -1,0 +1,123 @@
+# API and data findings, 2026-09-19
+
+Gathered while porting HealMe to the WoW Forever beta. Everything marked
+**source-verified** was read in the `forever` branch of
+github.com/Gethe/wow-ui-source (build 1.60.1.69913) or fetched from
+wago.tools for that build. **Nothing here has been run in game yet**, except
+where stated. The in-game probes are in `docs/manual-test-checklist.md`.
+
+## The client
+
+- Install: `D:\World of Warcraft\_classic_beta_`, product `wow_classic_beta`,
+  build **1.60.1.69913**, TOC interface **16001**.
+- It is a Classic-data client on the **Retail 12.0.7 engine**: it ships
+  `Blizzard_Deprecated/Mainline/Deprecated_12_0_7.lua`, and every modern API
+  HealMe uses (C_Spell, C_AddOns, TabSystem, WowStyle1Dropdown, EditMode,
+  AddonCompartment, duration objects) exists.
+- Its TOC game type appears to be **`camelot`** (inferred from
+  `AllowLoadGameType: classic, standard, camelot` and `Camelot/` source
+  folders; not confirmed by the client).
+- No flying. Ground mounts and the built-in transport network only. Blizzard
+  intends to grow the game "horizontally" rather than by expansions.
+- **Known Blizzard bug on this build:** `Blizzard_EnvironmentCleanup.toc`'s
+  dependency on `Blizzard_RestrictedAddOnEnvironment` omits `camelot`, so it
+  loads first and nils `loadstring_untainted`; every secure snippet then fails
+  at `RestrictedExecution.lua:79`. Seen in game with HealMe. GoblinPS needs no
+  secure code, so it is unaffected.
+
+## Flight paths — the key API (source-verified, in-game unverified)
+
+`Blizzard_APIDocumentationGenerated/TaxiMapDocumentation.lua`:
+
+- `C_TaxiMap.GetTaxiNodesForMap(uiMapID)` — documented as "Returns information
+  on taxi nodes for a given map, **without considering the current flight
+  master**." Returns `MapTaxiNodeInfo`: `nodeID`, `position`, `name`,
+  `atlasName`, `faction` (`Enum.FlightPathFaction`: Neutral/Horde/Alliance),
+  `textureKit`, **`isUndiscovered`**.
+- `C_TaxiMap.GetAllTaxiNodes(uiMapID)` — only meaningful at a flight master.
+  Returns `TaxiNodeInfo` with `state` (`Enum.FlightPathState`: Current,
+  Reachable, Unreachable), `slotIndex`, `position`.
+- `C_TaxiMap.ShouldMapShowTaxiNodes(uiMapID)`.
+- Events: `TAXI_NODE_STATUS_CHANGED`, `TAXIMAP_OPENED`, `TAXIMAP_CLOSED`.
+
+Blizzard's own world map uses exactly this:
+`Blizzard_SharedMapDataProviders/FlightPointDataProvider.lua` calls
+`GetTaxiNodesForMap(mapID)`, labels `isUndiscovered` nodes, and refreshes on
+`TAXI_NODE_STATUS_CHANGED`. On old Classic clients known flight paths were
+only readable with the taxi map open and had to be cached; here they should
+not need caching.
+
+**Unproven:** that the beta populates `isUndiscovered` truthfully, and that
+API `nodeID` equals `TaxiNodes.ID` from the DB2 table. Both are the first
+in-game probes. If `isUndiscovered` is unreliable, the fallback is the old
+technique: record `GetAllTaxiNodes` states at each flight master visit.
+
+## Position, waypoints, hearthstone (source-verified)
+
+- `C_Map.GetPlayerMapPosition(uiMapID, "player")` — nil inside instances.
+- `C_Map.GetWorldPosFromMapPos`, `C_Map.GetBestMapForUnit`.
+- `C_Map.SetUserWaypoint` + `C_SuperTrack.SetSuperTrackedUserWaypoint` — the
+  built-in map pin and on-screen arrow. The world map's Ctrl-click creates a
+  user waypoint; listen for `USER_WAYPOINT_UPDATED` (verify the event name in
+  the `forever` branch before registering it).
+- `GetBindLocation()` — hearthstone bind name (a string; mapping it to a graph
+  node needs a name table or the nearest-inn approach).
+
+## Embedded map (source-verified)
+
+`Blizzard_MapCanvas/Blizzard_MapCanvas.xml` ships `MapCanvasFrameTemplate`,
+`MapCanvasFrameScrollContainerTemplate`, `MapCanvasDetailLayerTemplate`.
+`MapCanvasMixin` offers `SetMapID`, `AddDataProvider`, `AcquirePin`,
+`NavigateToParentMap`, `AddCanvasClickHandler`, `GetNormalizedCursorPosition`,
+`SetShouldZoomInOnClick`, `SetShouldNavigateOnClick`. `Blizzard_BattlefieldMap`
+is Blizzard's own small embedded canvas and is the model to read.
+`FlightPointDataProviderMixin` can be added to our canvas to draw flight
+masters with discovered state for free. The canvas is the most intricate
+Blizzard UI piece we touch: build it behind a fallback.
+
+## Game data (fetched from wago.tools for build 1.60.1.69913)
+
+Snapshots are in `docs/research/data/`. URL form:
+`https://wago.tools/db2/<Table>/csv?build=1.60.1.69913`
+
+| Table | Rows | Use |
+|---|---|---|
+| `TaxiNodes` | 100 | flight masters: `ID`, `Name_lang`, world `Pos_0..2`, `ContinentID`, `Flags` |
+| `TaxiPath` | 328 | directed flight edges: `FromTaxiNode`, `ToTaxiNode`, **`Cost`** (copper) |
+| `TaxiPathNode` | ~10,800 (754 KB, not snapshotted) | spline points per path; path length gives a flight-time estimate |
+| `UiMap` | 60 | map tree: `ID`, `Name_lang`, `ParentUiMapID`, `Type` (1 world, 2 continent, 3 zone) |
+| `UiMapAssignment` | 61 | world-coordinate bounds per UiMap; converts `TaxiNodes.Pos` to map x/y |
+
+- `TaxiNodes.Flags` seen: 1024, 1025, 1026, 1027, 1152, 0. Inferred: bit 1 =
+  Alliance, bit 2 = Horde (so 1027 = both), 1024 = shown on map. **Verify**
+  against known nodes (Stormwind is 1025, so Alliance fits).
+- `ContinentID`: 0 Eastern Kingdoms, 1 Kalimdor, 30 Alterac Valley.
+- UiMap IDs are the Classic set: 947 Azeroth, 1414 Kalimdor, 1415 Eastern
+  Kingdoms, 1411 Durotar, 1412 Mulgore, 1413 The Barrens, 1453 Stormwind,
+  1454 Orgrimmar, 1455 Ironforge, 1456 Thunder Bluff, 1457 Darnassus,
+  1458 Undercity, zones 1416–1452.
+- **New in Forever:** 2482 Mount Hyjal, 2521/2665 Zephras Isle,
+  2524 Darkspear Islands, 2548 Riverglades, 2652 Shen'dralas. How these are
+  reached is unknown; find out in game and add hand-written links.
+- Not in any table we found: boats, zeppelins, the Deeprun Tram, zone border
+  crossings. These are the hand-written `Links` data.
+
+## The generator to copy
+
+`D:\looseEnds\tools\build_catalog.py`: `TABLES` list, `WAGO` URL template,
+`tools/catalog.lock` build pin, CSV cache under `tools/cache/` (gitignored),
+`fetch_tables`, `load_tables` with missing-column checks, `world_to_map`
+(UiMapAssignment world→map conversion, exactly what flight master positions
+need), `lua_value` emitter, `HEADER` "Generated ... Do not edit." Python
+tests live in `test/tools/`. Patch day = bump the lock, re-run.
+
+## Patterns to borrow from the siblings
+
+- LooseEnds: `API.lua` as the single file touching Blizzard globals, so tests
+  stub it; `Events.lua` pub/sub; pure `Scan`/`Tree` modules feeding the window.
+- HealMe: `Widgets.lua` constructors that check for a template or atlas and
+  fall back; `SelfTest.lua` in-game check of every template and atlas;
+  draggable minimap button; `AddonCompartmentFunc`; options on
+  `PortraitFrameTemplate`; destructive actions through `Widgets.Confirm`.
+- Both: lupa test runner, luacheck, lua-language-server, calendar versions,
+  junction install, Wago release flow with `## X-Wago-ID`.
