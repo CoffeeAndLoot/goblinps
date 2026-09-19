@@ -34,8 +34,11 @@ These decide the design. Record the result beside each one.
       Blizzard's `zzOLD` Riverglades rows, skipped on purpose. It also showed
       every node as known: `isUndiscovered` is dead on this build, which is
       why flight paths are now learned at flight masters
-- [ ] On a fresh character file, `/gps to orgrimmar` says "Visit a flight
+- [x] On a fresh character file, `/gps to orgrimmar` says "Visit a flight
       master so GoblinPS can learn your flight paths" and offers no flights
+      (2026-09-19: `/gps to stonetalon` printed the notice, a ride-only
+      route, and "Discover Crossroads and Sun Rock Retreat to save ~4 min".
+      A misspelt place printed `No place matches`.)
 - [ ] Open a flight master's map: chat says "Learned N flight paths here
       (M known)", and N matches the paths lit up on that map
 - [ ] After that, `/gps to stonetalon` (or any zone whose flight path you
