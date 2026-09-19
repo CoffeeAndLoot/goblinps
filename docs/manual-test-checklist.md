@@ -49,7 +49,8 @@ These decide the design. Record the result beside each one.
       (2026-09-19: no flight to Sun Rock Retreat; hint "to save ~4 min".
       `/gps to undercity` flies to Orgrimmar, a path the character has.)
 - [ ] `/gps probe` reports "Learned from flight masters so far: M"
-- [ ] Open the same flight map again: no "Learned" message (nothing new)
+- [x] Open the same flight map again: no "Learned" message (nothing new)
+      (2026-09-19: reopened Crossroads, chat stayed quiet)
 - [ ] `/reload`, then `/gps to orgrimmar`: the flights are still known
 - [ ] Visit a flight master on the other continent: its paths are added and
       the first continent's are kept
