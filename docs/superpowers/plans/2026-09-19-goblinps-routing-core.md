@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status: executed 2026-09-19.** This plan is a historical record. After it ran, a whole-branch review changed
+> some of the code shown below: the discover hint now says "and N more", ride edges stay on one landmass
+> (`ns.Data.Islands`), the Feathermoon ferry was removed, and `API`/`Core`/the generator were hardened. The code in
+> the repo and the spec are the truth, not the listings here.
+
 **Goal:** A working route planner with no window yet: `/gps to <place>` prints the fastest route from where the character stands, with times, fares and the "discover X" hint, and `/gps probe` settles the design's open in-game questions.
 
 **Architecture:** A Python generator turns wago.tools DB2 tables into Lua data files. Pure Lua modules (`Geo`, `Search`, `Graph`, `Route`, `Trip`) do all the thinking and are unit-tested on the desktop through lupa. `API.lua` is the only file that touches Blizzard globals; `Core.lua` wires a slash command to it.
