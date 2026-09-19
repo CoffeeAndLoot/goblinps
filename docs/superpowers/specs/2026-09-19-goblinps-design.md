@@ -67,6 +67,11 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     every faction-legal flight node treated as known. If that route is at
     least 2 minutes faster, one line under the step list names the missing
     node or two on it. No new data, no new UI beyond that line.
+13. **Two planner layouts with a toggle.** Wide (map left, steps right, about
+    640×380) and tall (map on top, steps below, about 380×560). Hard rule:
+    one set of widgets; a single `ApplyLayout(mode)` changes only anchors and
+    frame size. The mode is a saved preference. Every planner UI change is
+    checked in both modes. If it ever needs two sets of widgets, cut one.
 
 ## Sketch of the architecture (to be refined)
 
@@ -89,7 +94,6 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
   recording `GetAllTaxiNodes` at flight masters.)
 - How are the new Forever zones reached (Mount Hyjal, Zephras Isle,
   Darkspear Islands, Riverglades, Shen'dralas)?
-- Planner layout: map left / steps right, or map on top? Needs mockups.
 - Minimap button and addon compartment entry: assumed yes, as in HealMe.
 - ~~Does a similar addon already exist?~~ Searched 2026-09-19. Nothing
   Forever-specific found. Closest prior art is ClassicPathCalculator
