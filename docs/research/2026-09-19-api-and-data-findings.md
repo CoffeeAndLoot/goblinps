@@ -58,8 +58,11 @@ technique: record `GetAllTaxiNodes` states at each flight master visit.
 - `C_Map.GetWorldPosFromMapPos`, `C_Map.GetBestMapForUnit`.
 - `C_Map.SetUserWaypoint` + `C_SuperTrack.SetSuperTrackedUserWaypoint` — the
   built-in map pin and on-screen arrow. The world map's Ctrl-click creates a
-  user waypoint; listen for `USER_WAYPOINT_UPDATED` (verify the event name in
-  the `forever` branch before registering it).
+  user waypoint; listen for `USER_WAYPOINT_UPDATED`.
+- Events confirmed present for arrival detection: `USER_WAYPOINT_UPDATED`,
+  `SUPER_TRACKING_CHANGED`, `ZONE_CHANGED`, `ZONE_CHANGED_NEW_AREA`,
+  `PLAYER_CONTROL_LOST` / `PLAYER_CONTROL_GAINED` (taxi start/end),
+  `HEARTHSTONE_BOUND`. `UnitOnTaxi` is also documented.
 - `GetBindLocation()` — hearthstone bind name (a string; mapping it to a graph
   node needs a name table or the nearest-inn approach).
 
