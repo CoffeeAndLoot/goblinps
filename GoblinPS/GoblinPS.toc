@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: GoblinPS
+## Notes: Goblin Positioning System. The fastest route from where you stand. Accuracy not guaranteed. No refunds.
+## Author: CoffeeAndLoot
+## X-Website: https://github.com/CoffeeAndLoot/goblinps
+## Version: 2026.09.19
+
+API.lua
+Geo.lua
+Data\Places.lua
+Data\Nodes.lua
+Data\Flights.lua
+Data\Links.lua
+Search.lua
+Graph.lua
+Route.lua
+Trip.lua
+Core.lua

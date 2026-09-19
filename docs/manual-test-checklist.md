@@ -24,3 +24,24 @@ These decide the design. Record the result beside each one.
       shows the pin and the on-screen arrow
 - [ ] Note how each new zone is reached: Mount Hyjal, Zephras Isle,
       Darkspear Islands, Riverglades, Shen'dralas
+
+## Routing core (plan 1)
+
+- [ ] The addon loads with no Lua error; `/gps` prints the two usage lines
+- [ ] `/gps probe` prints "Client reports N flight nodes, K known. 0 not in our
+      data, 0 named differently." Record N and K. K must match the flight
+      paths this character really has. Any "not in our data" or "name
+      differs" line: record it here, it decides `API.KnownNodes`
+- [ ] `/gps to <a city you can reach>` prints numbered steps, a total time
+      and a fare; the steps are the route you would actually take
+- [ ] `/gps to <zone with no known flight path>` ends with a
+      "Discover ... to save ~N min" line
+- [ ] With the hearthstone ready and a better route through the inn, step 1
+      is "Hearthstone to ..."; on cooldown it never appears
+- [ ] `/gps to qqqq` prints `No place matches "qqqq".`
+- [ ] Inside an instance `/gps to orgrimmar` prints "Can't tell where you are"
+- [ ] Stand on each dock and compare `/dump C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()`
+      with its row in `GoblinPS/Data/Links.lua`; correct the row if it is off
+      by more than 0.02
+- [ ] Time one full zeppelin and one boat loop; correct `minutes` (ride plus
+      half the loop)

@@ -14,11 +14,11 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: design written, awaiting user approval; no code yet.** The design
-is `docs/superpowers/specs/2026-09-19-goblinps-design.md`. Once the user
-approves it, write an implementation plan, before any code. The
-spec is the authority on why things are the way they are; update it when
-behaviour changes.
+**Status: routing core built (plan 1); no window yet.** `/gps to <place>`
+prints a route in chat and `/gps probe` checks the flight data against the
+client. The design is `docs/superpowers/specs/2026-09-19-goblinps-design.md`;
+plan 2 (planner window, schematic map, dash unit) is written once the
+routing core's manual checks have been run in game.
 
 Everything known about the client API and data sources is in
 `docs/research/2026-09-19-api-and-data-findings.md`. Read it first. It marks
