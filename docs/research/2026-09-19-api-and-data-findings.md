@@ -105,6 +105,36 @@ Snapshots are in `docs/research/data/`. URL form:
 - Not in any table we found: boats, zeppelins, the Deeprun Tram, zone border
   crossings. These are the hand-written `Links` data.
 
+## Forever Atlas (fan web map), read 2026-09-19
+
+`https://benjamh681.github.io/wow-forever-atlas/` (repo
+`benjamh681/wow-forever-atlas`, a single `index.html`). **No license**, so
+all rights reserved: do not ship its art or copy its tables. Use it as a
+cross-check and a style reference only; facts it cites are public. It has its
+own browser route planner, which cannot know a character's flight paths.
+
+Its `ROUTES` table carries a confidence mark per route. Marked "stated by
+Blizzard" and new in Forever (all **unverified in game**):
+
+- Stormwind Harbor ↔ Auberdine, Alliance boat.
+- Menethil ↔ Southshore ↔ Auberdine on one line; whether the classic direct
+  Menethil ↔ Auberdine boat stays is unconfirmed.
+- Steamwheedle Port ↔ Powderfuse Port, neutral boat (Powderfuse looks to be
+  on the Riverglades coast).
+
+Classic carry-overs listed: zeppelins Orgrimmar ↔ Undercity, Orgrimmar ↔
+Grom'gol, Undercity ↔ Grom'gol; boats Menethil ↔ Theramore, Auberdine ↔
+Rut'theran, Booty Bay ↔ Ratchet, Feathermoon ↔ Forgotten Coast; Deeprun Tram.
+It also has a `LAND_EDGES` table of walkable zone crossings with warnings
+(for the later ground-crossings work), and notes Quel'Thalas and Gilneas as
+closed. Its sources include Blizzard's two panel recaps and Wowhead's
+datamined maps.
+
+**Flight times:** the atlas uses community-measured times from the InFlight
+addon (`github.com/BLCtbc/inflight`), in seconds per node pair. Measured
+times beat a spline-length estimate. Check InFlight's license before using
+its numbers; keep the spline estimate as the fallback for unmeasured paths.
+
 ## The generator to copy
 
 `D:\looseEnds\tools\build_catalog.py`: `TABLES` list, `WAGO` URL template,
