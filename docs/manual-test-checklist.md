@@ -49,8 +49,9 @@ These decide the design. Record the result beside each one.
       and a fare; the steps are the route you would actually take
       (2026-09-19, Horde near Thunder Bluff, `/gps to undercity`: ride to
       Thunder Bluff, fly to Orgrimmar, ride to the tower, zeppelin, ride to
-      Undercity; ~10 min, 50c. A "Fly" step proves the client reported both
-      ends as discovered and their node IDs match our table.)
+      Undercity; ~10 min, 50c. The route was right, but it proved nothing
+      about discovery: at that point every node read as known. Re-run after
+      a flight master visit.)
 - [ ] `/gps to <zone with no known flight path>` ends with a
       "Discover ... to save ~N min" line
 - [ ] With the hearthstone ready and a better route through the inn, step 1
