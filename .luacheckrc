@@ -2,7 +2,7 @@ std = "lua51"
 max_line_length = 120
 self = false
 globals = {
-    "SLASH_GOBLINPS1", "SlashCmdList",
+    "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB",
 }
 read_globals = {
     "print",

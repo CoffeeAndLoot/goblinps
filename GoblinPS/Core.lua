@@ -88,7 +88,14 @@ SlashCmdList.GOBLINPS = function(msg)
     if command == "to" and rest ~= "" then
         routeTo(rest)
     elseif command == "taxiprobe" then
-        API.StartTaxiProbe(say)
+        -- THROWAWAY with the probe: keep a copy in saved variables so the
+        -- output can be read from disk after a /reload.
+        GoblinPSDB = GoblinPSDB or {}
+        GoblinPSDB.taxiProbe = {}
+        API.StartTaxiProbe(function(text)
+            table.insert(GoblinPSDB.taxiProbe, text)
+            say(text)
+        end)
     elseif command == "probe" then
         probe()
     else

@@ -4,6 +4,7 @@
 ## Author: CoffeeAndLoot
 ## X-Website: https://github.com/CoffeeAndLoot/goblinps
 ## Version: 2026.09.19
+## SavedVariables: GoblinPSDB
 
 API.lua
 Geo.lua

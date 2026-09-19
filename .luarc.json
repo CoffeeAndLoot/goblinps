@@ -2,7 +2,7 @@
   "runtime.version": "Lua 5.1",
   "workspace.ignoreDir": [".remember", ".superpowers", "tools"],
   "diagnostics.globals": [
-    "SLASH_GOBLINPS1", "SlashCmdList",
+    "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB",
     "UnitFactionGroup", "GetBindLocation",
     "C_TaxiMap", "C_Map", "C_Item",
     "CreateFrame", "C_Timer"
