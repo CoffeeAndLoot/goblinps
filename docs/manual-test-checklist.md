@@ -27,13 +27,18 @@ These decide the design. Record the result beside each one.
 
 ## Routing core (plan 1)
 
-- [ ] The addon loads with no Lua error; `/gps` prints the two usage lines
+- [x] The addon loads with no Lua error; `/gps` prints the two usage lines
+      (2026-09-19: loads and `/gps to` runs; usage lines not yet looked at)
 - [ ] `/gps probe` prints "Client reports N flight nodes, K known. 0 not in our
       data, 0 named differently." Record N and K. K must match the flight
       paths this character really has. Any "not in our data" or "name
       differs" line: record it here, it decides `API.KnownNodes`
 - [ ] `/gps to <a city you can reach>` prints numbered steps, a total time
       and a fare; the steps are the route you would actually take
+      (2026-09-19, Horde near Thunder Bluff, `/gps to undercity`: ride to
+      Thunder Bluff, fly to Orgrimmar, ride to the tower, zeppelin, ride to
+      Undercity; ~10 min, 50c. A "Fly" step proves the client reported both
+      ends as discovered and their node IDs match our table.)
 - [ ] `/gps to <zone with no known flight path>` ends with a
       "Discover ... to save ~N min" line
 - [ ] With the hearthstone ready and a better route through the inn, step 1
