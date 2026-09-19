@@ -1,7 +1,9 @@
 local _, ns = ...
 
--- The ONLY file that touches Blizzard globals. Everything is defensive: a
--- missing API or an odd return means "unknown", never an error.
+-- The ONLY file that calls Blizzard game APIs (C_*, unit, item, map
+-- functions). Everything is defensive: a missing API or an odd return means
+-- "unknown", never an error. Core.lua additionally touches Blizzard globals
+-- to register the slash command (SLASH_*, SlashCmdList) and print to chat.
 local API = {}
 ns.API = API
 
@@ -49,14 +51,22 @@ function API.KnownNodes()
 end
 
 -- The player's position on the nearest map we have data for: uiMapID, x, y
--- (0..1). Nil inside instances or on a map we do not know.
+-- (0..1). Nil inside instances, on a map we do not know, or when the client
+-- reports the origin (an unset position, not a real spot on the map).
+local PARENT_HOP_LIMIT = 10 -- generous; a real map hierarchy is a handful deep
+
 function API.PlayerMapPosition(places)
+    if not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetMapInfo and C_Map.GetPlayerMapPosition) then
+        return nil
+    end
     local map = C_Map.GetBestMapForUnit("player")
-    while map and map ~= 0 and not places[map] do
+    local hops = 0
+    while map and map ~= 0 and not places[map] and hops < PARENT_HOP_LIMIT do
         local info = C_Map.GetMapInfo(map)
         map = info and info.parentMapID
+        hops = hops + 1
     end
-    if not map or map == 0 then
+    if not map or map == 0 or not places[map] then
         return nil
     end
     local pos = C_Map.GetPlayerMapPosition(map, "player")
@@ -64,6 +74,9 @@ function API.PlayerMapPosition(places)
         return nil
     end
     local x, y = pos:GetXY()
+    if x == 0 and y == 0 then
+        return nil
+    end
     return map, x, y
 end
 

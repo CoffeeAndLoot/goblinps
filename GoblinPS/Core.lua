@@ -41,6 +41,10 @@ local function routeTo(text)
 
     local opts = { faction = faction, known = API.KnownNodes(), from = from, to = dest, hearth = bind }
     local result = Route.Plan(ns.Data, opts)
+    if result and #result.steps == 0 then
+        say("You're already at " .. dest.name .. ".")
+        return
+    end
     if result then
         say("To " .. dest.name .. ": " .. Route.FormatTime(result.seconds) .. ", " .. Route.FormatMoney(result.copper))
         for i, step in ipairs(result.steps) do
@@ -80,6 +84,7 @@ end
 SLASH_GOBLINPS1 = "/gps"
 SlashCmdList.GOBLINPS = function(msg)
     local command, rest = (msg or ""):match("^(%S*)%s*(.-)%s*$")
+    command = command:lower()
     if command == "to" and rest ~= "" then
         routeTo(rest)
     elseif command == "probe" then

@@ -29,7 +29,7 @@ the second to the first without an in-game check.
 
 ```
 GoblinPS/GoblinPS.toc        # manifest; Interface 16001
-GoblinPS/API.lua             # the ONLY file that touches Blizzard globals (LooseEnds pattern)
+GoblinPS/API.lua             # the ONLY file that calls Blizzard game APIs (LooseEnds pattern)
 GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram (and later ground crossings)
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows

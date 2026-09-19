@@ -104,6 +104,11 @@ def world_to_map(assignments, uimap_id: str, map_id: str, wx: float, wy: float):
     return None
 
 
+def _full_coverage(a) -> bool:
+    """UiMin/UiMax as floats: some builds spell them "0" and others "0.0"."""
+    return (float(a["UiMin_0"]), float(a["UiMin_1"]), float(a["UiMax_0"]), float(a["UiMax_1"])) == (0.0, 0.0, 1.0, 1.0)
+
+
 def build_places(tables) -> dict[int, dict]:
     """Zones and cities on the two continents, with the world bounds Geo.ToWorld needs."""
     assignments = index_assignments(tables)
@@ -111,9 +116,10 @@ def build_places(tables) -> dict[int, dict]:
     for m in tables["UiMap"]:
         if m["Type"] != ZONE_TYPE:
             continue
-        for a in assignments.get(m["ID"], ()):
-            full = (a["UiMin_0"], a["UiMin_1"], a["UiMax_0"], a["UiMax_1"]) == ("0", "0", "1", "1")
-            if a["MapID"] not in CONTINENTS or not full:
+        rows = assignments.get(m["ID"], ())
+        found = False
+        for a in rows:
+            if a["MapID"] not in CONTINENTS or not _full_coverage(a):
                 continue
             x0, y0, x1, y1 = _region(a)
             azeroth = world_to_map(assignments, AZEROTH, a["MapID"], (x0 + x1) / 2, (y0 + y1) / 2)
@@ -124,7 +130,10 @@ def build_places(tables) -> dict[int, dict]:
                 "x0": round(x0, 1), "y0": round(y0, 1), "x1": round(x1, 1), "y1": round(y1, 1),
                 "ax": azeroth[0], "ay": azeroth[1],
             }
+            found = True
             break
+        if not found and rows and not any(a["MapID"] in CONTINENTS for a in rows):
+            print(f"skip zone {m['ID']} {m['Name_lang']}: not on the two continents", file=sys.stderr)
     return places
 
 

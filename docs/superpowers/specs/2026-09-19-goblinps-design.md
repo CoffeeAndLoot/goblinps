@@ -116,7 +116,9 @@ once confirmed in game.
 
 Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
 
-- **`API`**: the only file touching Blizzard globals. `KnownNodes()`,
+- **`API`**: the only file that calls Blizzard game APIs (`C_*`, unit, item,
+  map functions). `Core` additionally registers the slash command
+  (`SLASH_*`, `SlashCmdList`) and prints to chat. `KnownNodes()`,
   `PlayerPosition()`, `HearthNode()` (nil when on cooldown or unmatched),
   `SetWaypoint()` / `ClearWaypoint()`, faction. `KnownNodes()` reads
   `isUndiscovered` live; if the in-game probe shows that is unreliable, only

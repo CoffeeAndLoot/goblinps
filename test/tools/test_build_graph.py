@@ -1,3 +1,5 @@
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -43,10 +45,12 @@ class Faction(unittest.TestCase):
 
 class Places(unittest.TestCase):
     def setUp(self):
-        self.places = bg.build_places(bg.load_tables(FIXTURES))
+        self.tables = bg.load_tables(FIXTURES)
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.places = bg.build_places(self.tables)
 
     def test_keeps_zones_on_the_continents_only(self):
-        self.assertEqual(sorted(self.places), [1411, 1413, 1454])
+        self.assertEqual(sorted(self.places), [1411, 1413, 1454, 1500])
 
     def test_carries_world_bounds_and_azeroth_centre(self):
         barrens = self.places[1413]
@@ -54,6 +58,18 @@ class Places(unittest.TestCase):
         self.assertEqual(barrens["c"], 1)
         # centre is world (-1000, -2500); Azeroth spans x 0..0.5 over world y 10000..-10000
         self.assertEqual((barrens["ax"], barrens["ay"]), (0.3125, 0.55))
+
+    def test_loads_a_zone_whose_full_coverage_is_written_as_floats(self):
+        taurajo = self.places[1500]
+        self.assertEqual(taurajo["c"], 1)
+        self.assertEqual((taurajo["x0"], taurajo["y0"], taurajo["x1"], taurajo["y1"]), (-1000, -1000, 1000, 1000))
+
+    def test_skips_a_type_3_zone_off_the_two_continents(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):
+            places = bg.build_places(self.tables)
+        self.assertNotIn(1700, places)
+        self.assertIn("skip zone 1700 Zephras Isle: not on the two continents", buf.getvalue())
 
 
 class Nodes(unittest.TestCase):

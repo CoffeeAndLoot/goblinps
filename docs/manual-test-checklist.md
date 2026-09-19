@@ -45,3 +45,10 @@ These decide the design. Record the result beside each one.
       by more than 0.02
 - [ ] Time one full zeppelin and one boat loop; correct `minutes` (ride plus
       half the loop)
+- [ ] `/gps probe`'s node count N is about 71: this proves
+      `C_TaxiMap.GetTaxiNodesForMap(continent map)` returns every node on the
+      continent, not only the displayed zone's. If N is far lower, record it:
+      `API.TaxiNodes` must then walk every zone map.
+- [ ] Standing on Zephras Isle or the Darkspear Islands, `/gps to orgrimmar`
+      says it cannot tell where you are: these maps are off the two
+      continents and are not routable yet. Record how each is reached.
