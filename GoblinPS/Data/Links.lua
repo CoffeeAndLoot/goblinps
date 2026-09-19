@@ -1,0 +1,42 @@
+-- HAND-WRITTEN. Boats, zeppelins and the tram: nothing in Blizzard's tables
+-- describes them. Later, zone-to-zone ground crossings go here too, as more
+-- rows, not a redesign.
+--
+-- Dock positions are map coords (0..1) on a zone map and are APPROXIMATE:
+-- each one is checked in game from docs/manual-test-checklist.md.
+-- minutes = the ride plus about half the loop, the average wait. Estimates
+-- until timed in game.
+-- Every link runs both ways. faction: "A", "H" or "N" (both).
+--
+-- Not listed until confirmed in game (see the spec): Stormwind Harbor to
+-- Auberdine, Menethil to Southshore to Auberdine, Steamwheedle to Powderfuse.
+local _, ns = ...
+ns.Data = ns.Data or {}
+
+ns.Data.Docks = {
+    org_zep      = { name = "Orgrimmar Zeppelin Tower", map = 1411, mx = 0.508, my = 0.130 },
+    uc_zep       = { name = "Undercity Zeppelin Tower", map = 1420, mx = 0.610, my = 0.590 },
+    gromgol_zep  = { name = "Grom'gol Zeppelin Tower",  map = 1434, mx = 0.315, my = 0.295 },
+    menethil     = { name = "Menethil Harbor Docks",    map = 1437, mx = 0.050, my = 0.600 },
+    auberdine    = { name = "Auberdine Docks",          map = 1439, mx = 0.328, my = 0.420 },
+    theramore    = { name = "Theramore Docks",          map = 1445, mx = 0.715, my = 0.564 },
+    rutheran     = { name = "Rut'theran Village Docks", map = 1438, mx = 0.549, my = 0.968 },
+    bootybay     = { name = "Booty Bay Docks",          map = 1434, mx = 0.259, my = 0.731 },
+    ratchet      = { name = "Ratchet Docks",            map = 1413, mx = 0.637, my = 0.386 },
+    feathermoon  = { name = "Feathermoon Docks",        map = 1444, mx = 0.310, my = 0.398 },
+    forgotten    = { name = "Forgotten Coast Docks",    map = 1444, mx = 0.434, my = 0.428 },
+    tram_sw      = { name = "Stormwind Tram Station",   map = 1453, mx = 0.640, my = 0.080 },
+    tram_if      = { name = "Ironforge Tram Station",   map = 1455, mx = 0.768, my = 0.512 },
+}
+
+ns.Data.Links = {
+    { from = "org_zep",     to = "uc_zep",      kind = "zeppelin", minutes = 4, faction = "H" },
+    { from = "org_zep",     to = "gromgol_zep", kind = "zeppelin", minutes = 4, faction = "H" },
+    { from = "uc_zep",      to = "gromgol_zep", kind = "zeppelin", minutes = 4, faction = "H" },
+    { from = "menethil",    to = "auberdine",   kind = "boat",     minutes = 4, faction = "A" },
+    { from = "menethil",    to = "theramore",   kind = "boat",     minutes = 4, faction = "A" },
+    { from = "auberdine",   to = "rutheran",    kind = "boat",     minutes = 3, faction = "A" },
+    { from = "bootybay",    to = "ratchet",     kind = "boat",     minutes = 4, faction = "N" },
+    { from = "feathermoon", to = "forgotten",   kind = "boat",     minutes = 3, faction = "A" },
+    { from = "tram_sw",     to = "tram_if",     kind = "tram",     minutes = 2, faction = "A" },
+}
