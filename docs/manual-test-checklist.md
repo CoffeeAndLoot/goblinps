@@ -39,10 +39,15 @@ These decide the design. Record the result beside each one.
       (2026-09-19: `/gps to stonetalon` printed the notice, a ride-only
       route, and "Discover Crossroads and Sun Rock Retreat to save ~4 min".
       A misspelt place printed `No place matches`.)
-- [ ] Open a flight master's map: chat says "Learned N flight paths here
+- [x] Open a flight master's map: chat says "Learned N flight paths here
       (M known)", and N matches the paths lit up on that map
-- [ ] After that, `/gps to stonetalon` (or any zone whose flight path you
+      (2026-09-19 at Crossroads: learned 5 = Crossroads, Orgrimmar, Ratchet,
+      Camp Taurajo, Thunder Bluff, exactly the five on the flight map.
+      Forever shows the legacy parchment flight map, not the zoomable one.)
+- [x] After that, `/gps to stonetalon` (or any zone whose flight path you
       lack) no longer flies there; it ends with a "Discover ..." line
+      (2026-09-19: no flight to Sun Rock Retreat; hint "to save ~4 min".
+      `/gps to undercity` flies to Orgrimmar, a path the character has.)
 - [ ] `/gps probe` reports "Learned from flight masters so far: M"
 - [ ] Open the same flight map again: no "Learned" message (nothing new)
 - [ ] `/reload`, then `/gps to orgrimmar`: the flights are still known
