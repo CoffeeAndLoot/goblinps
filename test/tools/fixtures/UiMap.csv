@@ -1,0 +1,7 @@
+Name_lang,ID,ParentUiMapID,Type
+Azeroth,947,0,1
+Kalimdor,1414,947,2
+Durotar,1411,1414,3
+"The Barrens",1413,1414,3
+Orgrimmar,1454,1414,3
+"Deadmines",291,0,4

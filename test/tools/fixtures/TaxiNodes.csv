@@ -1,0 +1,8 @@
+Name_lang,Pos_0,Pos_1,Pos_2,ID,ContinentID,Flags
+"Test Abbey",0,-3000,0,1,1,1024
+"Stormwind, Elwynn",-8840,489,0,2,0,1025
+"Orgrimmar, Durotar",1600,-4400,0,23,1,1026
+"Crossroads, The Barrens",-400,-2600,0,25,1,1026
+"Dun Baldar, Alterac Valley",0,0,0,59,30,1025
+"Ratchet, The Barrens",-900,-3800,0,80,1,1027
+"zzOLDPowderfuse Port, Riverglades",0,-3000,0,3208,1,1027
