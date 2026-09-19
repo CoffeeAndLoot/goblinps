@@ -47,10 +47,23 @@ Blizzard's own world map uses exactly this:
 only readable with the taxi map open and had to be cached; here they should
 not need caching.
 
-**Unproven:** that the beta populates `isUndiscovered` truthfully, and that
-API `nodeID` equals `TaxiNodes.ID` from the DB2 table. Both are the first
-in-game probes. If `isUndiscovered` is unreliable, the fallback is the old
-technique: record `GetAllTaxiNodes` states at each flight master visit.
+**Verified in game 2026-09-19 (Horde character, `/gps probe` and `/run`):**
+
+- `GetTaxiNodesForMap(1414)` + `(1415)` return **74 nodes**: our 71 plus the
+  three `zzOLD` Riverglades rows. The continent maps aggregate every node.
+- API `nodeID` **equals** `TaxiNodes.ID`, and names match: 0 differences.
+- **`isUndiscovered` is dead on this build.** It is `false` for every node,
+  including Sun Rock Retreat (29) on a character who has never been there,
+  asked on the continent map (1414) and on the zone map (1442) alike. The
+  field exists but is never filled in. It cannot be used.
+
+So known flight paths must be learned the old Classic way: read
+`C_TaxiMap.GetAllTaxiNodes(uiMapID)` while a flight master's map is open
+(`TAXIMAP_OPENED`) and remember the result per character. The source ships
+both a modern `Blizzard_FlightMap` (uses `GetAllTaxiNodes`) and the legacy
+`TaxiFrame.lua` (`NumTaxiNodes`, `TaxiNodeGetType`); which one Forever opens,
+and whether undiscovered nodes are absent from `GetAllTaxiNodes` or present
+as `Unreachable`, is **unverified in game**.
 
 ## Position, waypoints, hearthstone (source-verified)
 
