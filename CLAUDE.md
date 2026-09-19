@@ -109,8 +109,13 @@ commit; re-read files before editing.
 
 - `RegisterEvent` with a name the client does not know is a hard error.
   Check every event against the `forever` branch first.
-- Never cache "this flight path is known" in saved variables as truth; the
-  client is the source. Save only preferences, recents and window positions.
+- Known flight paths are **learned at flight masters**. `isUndiscovered` is
+  dead on build 1.60.1.69913 (false for every node, verified in game), so the
+  only truthful moment is `TAXIMAP_OPENED`, when `C_TaxiMap.GetAllTaxiNodes`
+  marks each node current, reachable or unreachable. `Known.Learn` adds the
+  flyable ones to `GoblinPSCharDB.known` (per character). That store only
+  ever grows and is never edited by hand or by any other code path. If a
+  later build fixes `isUndiscovered`, switch back to the live read.
 - Every constructor that leans on a Blizzard template or atlas checks for it
   and falls back to a plain control. The map is our own schematic texture,
   not Blizzard's map canvas; if it is missing, the planner must still work

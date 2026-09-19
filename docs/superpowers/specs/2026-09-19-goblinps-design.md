@@ -19,8 +19,15 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 ## Decisions
 
 1. **Routing is per character.** A flight edge is usable only if both ends
-   are discovered, read live from `C_TaxiMap.GetTaxiNodesForMap`
-   (`isUndiscovered`). Never cached as truth.
+   are discovered. The client's live flag (`isUndiscovered` from
+   `C_TaxiMap.GetTaxiNodesForMap`) is **dead on build 1.60.1.69913**: false
+   for every node, verified in game. So discovered paths are learned at
+   flight masters: on `TAXIMAP_OPENED`, `C_TaxiMap.GetAllTaxiNodes` marks
+   each node on the continent current, reachable or unreachable, and the
+   flyable ones are remembered per character. Flight paths are never
+   unlearned, so the memory only grows; one flight master visit per
+   continent gives the full picture. Before any visit the character is
+   treated as knowing none, and the addon says so.
 2. **Start defaults to where the player stands**; a "From:" control can
    change it to any stop or zone.
 3. **Two frames (Garmin model).**
@@ -120,10 +127,11 @@ Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
   map functions). `Core` additionally registers the slash command
   (`SLASH_*`, `SlashCmdList`) and prints to chat. `KnownNodes()`,
   `PlayerPosition()`, `HearthNode()` (nil when on cooldown or unmatched),
-  `SetWaypoint()` / `ClearWaypoint()`, faction. `KnownNodes()` reads
-  `isUndiscovered` live; if the in-game probe shows that is unreliable, only
-  this function changes, to recording `GetAllTaxiNodes` states at flight
-  masters. Nothing else knows the difference.
+  `SetWaypoint()` / `ClearWaypoint()`, faction. `OpenTaxiNodes()` reads the open flight master's map and
+  `OnTaxiMapOpened()` reports when one opens; the pure `Known` module turns
+  that into the remembered set. `Graph` and `Route` only ever see a
+  `{ [nodeID] = true }` set, so they did not change when the live flag
+  turned out to be dead.
 - **`Graph`** (pure): takes the data, a known-node set, the faction and an
   optional hearth node. Flight edges need both ends known; link edges are
   filtered by faction; the hearth is one edge from the start. Start and
@@ -187,8 +195,11 @@ Degrade, never error.
 
 ## Saved variables
 
-Preferences only: layout mode, window positions, recent destinations,
-minimap button angle. Never "which flight paths are known".
+Per character (`GoblinPSCharDB`): `known`, the flight paths learned at
+flight masters. Written only by `Known.Learn`; it only grows.
+
+Account-wide (plan 2): preferences only: layout mode, window positions,
+recent destinations, minimap button angle.
 
 ## Testing
 
@@ -213,8 +224,12 @@ helps check the hand-written links.
 
 These do not block the plan; each has a designed fallback.
 
-- `isUndiscovered` is truthful and API `nodeID` equals `TaxiNodes.ID`
-  (fallback: record at flight masters, inside `API.KnownNodes`).
+- ~~`isUndiscovered` is truthful and API `nodeID` equals `TaxiNodes.ID`.~~
+  Settled 2026-09-19: node IDs and names match exactly (74 nodes: our 71
+  plus three `zzOLD` rows); `isUndiscovered` is dead, so paths are learned
+  at flight masters. Still to see: a known node that the current flight
+  master cannot reach reads as unreachable there; it is learned on a later
+  visit to a flight master that can reach it.
 - `TaxiNodes.Flags` faction bits (1 = Alliance, 2 = Horde).
 - How the new zones are reached (Mount Hyjal, Zephras Isle, Darkspear
   Islands, Riverglades, Shen'dralas) and the three new boat routes.

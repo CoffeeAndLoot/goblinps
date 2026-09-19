@@ -29,10 +29,22 @@ These decide the design. Record the result beside each one.
 
 - [x] The addon loads with no Lua error; `/gps` prints the two usage lines
       (2026-09-19: loads and `/gps to` runs; usage lines not yet looked at)
-- [ ] `/gps probe` prints "Client reports N flight nodes, K known. 0 not in our
-      data, 0 named differently." Record N and K. K must match the flight
-      paths this character really has. Any "not in our data" or "name
-      differs" line: record it here, it decides `API.KnownNodes`
+- [x] `/gps probe`: node IDs and names match the client. 2026-09-19: 74
+      nodes listed, 0 named differently; the 3 "not in our data" are
+      Blizzard's `zzOLD` Riverglades rows, skipped on purpose. It also showed
+      every node as known: `isUndiscovered` is dead on this build, which is
+      why flight paths are now learned at flight masters
+- [ ] On a fresh character file, `/gps to orgrimmar` says "Visit a flight
+      master so GoblinPS can learn your flight paths" and offers no flights
+- [ ] Open a flight master's map: chat says "Learned N flight paths here
+      (M known)", and N matches the paths lit up on that map
+- [ ] After that, `/gps to stonetalon` (or any zone whose flight path you
+      lack) no longer flies there; it ends with a "Discover ..." line
+- [ ] `/gps probe` reports "Learned from flight masters so far: M"
+- [ ] Open the same flight map again: no "Learned" message (nothing new)
+- [ ] `/reload`, then `/gps to orgrimmar`: the flights are still known
+- [ ] Visit a flight master on the other continent: its paths are added and
+      the first continent's are kept
 - [ ] `/gps to <a city you can reach>` prints numbered steps, a total time
       and a fare; the steps are the route you would actually take
       (2026-09-19, Horde near Thunder Bluff, `/gps to undercity`: ride to

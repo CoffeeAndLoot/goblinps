@@ -61,9 +61,24 @@ So known flight paths must be learned the old Classic way: read
 `C_TaxiMap.GetAllTaxiNodes(uiMapID)` while a flight master's map is open
 (`TAXIMAP_OPENED`) and remember the result per character. The source ships
 both a modern `Blizzard_FlightMap` (uses `GetAllTaxiNodes`) and the legacy
-`TaxiFrame.lua` (`NumTaxiNodes`, `TaxiNodeGetType`); which one Forever opens,
-and whether undiscovered nodes are absent from `GetAllTaxiNodes` or present
-as `Unreachable`, is **unverified in game**.
+`TaxiFrame.lua` (`NumTaxiNodes`, `TaxiNodeGetType`).
+
+**Verified in game 2026-09-19 at the Thunder Bluff flight master** (dump
+captured on `TAXIMAP_OPENED`, identical 0.5 s later):
+
+- `TAXIMAP_OPENED` fires, with `system = 1`. `GetTaxiMapID()` returns 1464.
+- While the map is open, `C_TaxiMap.GetAllTaxiNodes(map)` returns the same 22
+  nodes for 1464, the continent (1414), Azeroth (947) and the player's own
+  map (1456): every Horde and neutral node on Kalimdor, discovered or not.
+  Asked for the other continent (1415) it returns nothing. With no flight
+  map open it returns nothing at all, and `GetTaxiMapID()` is nil.
+- `state` is truthful: 0 current (Thunder Bluff), 1 reachable (Orgrimmar,
+  Crossroads, Camp Taurajo, Ratchet: exactly the character's paths),
+  2 unreachable (the other 17, including Sun Rock Retreat, never visited).
+- The legacy calls agree: `NumTaxiNodes()` is 22 and `TaxiNodeGetType` gives
+  CURRENT / REACHABLE / DISTANT for the same nodes.
+- The list includes Mount Hyjal flight points (Summit of Eternity 3242,
+  Tainted Foothills 559) and the stale `zzOLDPowderfuse Port` (3208).
 
 ## Position, waypoints, hearthstone (source-verified)
 

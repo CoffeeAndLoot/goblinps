@@ -2,10 +2,19 @@ local _, ns = ...
 
 -- Slash commands. For now the whole addon is "/gps to <place>" printed in
 -- chat; the planner window and dash unit come in the next plan.
-local API, Geo, Search, Route = ns.API, ns.Geo, ns.Search, ns.Route
+local API, Geo, Search, Route, Known = ns.API, ns.Geo, ns.Search, ns.Route, ns.Known
 
 local function say(text)
     print("|cff6fe08aGoblinPS|r " .. text)
+end
+
+-- This character's discovered flight paths, remembered between flight master
+-- visits (saved per character). Looked up lazily: saved variables load after
+-- this file runs.
+local function knownStore()
+    GoblinPSCharDB = GoblinPSCharDB or {}
+    GoblinPSCharDB.known = GoblinPSCharDB.known or {}
+    return GoblinPSCharDB.known
 end
 
 local function here()
@@ -39,7 +48,12 @@ local function routeTo(text)
         say("Hearth: unknown inn (" .. bindName .. "), left out.")
     end
 
-    local opts = { faction = faction, known = API.KnownNodes(), from = from, to = dest, hearth = bind }
+    local known = knownStore()
+    if not next(known) then
+        say("Visit a flight master so GoblinPS can learn your flight paths. Until then, no flights.")
+    end
+
+    local opts = { faction = faction, known = known, from = from, to = dest, hearth = bind }
     local result = Route.Plan(ns.Data, opts)
     if result and #result.steps == 0 then
         say("You're already at " .. dest.name .. ".")
@@ -59,15 +73,12 @@ local function routeTo(text)
     end
 end
 
--- Answers the design's open questions in one command: does the client report
--- discovered flight paths, and do its node IDs match our generated table?
+-- Do the client's flight node IDs and names match our generated table, and
+-- how many flight paths has this character taught us so far?
 local function probe()
     local nodes = API.TaxiNodes()
-    local known, missing, renamed = 0, 0, 0
+    local missing, renamed = 0, 0
     for _, node in ipairs(nodes) do
-        if node.known then
-            known = known + 1
-        end
         local ours = ns.Data.Nodes[node.nodeID]
         if not ours then
             missing = missing + 1
@@ -77,9 +88,19 @@ local function probe()
             say("name differs: " .. node.nodeID .. " ours '" .. ours.name .. "' client '" .. tostring(node.name) .. "'")
         end
     end
-    say(("Client reports %d flight nodes, %d known. %d not in our data, %d named differently.")
-        :format(#nodes, known, missing, renamed))
+    say(("Client lists %d flight nodes. %d not in our data, %d named differently.")
+        :format(#nodes, missing, renamed))
+    say(("Learned from flight masters so far: %d flight paths."):format(Known.Count(knownStore())))
 end
+
+-- The only moment the client says which flight paths are discovered.
+API.OnTaxiMapOpened(function()
+    local store = knownStore()
+    local added = Known.Learn(store, API.OpenTaxiNodes())
+    if added > 0 then
+        say(("Learned %d flight path%s here (%d known)."):format(added, added == 1 and "" or "s", Known.Count(store)))
+    end
+end)
 
 SLASH_GOBLINPS1 = "/gps"
 SlashCmdList.GOBLINPS = function(msg)
@@ -87,15 +108,6 @@ SlashCmdList.GOBLINPS = function(msg)
     command = command:lower()
     if command == "to" and rest ~= "" then
         routeTo(rest)
-    elseif command == "taxiprobe" then
-        -- THROWAWAY with the probe: keep a copy in saved variables so the
-        -- output can be read from disk after a /reload.
-        GoblinPSDB = GoblinPSDB or {}
-        GoblinPSDB.taxiProbe = {}
-        API.StartTaxiProbe(function(text)
-            table.insert(GoblinPSDB.taxiProbe, text)
-            say(text)
-        end)
     elseif command == "probe" then
         probe()
     else
