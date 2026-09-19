@@ -1,8 +1,9 @@
 # GoblinPS design
 
-Status: **design complete, awaiting user review.** Decisions were made with
-the user on 2026-09-19. Once approved, an implementation plan is written from
-this spec. Update this file whenever behaviour changes.
+Status: **approved by the user on 2026-09-19.** Implemented in two plans:
+`docs/superpowers/plans/2026-09-19-goblinps-routing-core.md` (data, routing,
+`/gps to`), then a second plan for the windows, written once the first is
+running in game. Update this file whenever behaviour changes.
 
 ## Purpose
 
@@ -92,10 +93,13 @@ fetches anything in game.
 
 - Flight nodes: id, name, faction, continent, zone, schematic position, real
   map position (uiMapID, x, y) for the waypoint.
-- Flight edges: from, to, fare in copper, seconds. Seconds come from
-  measured InFlight addon times **if its license allows**; otherwise from
-  spline length divided by a flight-speed constant. The spline estimate is
-  always the fallback for unmeasured paths.
+- Flight edges: from, to, fare in copper, seconds. Seconds are the path's
+  polyline length (`TaxiPathNode`) divided by 32 yards per second. Checked
+  against four community-measured Classic times: within about 15%, which is
+  fine for a "~" figure, so no third-party timing data is used.
+- The generator skips nodes with no faction bit, nodes off the two
+  continents, Blizzard's abandoned `zzOLD` rows, and paths to missing nodes.
+  Zone rectangles overlap, so a node's zone comes from its own name first.
 - Search index: zones, cities and stops.
 
 The Blizzard developer web API is not a source: it has no taxi data and no
@@ -142,7 +146,9 @@ and Go.
 **Dash.** Sets the waypoint on the current step's target. Its close button
 ends the trip and clears the waypoint only if it is still the one we set.
 
-**Arrival detection**, one rule per step kind:
+**Arrival detection.** `Trip.Check` implements the rules below with one
+positional test: inside the step kind's arrival radius and not on a taxi.
+The events only make the dash check sooner. Per step kind:
 
 - Ride: within a small radius of the stop. Position is polled about once a
   second, only while a trip is active.
