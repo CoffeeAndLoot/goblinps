@@ -90,6 +90,21 @@ Without this file the programmer has to measure the alpha channel of every
 image to rediscover the geometry, which is how the first set went wrong. With
 it, the wiring is exact.
 
+## If something here is unclear or wrong
+
+You cannot ask me a question while you work, and I cannot ask you one. So if
+anything in this brief is ambiguous, contradicts the mockup, or turns out to be
+impossible, **do not guess silently**. Write it down in
+`images/parts/QUESTIONS.md` — what you were asked, what was unclear, what you
+did instead and why — and carry on with your best judgement. I read that file
+before I wire anything up, and I answer in the same file under the question.
+
+Your last handoff note did exactly this in spirit: it told me the generator
+would not honour exact canvas sizes, that it had painted checkerboards, and
+that the authoring TGAs were not what should ship. All three were things I
+would otherwise have discovered the hard way. That is the most useful thing
+you can send me, so keep doing it.
+
 ## Check before you finish
 
 - Open every part over bright magenta and over white. Any brown or grey haze
