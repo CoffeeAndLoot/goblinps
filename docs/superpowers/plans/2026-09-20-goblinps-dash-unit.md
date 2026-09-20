@@ -50,15 +50,15 @@ Baseline before this plan: **185 Lua tests, 18 Python tests, 39 art parts, 0 lin
 | `tools/make_art.py` | **Create.** PNG sources to shipped TGAs in `GoblinPS/Media/`, plus the generated `GoblinPS/Data/Art.lua`. Downscales per part, pads to power-of-two, recomputes texture coordinates. |
 | `GoblinPS/Data/Art.lua` | **Create, GENERATED.** `{ name = { file, l, r, t, b } }`. Never hand-edited. |
 | `GoblinPS/Trip.lua` | **Modify.** Add `Bearing`, `ArrowAngle`, `Remaining`, `DistanceTo`. Stays pure. |
-| `GoblinPS/API.lua` | **Modify.** Add `PlayerFacing`, `OnTaxi`, `OnTripEvent`, `WorldPosition`. |
+| `GoblinPS/API.lua` | **Modify.** Add `PlayerFacing`, `OnTaxi`, `OnTripEvent`. |
 | `GoblinPS/Dash.lua` | **Create.** The device: frame, arrow, texts, drag, tick loop, trip state. |
 | `GoblinPS/Core.lua` | **Modify.** `Core.Go` starts a trip instead of only setting a pin; expose `Core.Here`. |
 | `GoblinPS/Planner.lua` | **Modify.** Close the planner when GO starts a trip. |
 | `GoblinPS/SelfTest.lua` | **Modify.** Check the dash textures. |
 | `GoblinPS/GoblinPS.toc` | **Modify.** Add `Data\Art.lua` and `Dash.lua`; version `2026.09.20.2`. |
-| `test/fake_frames.lua` | **Modify.** Model `SetRotation`, `SetVertexColor`, `CreateAnimationGroup` is NOT needed. |
+| `test/fake_frames.lua` | **Modify.** Model `SetRotation`, `SetVertexColor` and `SetDrawLayer`, and make `SetTexCoord` record instead of being swallowed. |
 | `test/test_trip.lua` | **Modify.** Bearing, arrow angle, time left. |
-| `test/test_dash.lua` | **Create.** Smoke test of the device against the fake frames. |
+| `test/test_ui.lua` | **Modify.** The dash smoke tests join the existing UI suite; see the note below. |
 | `test/tools/test_make_art.py` | **Create.** The tool's sizing, padding and coordinate maths. |
 
 ---
@@ -508,6 +508,17 @@ Then add, beside the other describe blocks:
             t:SetRotation(1.25)
             h.eq(t.rotation, 1.25, "the fake must record the angle so tests can read it")
         end)
+        h.it("a texture records its coordinates, tint and layer", function()
+            local f = CreateFrame("Frame")
+            local t = f:CreateTexture(nil, "ARTWORK")
+            t:SetTexCoord(0, 0.75, 0, 0.5)
+            h.eq(t.texCoord[2], 0.75, "SetTexCoord must record, not be swallowed")
+            h.eq(t.texCoord[4], 0.5)
+            t:SetVertexColor(1, 0, 0, 1)
+            h.eq(t.vertexColor[1], 1)
+            t:SetDrawLayer("OVERLAY")
+            h.eq(t.drawLayer, "OVERLAY")
+        end)
     end)
 ```
 
@@ -521,9 +532,25 @@ In `test/fake_frames.lua`, beside the other texture methods, add:
 
 ```lua
     SetRotation = function(self, radians) self.rotation = radians end,
+    SetVertexColor = function(self, r, g, b, a) self.vertexColor = { r, g, b, a } end,
+    SetDrawLayer = function(self, layer) self.drawLayer = layer end,
 ```
 
-Match the file's existing style for texture methods exactly; the fake is strict on purpose, so an unmodelled PascalCase method raises rather than silently passing.
+and change `SetTexCoord` so it **records** instead of being swallowed. Today it
+sits in the accepted-and-ignored list at the top of the file, which means
+`texture.texCoord` is never set and task 6 could not check its own work:
+
+```lua
+    SetTexCoord = function(self, l, r, t, b) self.texCoord = { l, r, t, b } end,
+```
+
+Remove `SetTexCoord` from the ignored list when you add the recording version,
+or the ignored entry will win.
+
+Match the file's existing style for texture methods exactly; the fake is strict
+on purpose, so an unmodelled PascalCase method raises rather than silently
+passing. Tasks 4 and 6 call `SetVertexColor` and `SetDrawLayer`, so without
+these three additions they would fail on the fake, not on their own behaviour.
 
 - [ ] **Step 4: Add the client calls**
 
@@ -593,8 +620,7 @@ git commit -m "API: facing, taxi state and the arrival events" -m "Co-Authored-B
 **Files:**
 - Create: `GoblinPS/Dash.lua`
 - Modify: `GoblinPS/GoblinPS.toc`
-- Test: `test/test_dash.lua`
-- Modify: `test/run.lua` (load the new module and suite)
+- Test: `test/test_ui.lua`
 
 **Interfaces:**
 - Consumes: `ns.Widgets` (`Panel`, `Text`, `Button`, `Fill`, `COLOR`), `ns.Core.Position` and `ns.Core.SavePosition`.
@@ -614,7 +640,7 @@ The layout, top to bottom, inside a 200 by 250 frame:
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/test_dash.lua`:
+Add to `test/test_ui.lua`, beside its other describe blocks:
 
 ```lua
 -- Smoke test of the dash unit against test/fake_frames.lua. It catches our own
@@ -688,7 +714,7 @@ end
 
 - [ ] **Step 2: Run to verify it fails**
 
-Add `"test/test_dash.lua"` to the suite list in `test/run.lua`, and `{ "Dash", "GoblinPS/Dash.lua" }` to its module list, after `Widgets` and before `Core`. Run the Lua suite. Expected: FAIL, `ns.Dash` is nil.
+Add `"Dash"` to the module list inside `test/test_ui.lua` (the `for _, file in ipairs({...})` line), after `"Planner"` and before `"MinimapButton"`. Run the Lua suite. Expected: FAIL, `ns.Dash` is nil.
 
 - [ ] **Step 3: Write the device**
 
@@ -836,7 +862,7 @@ Run luacheck and the language server. Expected: zero warnings. Add `GoblinPSDash
 - [ ] **Step 6: Commit**
 
 ```bash
-git add GoblinPS/Dash.lua GoblinPS/GoblinPS.toc test/test_dash.lua test/run.lua .luacheckrc .luarc.json
+git add GoblinPS/Dash.lua GoblinPS/GoblinPS.toc test/test_ui.lua .luacheckrc .luarc.json
 git commit -m "Dash unit: the device on flat colours" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
@@ -848,7 +874,7 @@ git commit -m "Dash unit: the device on flat colours" -m "Co-Authored-By: Claude
 - Modify: `GoblinPS/Dash.lua`
 - Modify: `GoblinPS/Core.lua`
 - Modify: `GoblinPS/Planner.lua`
-- Test: `test/test_dash.lua`
+- Test: `test/test_ui.lua`
 
 **Interfaces:**
 - Consumes: `Trip.Check`, `Trip.Bearing`, `Trip.ArrowAngle`, `Trip.DistanceTo`, `Trip.Remaining` (task 2); `API.PlayerFacing`, `API.OnTaxi`, `API.OnTripEvent`, `Core.Here` (task 3); `Dash.Start`, `Dash.Stop`, `Dash.Refresh` (task 4).
@@ -867,20 +893,48 @@ Ticking every frame is wasteful and jittery. Tick on a timer of `Dash.TICK` seco
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `test/test_dash.lua`, inside the same returned function. These drive the machine directly rather than through the client:
+Append to `test/test_ui.lua`, beside the dash tests from task 4.
+
+`test/test_ui.lua` already scripts where the player stands: its `where` table
+feeds `PlayerMapPosition`, which `Core.Here` reads through. Use that rather
+than inventing a new seam, and add two locals beside `level` for the facts
+task 3 introduced:
+
+```lua
+    local facing, onTaxi = 0, false
+```
+
+wired into the scripted `ns.API` as:
+
+```lua
+        PlayerFacing = function() return facing end,
+        OnTaxi = function() return onTaxi end,
+        OnTripEvent = function(callback) tripCallbacks[#tripCallbacks + 1] = callback end,
+```
+
+The fake world's maps are 10000 yards square, with `world x = 10000 - my * 10000`
+and `world y = 10000 - mx * 10000`. A helper keeps that arithmetic out of every
+test, and keeps `Core.Here` and `Geo.ToWorld` in the path being exercised:
+
+```lua
+    -- Stand the player at a world position on map 1.
+    local function standAt(x, y)
+        where.map, where.mx, where.my = 1, (10000 - y) / 10000, (10000 - x) / 10000
+    end
+```
+
+The steps in `plan` all target world `(0, 0)` on continent 1, so `standAt(0, 0)`
+is "arrived" and larger values are further away.
 
 ```lua
     h.describe("the dash unit drives the trip", function()
-        local far = { c = 1, x = 5000, y = 0 }
-        local near = { c = 1, x = 10, y = 0 }
-
         h.it("advances when you reach the step's target", function()
             Dash.Start(plan)
             local ui, state = Dash.Debug()
-            ns.Test.where, ns.Test.facing = far, 0
+            standAt(5000, 0); facing = 0
             Dash.Tick("tick")
             h.eq(state.index, 1, "still on the way")
-            ns.Test.where = near
+            standAt(10, 0)
             Dash.Tick("tick")
             h.eq(state.index, 2, "arriving moves on")
             h.eq(ui.step:GetText(), "Zeppelin to East Dock")
@@ -888,16 +942,19 @@ Append to `test/test_dash.lua`, inside the same returned function. These drive t
 
         h.it("moves Blizzard's pin onto each new step, not just the first", function()
             Dash.Start(plan)
+            local _, state = Dash.Debug()
             local before = #pins
-            ns.Test.where = { c = 1, x = 10, y = 0 }
+            standAt(10, 0)
             Dash.Tick("tick")
-            h.truthy(#pins > before, "advancing must re-pin; the spec puts the pin on the step you are on")
+            h.eq(state.index, 2)
+            h.truthy(#pins > before, "the spec puts the pin on the step you are on")
         end)
 
         h.it("says Arrived and stops at the end", function()
+            Dash.Start(plan)
             local ui, state = Dash.Debug()
             state.index = #plan.result.steps
-            ns.Test.where = near
+            standAt(0, 0)
             Dash.Tick("tick")
             h.eq(ui.step:GetText(), "Arrived.")
             h.falsy(state.plan, "the trip is over")
@@ -906,55 +963,57 @@ Append to `test/test_dash.lua`, inside the same returned function. These drive t
         h.it("shows the distance and the time left while travelling", function()
             Dash.Start(plan)
             local ui = Dash.Debug()
-            ns.Test.where = { c = 1, x = 700, y = 0 }
+            standAt(700, 0)
             Dash.Tick("tick")
             h.eq(ui.distance:GetText(), "700 yd")
             h.truthy(ui.eta:GetText():find("min", 1, true), ui.eta:GetText())
         end)
 
         h.it("turns the arrow toward the step and hides it when facing is unknown", function()
+            Dash.Start(plan)
             local ui = Dash.Debug()
-            ns.Test.where, ns.Test.facing = { c = 1, x = -100, y = 0 }, 0
+            standAt(-100, 0); facing = 0
             Dash.Tick("tick")
             h.truthy(ui.arrow:IsShown())
-            h.eq(ui.arrow.rotation, 0, "the target is due north and so are we")
-            ns.Test.facing = nil
+            h.eq(ui.arrow.rotation, 0, "the target is due north of us and we face north")
+            facing = nil
             Dash.Tick("tick")
             h.falsy(ui.arrow:IsShown(), "never point somewhere we cannot work out")
+            facing = 0
+        end)
+
+        h.it("does not advance or stray while on a zeppelin", function()
+            Dash.Start(plan)
+            local _, state = Dash.Debug()
+            state.index = 2
+            onTaxi = true
+            standAt(0, 0)
+            Dash.Tick("tick")
+            h.eq(state.index, 2, "aboard, arriving at the target means nothing")
+            onTaxi = false
         end)
 
         h.it("waits, without losing the trip, when the client will not place you", function()
+            Dash.Start(plan)
             local ui, state = Dash.Debug()
-            ns.Test.where, ns.Test.facing = nil, 0
+            where.map = nil
             Dash.Tick("tick")
             h.eq(ui.distance:GetText(), "Waiting...")
             h.truthy(state.plan, "an instance must not end the trip")
+            where.map, where.mx, where.my = 1, 0.89, 0.9
         end)
 
         h.it("does nothing at all when no trip is running", function()
             Dash.Stop()
-            ns.Test.where = near
+            standAt(10, 0)
             Dash.Tick("tick")           -- must not error
             h.falsy(Dash.Debug().frame:IsShown())
         end)
     end)
 ```
 
-Add to the scripted API in `test/test_ui.lua` and to `test/test_dash.lua`'s namespace a tiny seam so the tests can move the player. In `test/run.lua`, after the modules load, add:
-
-```lua
-ns.Test = ns.Test or {}
-```
-
-and in the fake API used by the dash tests, read from it:
-
-```lua
-    PlayerFacing = function() return ns.Test.facing end,
-    OnTaxi = function() return ns.Test.onTaxi and true or false end,
-    OnTripEvent = function() end,
-```
-
-with `Core.Here` returning `ns.Test.where`. Wire this the way `test/test_ui.lua` already scripts `ns.API`; do not add a seam to shipped code.
+Leave `where` as the other tests expect it when your block finishes; the suite
+shares one planner and runs in order.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -1130,7 +1189,7 @@ git commit -m "Dash unit: advance, recalculate and arrive" -m "Co-Authored-By: C
 **Files:**
 - Modify: `GoblinPS/Dash.lua`
 - Modify: `GoblinPS/SelfTest.lua`
-- Test: `test/test_dash.lua`
+- Test: `test/test_ui.lua`
 
 **Interfaces:**
 - Consumes: `ns.Data.Art` from task 1, shaped `{ [name] = { file, l, r, t, b } }`.
@@ -1142,7 +1201,7 @@ The stacking order, from Codex's handoff: **screen, compass, arrow, body**. The 
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `test/test_dash.lua`:
+Append to `test/test_ui.lua`:
 
 ```lua
     h.describe("the dash art", function()
