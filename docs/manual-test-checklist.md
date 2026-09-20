@@ -209,6 +209,32 @@ Restart the game first: the TOC changed.
 
 ## Ground crossings (plan 3)
 
+**First in-game run, 2026-09-20**, a level-5 undead at Gallows' End Tavern in
+Brill, destination Stonetalon Mountains. The window drew correctly in the wide
+layout and the route was right:
+
+    1. Walk to Undercity Zeppelin Tower      in Tirisfal Glades · level 1-10
+    2. Zeppelin to Orgrimmar Zeppelin Tower  (time truncated, see below)
+    3. Walk to the Southfury bridge          into The Barrens · level 10-25
+    4. Walk to the Stonetalon pass           into Stonetalon Mountains · level 15-27
+
+Confirmed by that run: the addon loads, the planner opens, two-line step rows
+draw, ground travel chains zones through crossings, "Walk" is chosen below the
+mount level, the amber level warnings fire on the two zones above the
+character, the discover hint appears, and the no-flight-paths message shows.
+
+Two faults it found, both fixed in `a8ae73a`:
+- Step 2 was cut off mid-word because the step text repeated the time the
+  planner already prints in its own column. The time is gone from the step
+  text; link steps now say "includes the average wait" on the detail line.
+- The hearthstone was dropped as "unknown inn (Gallows' End Tavern)" although
+  Brill was already in `Data/Inns.lua`. `GetBindLocation()` returns the
+  SUBZONE, and inside a town that is usually the inn building. **Expect this
+  at every inn**: record the name each time and add a line to `Data/Inns.lua`.
+
+Still unconfirmed from that run: whether clicking a row in the destination
+dropdown selects it. The destination may have been typed in full.
+
 Restart the game first: the TOC changed.
 
 - [ ] FIRST: every Horde route north depends on it. Orgrimmar's west gate:
