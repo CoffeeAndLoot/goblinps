@@ -35,6 +35,7 @@ function Planner.Refresh()
         return
     end
     local plan = state.plan
+    local level = plan and plan.level or nil
     local steps = plan and plan.result and plan.result.steps or {}
     for i = 1, Planner.MAX_ROWS do
         local row, step = ui.rows[i], steps[i]
@@ -43,7 +44,7 @@ function Planner.Refresh()
             left = "... and " .. (#steps - i + 1) .. " more steps"
         elseif step then
             left, right = stepLine(i, step)
-            detail, warn = ns.Route.StepDetail(ns.Data, step, plan.level)
+            detail, warn = ns.Route.StepDetail(ns.Data, step, level)
         end
         row.left:SetText(left)
         row.right:SetText(right)

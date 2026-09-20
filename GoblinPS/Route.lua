@@ -13,7 +13,7 @@ local function shortest(graph)
     while true do
         local best, bestKey = math.huge, nil
         for key, d in pairs(dist) do
-            if not done[key] and d < best then
+            if not done[key] and (d < best or (d == best and bestKey and key < bestKey)) then
                 best, bestKey = d, key
             end
         end

@@ -38,6 +38,16 @@ return function(h)
 
     local Planner = ns.Planner
 
+    h.describe("Widgets.ChatColor", function()
+        h.it("matches the formula for the palette entry, in chat and in the window", function()
+            h.eq(ns.Widgets.ChatColor("amber"), "|cfff0b54a")
+            local dim = ns.Widgets.COLOR.dim
+            local expect = ("|cff%02x%02x%02x"):format(
+                math.floor(dim[1] * 255 + 0.5), math.floor(dim[2] * 255 + 0.5), math.floor(dim[3] * 255 + 0.5))
+            h.eq(ns.Widgets.ChatColor("dim"), expect)
+        end)
+    end)
+
     h.describe("the planner window", function()
         h.it("opens from the slash command with both layouts' widgets built once", function()
             SlashCmdList.GOBLINPS("")
@@ -275,7 +285,11 @@ return function(h)
         h.it("turns the detail amber for a hazard and leaves it dim otherwise", function()
             local ui = Planner.Debug()
             h.eq(ui.rows[1].detail.color[1], amber[1])   -- the crossing carries a hazard note
+            h.eq(ui.rows[1].detail.color[2], amber[2])
+            h.eq(ui.rows[1].detail.color[3], amber[3])
             h.eq(ui.rows[2].detail.color[1], dim[1])     -- level 60 in a 30-40 zone
+            h.eq(ui.rows[2].detail.color[2], dim[2])
+            h.eq(ui.rows[2].detail.color[3], dim[3])
         end)
         h.it("says Walk and warns about the zone for a low-level character", function()
             level = 1
@@ -283,6 +297,8 @@ return function(h)
             h.eq(ui.rows[1].left:GetText(), "1. Walk to the North Gate")
             h.eq(ui.rows[2].left:GetText(), "2. Walk to Hotel")
             h.eq(ui.rows[2].detail.color[1], amber[1])
+            h.eq(ui.rows[2].detail.color[2], amber[2])
+            h.eq(ui.rows[2].detail.color[3], amber[3])
             level = 60
         end)
         h.it("labels a straight line when the crossings table has a hole", function()

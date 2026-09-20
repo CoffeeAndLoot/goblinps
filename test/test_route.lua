@@ -57,6 +57,34 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("Route.Find tie-breaking", function()
+        h.it("always goes through the stop whose key sorts first when two routes tie exactly", function()
+            local graph = {
+                stops = {
+                    START = { key = "START", name = "Start" },
+                    DEST = { key = "DEST", name = "Dest" },
+                    mid_a = { key = "mid_a", name = "Mid A" },
+                    mid_b = { key = "mid_b", name = "Mid B" },
+                },
+                edges = {
+                    START = {
+                        -- mid_b listed first: an insertion-order tie-break would pick it
+                        -- (the wrong stop); only a key-based tie-break always picks mid_a.
+                        { to = "mid_b", kind = "ride", seconds = 10, copper = 0 },
+                        { to = "mid_a", kind = "ride", seconds = 10, copper = 0 },
+                    },
+                    mid_a = { { to = "DEST", kind = "ride", seconds = 10, copper = 0 } },
+                    mid_b = { { to = "DEST", kind = "ride", seconds = 10, copper = 0 } },
+                },
+            }
+            for _ = 1, 5 do
+                local r = Route.Find(graph)
+                h.truthy(r, "a route must be found")
+                h.eq(r.raw[1].to.key, "mid_a")
+            end
+        end)
+    end)
+
     h.describe("a zone destination", function()
         local westland = loaded.ns.Search.Find(world, "westland", "H", 1)[1]
         h.it("is reached at the first stop inside the zone", function()

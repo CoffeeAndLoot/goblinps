@@ -61,8 +61,9 @@ end
 --   result  Route.Plan's answer, or nil
 --   hint    Route.Hint's answer, or nil
 --   notes   plain lines for the player; the last one explains a missing route
+--   level   the character's level, or nil
 function Core.PlanRoute(to, from)
-    local plan = { to = to, notes = {} }
+    local plan = { to = to, notes = {}, level = API.Level() }
     local faction = API.Faction()
     if not faction then
         plan.notes[1] = "Pick a faction first."
@@ -84,7 +85,6 @@ function Core.PlanRoute(to, from)
             "Visit a flight master so GoblinPS can learn your flight paths. Until then, no flights."
     end
 
-    plan.level = API.Level()
     local travel = ns.Travel.For(plan.level)
     local opts = { faction = faction, known = known, from = from, to = to, hearth = bind,
                    speed = travel.speed, walk = travel.walk }
@@ -133,7 +133,7 @@ local function routeTo(text)
             say(i .. ". " .. Route.StepText(step))
             local detail, warn = Route.StepDetail(ns.Data, step, plan.level)
             if detail ~= "" then
-                say("     " .. (warn and "|cfff0b54a" or "|cff9c8f6d") .. detail .. "|r")
+                say("     " .. ns.Widgets.ChatColor(warn and "amber" or "dim") .. detail .. "|r")
             end
         end
     end

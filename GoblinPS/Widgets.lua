@@ -44,6 +44,14 @@ function Widgets.Panel(parent, fill, border, inset)
     return f
 end
 
+-- The chat escape for a palette entry: |cffRRGGBB, so chat text and the
+-- window's own colours never drift apart.
+function Widgets.ChatColor(name)
+    local c = Widgets.COLOR[name] or Widgets.COLOR.dim
+    return ("|cff%02x%02x%02x"):format(
+        math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5), math.floor(c[3] * 255 + 0.5))
+end
+
 function Widgets.Text(parent, color, fontObject, justify)
     local fs = parent:CreateFontString(nil, "OVERLAY", fontObject or "GameFontHighlightSmall")
     fs:SetTextColor(rgb(color or "green"))
