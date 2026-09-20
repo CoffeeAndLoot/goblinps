@@ -10,6 +10,9 @@ local modules = {
     { "Flights", "GoblinPS/Data/Flights.lua" },
     { "Links",   "GoblinPS/Data/Links.lua" },
     { "Inns",    "GoblinPS/Data/Inns.lua" },
+    { "Crossings", "GoblinPS/Data/Crossings.lua" },
+    { "Zones",   "GoblinPS/Data/Zones.lua" },
+    { "Travel",  "GoblinPS/Travel.lua" },
     { "Search",  "GoblinPS/Search.lua" },
     { "Graph",   "GoblinPS/Graph.lua" },
     { "Route",   "GoblinPS/Route.lua" },
@@ -37,6 +40,8 @@ local suites = {
     "test/test_trip.lua",
     "test/test_known.lua",
     "test/test_prefs.lua",
+    "test/test_travel.lua",
+    "test/test_crossings.lua",
     "test/test_ui.lua",
     "test/test_data.lua",
 }
