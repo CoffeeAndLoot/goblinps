@@ -11,4 +11,62 @@ ns.Data.Art = {
     ["dash-compass"] = { file = "dash-compass", l = 0, r = 1, t = 0, b = 1 },  -- 256x256 art on 256x256
     ["arrow"] = { file = "arrow", l = 0, r = 1, t = 0, b = 1 },  -- 128x128 art on 128x128
     ["dash-eta-plate"] = { file = "dash-eta-plate", l = 0, r = 1, t = 0, b = 1 },  -- 128x32 art on 128x32
+    ["dash2-housing"] = { file = "dash2-housing", l = 0, r = 1, t = 0, b = 0.625 },  -- 256x320 art on 256x512
+    ["dash2-glass"] = { file = "dash2-glass", l = 0, r = 1, t = 0, b = 0.625 },  -- 256x320 art on 256x512
+    ["dash2-steps-screen"] = { file = "dash2-steps-screen", l = 0, r = 1, t = 0, b = 0.625 },  -- 256x320 art on 256x512
+    ["dash2-eta-screen"] = { file = "dash2-eta-screen", l = 0, r = 1, t = 0, b = 0.625 },  -- 256x320 art on 256x512
+    ["dash2-compass"] = { file = "dash2-compass", l = 0, r = 1, t = 0, b = 1 },  -- 256x256 art on 256x256
+    ["dash2-stop"] = { file = "dash2-stop", l = 0, r = 1, t = 0, b = 1 },  -- 64x64 art on 64x64
+    ["dash2-stop-hover"] = { file = "dash2-stop-hover", l = 0, r = 1, t = 0, b = 1 },  -- 64x64 art on 64x64
+    ["dash2-stop-pressed"] = { file = "dash2-stop-pressed", l = 0, r = 1, t = 0, b = 1 },  -- 64x64 art on 64x64
+}
+
+ns.Data.Art.geometry = {
+    ["arrow"] = {
+        ["share"] = 0.450195
+    },
+    ["canvas"] = {
+        ["h"] = 1280,
+        ["w"] = 1024
+    },
+    ["compassCrop"] = {
+        ["share"] = 0.546875
+    },
+    ["compassRing"] = {
+        ["r"] = 0.255859
+    },
+    ["destination"] = {
+        ["bottom"] = 0.4875,
+        ["left"] = 0.351562,
+        ["right"] = 0.65625,
+        ["top"] = 0.464062
+    },
+    ["distance"] = {
+        ["bottom"] = 0.510938,
+        ["left"] = 0.390625,
+        ["right"] = 0.617188,
+        ["top"] = 0.490625
+    },
+    ["etaText"] = {
+        ["bottom"] = 0.928125,
+        ["left"] = 0.414062,
+        ["right"] = 0.598633,
+        ["top"] = 0.894531
+    },
+    ["glass"] = {
+        ["cx"] = 0.503906,
+        ["cy"] = 0.366406,
+        ["r"] = 0.283203
+    },
+    ["stepsText"] = {
+        ["bottom"] = 0.845313,
+        ["left"] = 0.279297,
+        ["right"] = 0.731445,
+        ["top"] = 0.720313
+    },
+    ["stop"] = {
+        ["cx"] = 0.836914,
+        ["cy"] = 0.170313,
+        ["r"] = 0.0478516
+    }
 }
