@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .remember/
 .superpowers/
+docs/research/schematic-spike/out/
