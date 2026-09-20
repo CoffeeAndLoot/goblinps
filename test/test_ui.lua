@@ -550,6 +550,32 @@ return function(h)
                      "the text band needs real room under the device, not the leftovers")
         end)
 
+        h.it("draws the three stacked layers at one square, as the art requires", function()
+            Dash.Start(plan)
+            local ui = Dash.Debug()
+            -- dash-screen, dash-compass and dash-body were drawn concentric
+            -- on one 1024px canvas and are sized as fractions of it: the
+            -- glass disc is 61% of its width, the compass ring 55%, the
+            -- body's hole 58%. Drawing any of them at a different size puts
+            -- the disc inside the hole instead of filling it. Seen in game
+            -- 2026-09-20: the screen was 180 while the bezel was 200, and
+            -- the compass vanished behind the brass.
+            for _, name in ipairs({ "screen", "bezel" }) do
+                h.eq(ui[name]:GetWidth(), ui.device:GetWidth(), name .. " must match the device")
+                h.eq(ui[name]:GetHeight(), ui.device:GetHeight(), name .. " must match the device")
+            end
+        end)
+
+        h.it("hides the square fallback colour once the round glass loads", function()
+            Dash.Start(plan)
+            local ui = Dash.Debug()
+            -- The flat colour exists so a missing texture still leaves a
+            -- readable device, but it is a square: left showing behind round
+            -- art it frames the device with a dark box.
+            h.truthy(ui.screenArt, "this test is meaningless if the art did not load")
+            h.falsy(ui.screenFlat:IsShown(), "the square must go when the glass arrives")
+        end)
+
         h.it("gives the step line room to wrap instead of cutting a stop name in half", function()
             Dash.Start(plan)
             local ui = Dash.Debug()

@@ -16,7 +16,6 @@ local W = ns.Widgets
 -- the directions.
 Dash.SIZE = { 220, 348 }
 local PAD, DEVICE = 10, 200
-local SCREEN = DEVICE - 20
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 local ui              -- built on first Start
@@ -116,16 +115,27 @@ local function build()
     device:SetPoint("TOP", 0, -PAD)
     device:SetFrameLevel(base + 1)
 
-    local screen = W.Panel(device, "screen", "steel", 2)
-    screen:SetSize(SCREEN, SCREEN)
-    screen:SetPoint("CENTER")
+    -- The three 1024px layers were drawn concentric on one canvas and are
+    -- sized as fractions of it: the body's hole is 58% of its width, the
+    -- glass disc 61%, the compass ring 55%. They only line up if all three
+    -- are drawn at the SAME square. Rendering the screen smaller than the
+    -- bezel, as this did at first, shrinks the disc inside the hole and
+    -- leaves the flat fallback colour showing around it as a square.
+    local screen = CreateFrame("Frame", nil, device)
+    screen:SetAllPoints(device)
     screen:SetFrameLevel(base + 1)
 
-    local screenArt = art(screen, "dash-screen", "BACKGROUND")
-    local compass = art(screen, "dash-compass", "BORDER")
+    -- The flat colour is the fallback, not a backdrop: it is a square, so it
+    -- must go when the round glass loads, or it frames the device.
+    local screenFlat = W.Fill(screen, "BACKGROUND", "screen")
+    local screenArt = art(screen, "dash-screen", "BORDER")
+    if screenArt then
+        screenFlat:Hide()
+    end
+    local compass = art(screen, "dash-compass", "ARTWORK")
 
-    local arrow = screen:CreateTexture(nil, "ARTWORK")
-    arrow:SetSize(90, 90)
+    local arrow = screen:CreateTexture(nil, "OVERLAY")
+    arrow:SetSize(DEVICE * 0.45, DEVICE * 0.45)
     arrow:SetPoint("CENTER")
     arrow:SetTexture("Interface\\Buttons\\WHITE8X8")
     arrow:SetVertexColor(unpack(W.COLOR.green))
@@ -190,8 +200,8 @@ local function build()
     stop:SetPoint("BOTTOM", 0, PAD)
     stop:SetFrameLevel(base + 4)
 
-    ui = { frame = f, device = device, screen = screen, screenArt = screenArt,
-           compass = compass, arrow = arrow,
+    ui = { frame = f, device = device, screen = screen, screenFlat = screenFlat,
+           screenArt = screenArt, compass = compass, arrow = arrow,
            bezel = bezel, content = content, bodyArt = bodyArt, plateArt = plateArt,
            distance = distance, eta = eta, step = step, next = following, stop = stop }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")

@@ -14,7 +14,7 @@ Fake.missingTextures = {}
 -- misspelt or invented call, and the fake raises instead of quietly doing
 -- nothing, so a bad widget call fails on the desktop instead of only in game.
 local ALLOWED_NOOP = {
-    SetAllPoints = true, SetColorTexture = true, SetAlpha = true,
+    SetColorTexture = true, SetAlpha = true,
     SetJustifyH = true, SetFontObject = true,
     SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
@@ -66,8 +66,18 @@ function Region:GetScript(name) return self.scripts[name] end
 function Region:SetSize(w, h) self.width, self.height = w, h end
 function Region:SetWidth(w) self.width = w end
 function Region:SetHeight(h) self.height = h end
-function Region:GetWidth() return self.width end
-function Region:GetHeight() return self.height end
+-- Recorded, not swallowed: a region told to fill another takes that one's
+-- size in the real client, and code that lines two frames up by calling this
+-- can only be checked if the fake carries the size across.
+function Region:SetAllPoints(target)
+    self.fills = target
+    if target then
+        self.width, self.height = target:GetWidth(), target:GetHeight()
+    end
+end
+
+function Region:GetWidth() return self.width or (self.fills and self.fills:GetWidth()) end
+function Region:GetHeight() return self.height or (self.fills and self.fills:GetHeight()) end
 function Region:ClearAllPoints()
     self.points = {}
     self.lastPoint = nil
