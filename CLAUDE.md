@@ -16,8 +16,11 @@ borrow patterns from them, not code.
 
 **Status: routing core and planner window built (plans 1 and 2).** `/gps`
 opens the planner; `/gps to <place>` prints a route in chat. Next: plan 3,
-the schematic map on the green screen (approach proven in
-`docs/research/schematic-spike/`), then plan 4, the dash unit. The design is
+ground crossings between zones (real turns instead of a straight line to a
+zone's centre) with walk-or-ride by level; plan 4, the dash unit (arrow,
+arrival, recalculating); plan 5, the schematic map (approach proven in
+`docs/research/schematic-spike/`). The product is a GPS: point to point with
+an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`. Write each plan after
 the one before it has been used in game.
 

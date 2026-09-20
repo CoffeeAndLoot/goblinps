@@ -1,9 +1,18 @@
 # GoblinPS design
 
-Status: **approved by the user on 2026-09-19.** Implemented in four plans
-under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window,
-3 schematic map, 4 dash unit. Each is written after the one before it has
-been used in game. Update this file whenever behaviour changes.
+Status: **approved by the user on 2026-09-19.** Implemented in five plans
+under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window
+(built), 3 ground crossings with walk-or-ride by level, 4 dash unit,
+5 schematic map. Each is written after the one before it has been used in
+game. Update this file whenever behaviour changes.
+
+**What the product is** (the user, 2026-09-19, after trying a level-1
+character): a GPS. Point to point to point, with the arrow and the map pin on
+the next turn, advancing as you arrive. A web atlas can list a route; only an
+addon can walk you along it. That is why ground crossings (the turns) and the
+dash unit (the arrow) come before the schematic map (the display), and why
+decision 6's "ground crossings later" moved up: a new character with no
+flight paths gets almost nothing from a straight line to a zone's centre.
 
 ## Purpose
 
