@@ -548,9 +548,10 @@ return function(h)
             -- width:height ratio drifts from the art's still draws it
             -- stretched or squashed. Same defect, stated for the new shape.
             local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
-            local artRatio = g.canvas.w / g.canvas.h
-            h.truthy(math.abs((w / h2) - artRatio) < 0.01,
-                     "the frame must keep the art's 1024x1280 aspect ratio")
+            -- Cross-multiplied so this is an exact check, not a tolerance:
+            -- w/h2 == canvas.w/canvas.h without dividing at all.
+            h.eq(w * g.canvas.h, h2 * g.canvas.w,
+                 "the frame must keep the art's 1024x1280 aspect ratio exactly")
         end)
 
         h.it("draws the three stacked layers at one square, as the art requires", function()

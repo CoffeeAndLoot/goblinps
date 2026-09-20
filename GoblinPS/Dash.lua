@@ -12,7 +12,7 @@ local W = ns.Widgets
 -- The device's rectangle on screen. The art is 1024x1280, so this keeps that
 -- shape; everything inside is placed as a fraction of it, from the geometry
 -- the art tool generates. Nothing here is a measured guess.
-Dash.SIZE = { 230, 288 }
+Dash.SIZE = { 232, 290 }
 local PAD = 8
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
@@ -74,17 +74,6 @@ end
 
 local function geometry()
     return ns.Data.Art and ns.Data.ArtGeometry
-end
-
--- Put a region where the geometry says, as a fraction of `parent`. `rect` is
--- { left, top, right, bottom } in 0..1 with the origin at the top left, which
--- is how the artist's file states every box. Unused until Task 3 moves the
--- FontStrings onto the geometry's text-safe boxes with it.
-local function place(region, parent, rect) -- luacheck: ignore 211
-    local w, h = parent:GetWidth(), parent:GetHeight()
-    region:ClearAllPoints()
-    region:SetPoint("TOPLEFT", parent, "TOPLEFT", rect.left * w, -rect.top * h)
-    region:SetPoint("BOTTOMRIGHT", parent, "TOPLEFT", rect.right * w, -rect.bottom * h)
 end
 
 local function build()
