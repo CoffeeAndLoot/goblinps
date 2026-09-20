@@ -51,7 +51,9 @@ These decide the design. Record the result beside each one.
 - [ ] `/gps probe` reports "Learned from flight masters so far: M"
 - [x] Open the same flight map again: no "Learned" message (nothing new)
       (2026-09-19: reopened Crossroads, chat stayed quiet)
-- [ ] `/reload`, then `/gps to orgrimmar`: the flights are still known
+- [x] `/reload`, then `/gps to orgrimmar`: the flights are still known
+      (2026-09-19: after a /reload in Undercity, `/gps to thunder bluff`
+      still flew Crossroads to Thunder Bluff)
 - [x] Visit a flight master on the other continent: its paths are added and
       the first continent's are kept
       (2026-09-19 at Undercity: "Learned 3 flight paths here (8 known)" =
@@ -68,6 +70,16 @@ These decide the design. Record the result beside each one.
       "Discover ... to save ~N min" line
 - [ ] With the hearthstone ready and a better route through the inn, step 1
       is "Hearthstone to ..."; on cooldown it never appears
+      (2026-09-19, bound at the Crossroads inn, from Undercity: first run
+      said "unknown inn (The Crossroads)": the bind name carries "The", fixed
+      in Search.Exact. After the fix: "Hearthstone to Crossroads, Fly to
+      Thunder Bluff", ~3 min, 1s 10c. The on-cooldown half is still to see.)
+- [ ] Known wart for plan 2: a zone destination aims at the zone's centre, so
+      hearthing to Crossroads for "The Barrens" adds "Ride to The Barrens".
+      Arriving at any stop inside the destination zone should count.
+- [ ] Inns in towns with no flight master (Brill, Razor Hill, Goldshire,
+      Kharanos ...) do not match a bind name; plan 2 adds a hand-written
+      inn list
 - [ ] `/gps to qqqq` prints `No place matches "qqqq".`
 - [ ] Inside an instance `/gps to orgrimmar` prints "Can't tell where you are"
 - [ ] Stand on each dock and compare `/dump C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()`
