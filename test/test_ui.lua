@@ -1215,7 +1215,7 @@ return function(h)
             end)
 
             h.it("keeps the text legible when the generated geometry is absent", function()
-                -- Every `if g then place(...) end` block had no `else`: with
+                -- Every `if g then placeLine(...) end` block had no `else`: with
                 -- no generated geometry, destination/distance/steps/eta got
                 -- no anchors at all, so SetText succeeded but nothing drew --
                 -- silently, since only the compass/arrow/dial/stop button had
