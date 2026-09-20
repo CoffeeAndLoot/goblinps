@@ -72,7 +72,8 @@ end
 
 -- Seconds left for the whole journey: the ground still to cover on the step
 -- you are on, plus every step after it as planned. Only a ride shrinks as you
--- walk; a zeppelin takes as long whether you are beside it or not.
+-- walk; a zeppelin takes as long whether you are beside it or not. An unmeasurable
+-- leg falls back to its planned time.
 function Trip.Remaining(result, index, pos, speed)
     local step = result and result.steps and result.steps[index]
     if not step then
@@ -83,7 +84,7 @@ function Trip.Remaining(result, index, pos, speed)
         total = total + (result.steps[i].seconds or 0)
     end
     local d = step.kind == "ride" and speed and speed > 0 and Trip.DistanceTo(pos, step) or nil
-    return total + (d and d / speed or (step.kind == "ride" and 0 or step.seconds or 0))
+    return total + (d and d / speed or step.seconds or 0)
 end
 
 return Trip
