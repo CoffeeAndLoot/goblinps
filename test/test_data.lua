@@ -83,6 +83,29 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("the inn list", function()
+        h.it("resolves every row for the faction that can use it", function()
+            for bind in pairs(data.Inns) do
+                local found = ns.Search.Exact(data, bind, "H") or ns.Search.Exact(data, bind, "A")
+                h.truthy(found, bind .. " does not resolve")
+            end
+        end)
+        h.it("only lists names Search cannot already find", function()
+            local without = {}
+            for k, v in pairs(data) do
+                without[k] = v
+            end
+            without.Inns = nil
+            for bind in pairs(data.Inns) do
+                h.falsy(ns.Search.Exact(without, bind, nil), bind .. " already resolves; drop the row")
+            end
+        end)
+        h.it("finds the binds met in game", function()
+            h.eq(ns.Search.Exact(data, "The Crossroads", "H").nodeID, 25)
+            h.eq(ns.Search.Exact(data, "Brill", "H").kind, "inn")
+        end)
+    end)
+
     h.describe("a real route", function()
         h.it("takes a Horde character from Thunder Bluff to Undercity by zeppelin", function()
             local _, tb = findNode("Thunder Bluff")

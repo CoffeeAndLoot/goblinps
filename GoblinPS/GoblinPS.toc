@@ -12,6 +12,7 @@ Data\Places.lua
 Data\Nodes.lua
 Data\Flights.lua
 Data\Links.lua
+Data\Inns.lua
 Search.lua
 Graph.lua
 Route.lua

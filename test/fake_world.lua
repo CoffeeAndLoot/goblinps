@@ -28,6 +28,11 @@ local function world()
             west_dock = { name = "West Dock", map = 1, mx = 0.05, my = 0.9 }, -- world 1000, 9500
             east_dock = { name = "East Dock", map = 2, mx = 0.45, my = 0.5 }, -- world 5000, 5500
         },
+        Inns = {
+            ["Delta Harbour Inn"] = { stop = "Delta" },                 -- an inn beside a flight stop
+            ["Quiet Hollow"] = { map = 1, mx = 0.25, my = 0.5 },        -- a town with no flight master
+            ["Nowhere Inn"] = { map = 99, mx = 0.5, my = 0.5 },         -- a map we do not have
+        },
         Links = {
             { from = "west_dock", to = "east_dock", kind = "zeppelin", minutes = 4, faction = "H" },
         },

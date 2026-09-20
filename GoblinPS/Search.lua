@@ -77,6 +77,17 @@ function Search.Exact(data, name, faction)
         return nil
     end
     local best
+    for bind, inn in pairs(data.Inns or {}) do
+        if plain(bind) == needle then
+            if inn.stop then
+                return Search.Exact(data, inn.stop, faction)
+            end
+            local c, x, y = ns.Geo.ToWorld(data.Places, inn.map, inn.mx, inn.my)
+            if c then
+                return { kind = "inn", name = bind, c = c, x = x, y = y, map = inn.map, mx = inn.mx, my = inn.my }
+            end
+        end
+    end
     for _, item in ipairs(candidates(data, faction)) do
         if plain(item.name) == needle then
             local better = not best or (item.kind == "zone" and best.kind ~= "zone")
