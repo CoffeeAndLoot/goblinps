@@ -1,5 +1,13 @@
 # GoblinPS Ground Crossings Implementation Plan
 
+> **Status: EXECUTED, 2026-09-20.** Built on branch `ground-crossings`
+> (`11b29bb..ed9e8ba`), reviewed whole-branch, fixed, and re-reviewed:
+> approved, 0 Critical, 0 Important, 1 Minor, and that Minor closed in
+> `2e250e7`. Gates at close: 170 Lua tests, 18 Python tests, luacheck 0
+> warnings, lua-language-server clean. **Not yet used in game**, and not
+> merged to main: it waits with plan 2 on the in-game pass, starting with
+> Orgrimmar's west gate. Kept for the record; do not re-execute it.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ground travel goes zone by zone through named crossings, so a character with no flight paths gets real turns ("Walk to the Mor'shan Rampart, into Ashenvale") instead of one straight line to a zone's centre; steps say Walk or Ride by level; dangerous zones and crossings are flagged in amber.
