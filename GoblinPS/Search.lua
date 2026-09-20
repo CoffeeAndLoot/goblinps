@@ -64,15 +64,29 @@ function Search.Find(data, text, faction, limit)
     return out
 end
 
--- Exact name match, used for the hearthstone bind name. Nil when unknown.
-function Search.Exact(data, name)
-    local needle = (name or ""):lower()
-    for _, item in ipairs(Search.Find(data, name, nil, 50)) do
-        if item.name:lower() == needle then
-            return item
+-- The game says "The Crossroads" where the flight stop is "Crossroads".
+local function plain(name)
+    return ((name or ""):lower():gsub("^the%s+", ""))
+end
+
+-- Whole-name match, used for the hearthstone bind name. Nil when unknown.
+-- A zone wins over a stop of the same name; faction nil means any.
+function Search.Exact(data, name, faction)
+    local needle = plain(name)
+    if needle == "" then
+        return nil
+    end
+    local best
+    for _, item in ipairs(candidates(data, faction)) do
+        if plain(item.name) == needle then
+            local better = not best or (item.kind == "zone" and best.kind ~= "zone")
+                or (item.kind == best.kind and (item.nodeID or 0) < (best.nodeID or 0))
+            if better then
+                best = item
+            end
         end
     end
-    return nil
+    return best
 end
 
 return Search

@@ -43,7 +43,7 @@ local function routeTo(text)
         return
     end
     local bindName = API.HearthBindName()
-    local bind = bindName and Search.Exact(ns.Data, bindName) or nil
+    local bind = bindName and Search.Exact(ns.Data, bindName, faction) or nil
     if bindName and not bind then
         say("Hearth: unknown inn (" .. bindName .. "), left out.")
     end
