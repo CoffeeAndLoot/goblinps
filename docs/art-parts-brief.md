@@ -70,7 +70,7 @@ one into the other.
 | `button.png`, `button-hover.png`, `button-pressed.png`, `button-disabled.png` | 768x192 each | The big "Start Route" button with **no words**: normal, brighter glow for hover, pushed in and darker for pressed, grey and unlit for disabled. Identical shape and position in all four. |
 | `gear.png`, `gear-hover.png` | 192x192 each | The square settings button with the brass gear. |
 | `close.png`, `close-hover.png` | 192x192 each | A matching square button with an X made of two crossed wrench-like bars. |
-| `screen-map.png` | 1600x640 | The wide olive "map screen" in the middle of the planner: faint hand-drawn mountains, a winding river and a road, very low contrast, with a thin dark inset border. **No route line, no icons, no labels, no faction crests.** It is a backdrop only. |
+| `screen-backdrop.png` | 1600x640 | The wide olive screen in the middle of the planner, which the route strip is drawn on top of. Faint hand-drawn mountains, a winding river and a road, very low contrast, with a thin dark inset border. This is **wallpaper, not a map**: nobody reads it, and nothing is placed by its geography. **No route line, no icons, no labels, no faction crests, no coastlines anyone could mistake for a real continent.** |
 
 ### Route strip (the glowing line of stops across the planner's screen)
 

@@ -18,8 +18,9 @@ borrow patterns from them, not code.
 to 3).** `/gps` opens the planner; `/gps to <place>` prints a route in chat,
 with ground travel going zone by zone through named crossings and
 walk-or-ride by level. Next: plan 4, the dash unit (arrow, arrival,
-recalculating); plan 5, the schematic map (approach proven in
-`docs/research/schematic-spike/`). The product is a GPS: point to point with
+recalculating); plan 5, the route strip. A schematic world map was dropped on
+2026-09-20 in favour of the strip; the spike that proved it feasible is kept
+at `docs/research/schematic-spike/`. The product is a GPS: point to point with
 an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`. Write each plan after
 the one before it has been used in game.

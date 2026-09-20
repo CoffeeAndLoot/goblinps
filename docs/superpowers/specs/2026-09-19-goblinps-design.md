@@ -3,14 +3,14 @@
 Status: **approved by the user on 2026-09-19.** Implemented in five plans
 under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window
 (built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit,
-5 schematic map. Each is written after the one before it has been used in
+5 route strip. Each is written after the one before it has been used in
 game. Update this file whenever behaviour changes.
 
 **What the product is** (the user, 2026-09-19, after trying a level-1
 character): a GPS. Point to point to point, with the arrow and the map pin on
 the next turn, advancing as you arrive. A web atlas can list a route; only an
 addon can walk you along it. That is why ground crossings (the turns) and the
-dash unit (the arrow) come before the schematic map (the display), and why
+dash unit (the arrow) come before the route strip (the display), and why
 decision 6's "ground crossings later" moved up: a new character with no
 flight paths gets almost nothing from a straight line to a zone's centre.
 
@@ -40,27 +40,37 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 2. **Start defaults to where the player stands**; a "From:" control can
    change it to any stop or zone.
 3. **Two frames (Garmin model).**
-   - *Planner*: the big device. Search box, schematic map, step list, route
-     line drawn on the map.
-   - *Dash unit*: a small draggable device shown after "Go". Current step
-     plus the next ("Fly to Orgrimmar · then Zeppelin to Tirisfal"), advances
-     on arrival, shows "Recalculating…" when the player strays, sets
-     Blizzard's map waypoint and arrow on the current step.
-4. **Destination input, three ways:** type-ahead search over cities, zones
-   and flight masters with recents on top; click a zone or stop on the
-   schematic map; Ctrl-click on Blizzard's world map for an exact spot
-   (react to `USER_WAYPOINT_UPDATED`).
-5. **The map is our own schematic, not Blizzard's canvas.** One hand-drawn
-   world texture in a transit-map style (both continents, zone blobs, the
-   new Forever zones). Our own pins for stops; the route drawn over it with
-   `CreateLine`. No zoom, no `MapCanvasFrameTemplate`. Stop positions come
-   from the generator: one linear world-to-schematic transform per continent,
-   with hand overrides where a pin lands in the wrong blob. The art is ours;
-   the Forever Atlas fan map is a style reference only (it has no license).
-   **Palette: green screen** (chosen from mockups over navy and amber).
-   Faction zones are subtle tints; the amber route is the only bright thing.
-   The art is greyscale layers (base, Horde zones, Alliance zones) tinted in
-   code, so the palette is colour constants, not a redraw.
+   - *Planner*: the big device. Search box, the route strip, step list.
+   - *Dash unit*: a small draggable round brass device shown after "Go",
+     drawn from the mockup. A green arrow that turns to point at the current
+     step, with the distance and an ETA on the plate beneath it; the current
+     step plus the next in text ("Fly to Orgrimmar · then Zeppelin to
+     Tirisfal"); advances on arrival; shows "Recalculating…" when the player
+     strays; sets Blizzard's map waypoint on the current step. The arrow is
+     its own texture, pointing up and centred on its pivot, so it can be
+     rotated in code.
+4. **Destination input, two ways:** type-ahead search over cities, zones and
+   flight masters with recents on top; Ctrl-click on Blizzard's world map for
+   an exact spot (react to `USER_WAYPOINT_UPDATED`). A third way, clicking a
+   zone on our own schematic map, went away with decision 5.
+5. **The route is shown as a strip, not a map.** The middle of the planner is
+   a horizontal run of stops: a brass ring per stop, an icon for how you get
+   there (flight, boat, zeppelin, tram, hearthstone, gate, walk, ride), and a
+   glowing line between them, solid behind you and dashed ahead. It is drawn
+   straight from the step list, so it needs no world projection, no hand-drawn
+   world texture and no pin placement. Chosen by the user on 2026-09-20 over a
+   schematic world map ("the mockup, not an actual map"): a GPS shows the next
+   few turns, not the whole country, and a strip stays readable at any window
+   size, which a map does not.
+   **Palette: green screen** (chosen from mockups over navy and amber). The
+   glowing green route is the only bright thing; amber is for warnings only.
+   The art is separate transparent parts specified in
+   `docs/art-parts-brief.md`, laid over plain colour, so a missing texture
+   still leaves a working window.
+   The schematic world map is **not being built.** The spike that proved it
+   feasible is kept at `docs/research/schematic-spike/` in case a later
+   version wants an overview panel; until then the generator's schematic
+   positions are unused.
 6. **Graph scope:** flight edges (generated), boats, zeppelins and the tram
    (hand-written, about a dozen), the hearthstone, and travel on the ground.
    Plans 1 and 2 shipped the ground as one straight-line ride at each end;
@@ -154,7 +164,8 @@ fetches anything in game.
 `tools/catalog.lock`, modelled on `D:\looseEnds\tools\build_catalog.py`:
 
 - Flight nodes: id, name, faction, continent, zone, schematic position, real
-  map position (uiMapID, x, y) for the waypoint.
+  map position (uiMapID, x, y) for the waypoint. The schematic position is
+  generated but unused while decision 5 stands.
 - Flight edges: from, to, fare in copper, seconds. Seconds are the path's
   polyline length (`TaxiPathNode`) divided by 32 yards per second. Checked
   against four community-measured Classic times: within about 15%, which is
