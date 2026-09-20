@@ -510,6 +510,17 @@ return function(h)
             return assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
         end
 
+        -- Marks `path` as a texture the fake will refuse to load, runs `fn`,
+        -- and unmarks it afterward even if an assertion inside `fn` raises --
+        -- otherwise a failure here would leave the flag stuck true for every
+        -- "missing texture" test that runs after it. Shared by all three.
+        local function withMissingTexture(path, fn)
+            Fake.missingTextures[path] = true
+            local ok, err = pcall(fn)
+            Fake.missingTextures[path] = nil
+            h.truthy(ok, err)
+        end
+
         -- A real step's `to` always carries a map (Graph.stopFrom sets it from
         -- the stop data); task 5's pin test needs it too, so the fixture gets
         -- one. `plan.to` is the destination a recalculation replans towards,
@@ -971,14 +982,14 @@ return function(h)
                 -- exercise nothing new, so this uses freshDash() (defined at
                 -- the top of this block) to genuinely drive a fresh build with
                 -- a texture that fails.
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash2-housing"] = true
-                local FreshDash = freshDash()
-                FreshDash.Start(plan)
-                local ui = FreshDash.Debug()
-                h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
-                h.truthy(ui.steps[1]:GetText() ~= "", "the directions must still be readable")
-                h.falsy(ui.housing, "a texture that would not load must not be laid over the colour")
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash2-housing"] = nil
+                withMissingTexture("Interface\\AddOns\\GoblinPS\\Media\\dash2-housing", function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
+                    h.truthy(ui.steps[1]:GetText() ~= "", "the directions must still be readable")
+                    h.falsy(ui.housing, "a texture that would not load must not be laid over the colour")
+                end)
             end)
             h.it("keeps the flat placeholder when the arrow's own texture will not load", function()
                 -- The arrow is the one part with no colour behind it -- it
@@ -986,14 +997,14 @@ return function(h)
                 -- ui.bodyArt nil and the colour showing), a failed arrow
                 -- texture must leave WHITE8X8 in place, not the failed path
                 -- SetTexture leaves behind on its own.
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\arrow"] = true
-                local FreshDash = freshDash()
-                FreshDash.Start(plan)
-                local ui = FreshDash.Debug()
-                h.truthy(ui.frame:IsShown(), "a missing arrow texture must not take the window with it")
-                h.eq(ui.arrow:GetTexture(), "Interface\\Buttons\\WHITE8X8",
-                     "a failed arrow texture must fall back to the flat placeholder")
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\arrow"] = nil
+                withMissingTexture("Interface\\AddOns\\GoblinPS\\Media\\arrow", function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    h.truthy(ui.frame:IsShown(), "a missing arrow texture must not take the window with it")
+                    h.eq(ui.arrow:GetTexture(), "Interface\\Buttons\\WHITE8X8",
+                         "a failed arrow texture must fall back to the flat placeholder")
+                end)
             end)
             h.it("the directions are never hidden behind the device", function()
                 -- A child frame draws entirely above every draw layer of its
@@ -1068,12 +1079,37 @@ return function(h)
             end)
 
             h.it("keeps a usable button when its art will not load", function()
-                Fake.missingTextures[MEDIA_STOP] = true
                 Dash.Stop()
-                local FreshDash = freshDash()
-                FreshDash.Start(plan)
-                h.truthy(FreshDash.Debug().stop, "a missing texture must not lose the button")
-                Fake.missingTextures[MEDIA_STOP] = nil
+                withMissingTexture(MEDIA_STOP, function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    h.truthy(FreshDash.Debug().stop, "a missing texture must not lose the button")
+                end)
+            end)
+
+            h.it("keeps the text legible when the generated geometry is absent", function()
+                -- Every `if g then place(...) end` block had no `else`: with
+                -- no generated geometry, destination/distance/steps/eta got
+                -- no anchors at all, so SetText succeeded but nothing drew --
+                -- silently, since only the compass/arrow/dial/stop button had
+                -- a fallback. Build with Data.Art and ArtGeometry both nil
+                -- (as they are before tools/build_graph.py has ever run) and
+                -- pin that all six still get two anchors apiece.
+                Dash.Stop()
+                local savedArt, savedGeometry = ns.Data.Art, ns.Data.ArtGeometry
+                ns.Data.Art, ns.Data.ArtGeometry = nil, nil
+                local ok, err = pcall(function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    local lines = { ui.destination, ui.distance, ui.steps[1], ui.steps[2], ui.steps[3], ui.eta }
+                    for i, fs in ipairs(lines) do
+                        h.truthy(fs.points and #fs.points >= 2,
+                                 "line " .. i .. " needs two anchors even with no generated geometry")
+                    end
+                end)
+                ns.Data.Art, ns.Data.ArtGeometry = savedArt, savedGeometry
+                h.truthy(ok, err)
             end)
         end)
     end

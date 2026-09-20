@@ -196,6 +196,15 @@ local function build()
     if g then
         place(destination, content, g.destination)
         place(distance, content, g.distance)
+    else
+        -- Only reached when the generated geometry is absent: a plain
+        -- vertical stack down the middle of the frame, not a placed layout.
+        -- Every line still gets two horizontal anchors, so a missing
+        -- geometry file leaves a legible device instead of an invisible one.
+        destination:SetPoint("TOPLEFT", content, "TOPLEFT")
+        destination:SetPoint("TOPRIGHT", content, "TOPRIGHT")
+        distance:SetPoint("TOPLEFT", destination, "BOTTOMLEFT")
+        distance:SetPoint("TOPRIGHT", destination, "BOTTOMRIGHT")
     end
 
     -- In the lit panel: the step you are on, then the next two. The panel is
@@ -212,12 +221,26 @@ local function build()
                 top = box.top + third * (i - 1), bottom = box.top + third * i,
             })
         end
+    else
+        -- Only reached when the generated geometry is absent: continues the
+        -- same vertical stack, one line per step.
+        steps[1]:SetPoint("TOPLEFT", distance, "BOTTOMLEFT")
+        steps[1]:SetPoint("TOPRIGHT", distance, "BOTTOMRIGHT")
+        for i = 2, 3 do
+            steps[i]:SetPoint("TOPLEFT", steps[i - 1], "BOTTOMLEFT")
+            steps[i]:SetPoint("TOPRIGHT", steps[i - 1], "BOTTOMRIGHT")
+        end
     end
 
     -- On its own plate: the time left.
     local eta = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     if g then
         place(eta, content, g.etaText)
+    else
+        -- Only reached when the generated geometry is absent: the last line
+        -- of the same vertical stack.
+        eta:SetPoint("TOPLEFT", steps[3], "BOTTOMLEFT")
+        eta:SetPoint("TOPRIGHT", steps[3], "BOTTOMRIGHT")
     end
 
     -- A real button in the housing's socket, with the three caps the artist
