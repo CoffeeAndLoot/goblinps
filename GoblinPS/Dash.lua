@@ -13,7 +13,6 @@ local W = ns.Widgets
 -- shape; everything inside is placed as a fraction of it, from the geometry
 -- the art tool generates. Nothing here is a measured guess.
 Dash.SIZE = { 232, 290 }
-local PAD = 8
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 local ui              -- built on first Start
@@ -50,9 +49,11 @@ local function art(parent, name, layer, pad)
 end
 
 -- Draws whatever is in `state`. Safe to call at any time. `state.banner`,
--- when set, takes the "then ..." line for exactly the tick it was set on
+-- when set, takes the first step line for exactly the tick it was set on
 -- (Dash.Tick clears it and redraws before checking the next verdict), so
--- "Recalculating..." is seen without being able to stick around forever.
+-- "Recalculating..." is seen without being able to stick around forever; the
+-- other two step lines are blanked with it so the panel reads as one message
+-- rather than a message with stale directions under it.
 -- Distance and ETA are cleared here too: whatever they showed belonged to
 -- the step or trip this call is replacing, and the very next tick recomputes
 -- them fresh.
@@ -65,15 +66,36 @@ function Dash.Refresh()
     if not step then
         return
     end
-    ui.step:SetText(stepText(step))
-    local following = steps[state.index + 1]
-    ui.next:SetText(state.banner or (following and ("then " .. stepText(following)) or ""))
+    if state.banner then
+        ui.steps[1]:SetText(state.banner)
+        ui.steps[2]:SetText("")
+        ui.steps[3]:SetText("")
+    else
+        for i = 1, 3 do
+            ui.steps[i]:SetText(stepText(steps[state.index + i - 1]))
+        end
+    end
+    -- The glass names the CURRENT STEP's target, never the trip's final
+    -- destination: the arrow only ever points at the current step, and
+    -- putting the journey's end on the same glass would invite reading the
+    -- arrow as pointing there.
+    ui.destination:SetText(step.to and ns.Search.ShortName(step.to.name) or "")
     ui.distance:SetText("")
     ui.eta:SetText("")
 end
 
 local function geometry()
     return ns.Data.Art and ns.Data.ArtGeometry
+end
+
+-- Put a region where the geometry says, as a fraction of `parent`. `rect` is
+-- { left, top, right, bottom } in 0..1 with the origin at the top left, which
+-- is how the artist's file states every box.
+local function place(region, parent, rect)
+    local w, h = parent:GetWidth(), parent:GetHeight()
+    region:ClearAllPoints()
+    region:SetPoint("TOPLEFT", parent, "TOPLEFT", rect.left * w, -rect.top * h)
+    region:SetPoint("BOTTOMRIGHT", parent, "TOPLEFT", rect.right * w, -rect.bottom * h)
 end
 
 local function build()
@@ -120,6 +142,9 @@ local function build()
     -- The compass and the arrow turn, so each is a square texture centred on
     -- the dial. SetRotation turns a texture about its own middle, and Task 1
     -- cropped the compass so that its middle IS the dial.
+    -- The `or` half of this is only reached when the generated geometry is
+    -- absent: a rough guess at the dial's centre, not a coordinate from the
+    -- art.
     local dial = g and { x = g.glass.cx, y = g.glass.cy } or { x = 0.5, y = 0.4 }
     local function centreOnDial(region, share)
         local side = f:GetWidth() * share
@@ -136,6 +161,8 @@ local function build()
     else
         compass:Hide()
     end
+    -- 0.55 is only reached when the generated geometry is absent: a rough
+    -- guess at the compass's share of the device, not a measured fraction.
     centreOnDial(compass, g and g.compassCrop.share or 0.55)
 
     local arrow = artLayer:CreateTexture(nil, "OVERLAY")
@@ -146,6 +173,8 @@ local function build()
         arrow:SetTexture("Interface\\Buttons\\WHITE8X8")
         arrow:SetVertexColor(unpack(W.COLOR.green))
     end
+    -- 0.45 is only reached when the generated geometry is absent: a rough
+    -- guess at the arrow's share of the device, not a measured fraction.
     centreOnDial(arrow, g and g.arrow.share or 0.45)
 
     local stepsScreen = art(artLayer, "dash2-steps-screen", "BACKGROUND")
@@ -161,43 +190,100 @@ local function build()
     content:SetAllPoints(f)
     content:SetFrameLevel(base + 3)
 
-    -- Kept only so the trip loop still has somewhere to write; Task 3 moves
-    -- these onto the glass and into the steps/ETA panel using the geometry's
-    -- text-safe boxes instead of these placeholder anchors.
+    -- On the glass: what the arrow points at, and how far.
+    local destination = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     local distance = W.Text(content, "green", "GameFontNormalLarge", "CENTER")
-    distance:SetPoint("TOPLEFT", content, "TOPLEFT")
-    distance:SetPoint("TOPRIGHT", content, "TOPRIGHT")
+    if g then
+        place(destination, content, g.destination)
+        place(distance, content, g.distance)
+    end
 
-    local eta = W.Text(content, "dim", "GameFontNormalSmall", "CENTER")
-    eta:SetPoint("TOPLEFT", distance, "BOTTOMLEFT")
-    eta:SetPoint("TOPRIGHT", distance, "BOTTOMRIGHT")
+    -- In the lit panel: the step you are on, then the next two. The panel is
+    -- one box in the art, so the three lines share it, each a third tall.
+    local steps = {}
+    for i = 1, 3 do
+        steps[i] = W.Text(content, i == 1 and "green" or "dim", "GameFontNormalSmall", "LEFT")
+    end
+    if g then
+        local box, third = g.stepsText, (g.stepsText.bottom - g.stepsText.top) / 3
+        for i = 1, 3 do
+            place(steps[i], content, {
+                left = box.left, right = box.right,
+                top = box.top + third * (i - 1), bottom = box.top + third * i,
+            })
+        end
+    end
 
-    -- The step is the one line worth reading, and stop names are long
-    -- ("Walk to Undercity Zeppelin Tower" truncated in game at 200 wide), so
-    -- this line wraps instead of truncating. An explicit height keeps the
-    -- rest of the band still whether it takes one line or two.
-    local step = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
-    step:SetWordWrap(true)
-    step:SetHeight(28)
-    step:SetPoint("TOPLEFT", eta, "BOTTOMLEFT")
-    step:SetPoint("TOPRIGHT", eta, "BOTTOMRIGHT")
+    -- On its own plate: the time left.
+    local eta = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
+    if g then
+        place(eta, content, g.etaText)
+    end
 
-    local following = W.Text(content, "dim", "GameFontHighlightSmall", "CENTER")
-    following:SetPoint("TOPLEFT", step, "BOTTOMLEFT")
-    following:SetPoint("TOPRIGHT", step, "BOTTOMRIGHT")
-
-    -- Stop is its own frame; with no explicit level it would default to one
-    -- above `f`, level with `artLayer` and so under the housing and content
-    -- that now cover the whole device, so it is pinned above all of them.
-    local stop = W.Button(f, "Stop", 48, 20, function() Dash.Stop() end)
-    stop:SetPoint("BOTTOM", 0, PAD)
+    -- A real button in the housing's socket, with the three caps the artist
+    -- drew. It ends the trip exactly as Escape does. With no explicit level
+    -- it would default to one above `f`, level with `artLayer` and so under
+    -- the housing and content that now cover the whole device, so it is
+    -- pinned above all of them.
+    local stop = CreateFrame("Button", nil, f)
     stop:SetFrameLevel(base + 4)
+    if g then
+        local side = f:GetWidth() * g.stop.r * 2
+        stop:SetSize(side, side)
+        stop:SetPoint("CENTER", f, "TOPLEFT", g.stop.cx * f:GetWidth(), -g.stop.cy * f:GetHeight())
+    else
+        -- Only reached when the generated geometry is absent: a small
+        -- placeholder square in a corner, not a position from the art.
+        stop:SetSize(20, 20)
+        stop:SetPoint("TOPRIGHT", -8, -8)
+    end
+    stop:RegisterForClicks("LeftButtonUp")
+    stop:SetScript("OnClick", function() Dash.Stop() end)
+
+    local function cap(name, setter)
+        local part = ns.Data.Art and ns.Data.Art[name]
+        if not part then
+            return nil
+        end
+        local t = stop:CreateTexture(nil, "ARTWORK")
+        if not t:SetTexture(MEDIA .. part.file) then
+            return nil
+        end
+        t:SetTexCoord(part.l, part.r, part.t, part.b)
+        t:SetAllPoints(stop)
+        if setter then
+            setter(t)
+        end
+        return t
+    end
+
+    local stopNormal = cap("dash2-stop")
+    local stopPressed = cap("dash2-stop-pressed")
+    if stopPressed then
+        stopPressed:Hide()
+        stop:SetScript("OnMouseDown", function()
+            stopPressed:Show()
+            if stopNormal then stopNormal:Hide() end
+        end)
+        stop:SetScript("OnMouseUp", function()
+            stopPressed:Hide()
+            if stopNormal then stopNormal:Show() end
+        end)
+    end
+    local hover = ns.Data.Art and ns.Data.Art["dash2-stop-hover"]
+    if hover then
+        stop:SetHighlightTexture(MEDIA .. hover.file, "ADD")
+    end
+    if not stopNormal then
+        -- No art: a flat coloured square still presses and still stops.
+        W.Fill(stop, "ARTWORK", "hazard")
+    end
 
     ui = { frame = f, artLayer = artLayer, flat = flat, glass = glass,
            compass = compass, arrow = arrow, stepsScreen = stepsScreen,
            etaScreen = etaScreen, housingFrame = housingFrame, housing = housing,
-           content = content,
-           distance = distance, eta = eta, step = step, next = following, stop = stop }
+           content = content, destination = destination, distance = distance,
+           steps = steps, eta = eta, stop = stop, stopNormal = stopNormal, stopPressed = stopPressed }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")
 
     local since = 0
@@ -268,8 +354,10 @@ local function aimArrow(pos, step)
 end
 
 local function finish()
-    ui.step:SetText("Arrived.")
-    ui.next:SetText("")
+    ui.steps[1]:SetText("Arrived.")
+    ui.steps[2]:SetText("")
+    ui.steps[3]:SetText("")
+    ui.destination:SetText("")
     ui.distance:SetText("")
     ui.eta:SetText("")
     ui.arrow:Hide()

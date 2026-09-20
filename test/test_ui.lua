@@ -500,6 +500,15 @@ return function(h)
     -- Real frame behaviour is checked in game from docs/manual-test-checklist.md.
     do
         local Dash = ns.Dash
+        local MEDIA_STOP = "Interface\\AddOns\\GoblinPS\\Media\\dash2-stop"
+
+        -- `build()` runs at most once per Dash module instance (guarded by
+        -- `if not ui then build() end`), so proving a texture-load fallback
+        -- needs a genuinely fresh copy of the module, not Stop/Start again on
+        -- the shared one. Shared by every "missing texture" test below.
+        local function freshDash()
+            return assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+        end
 
         -- A real step's `to` always carries a map (Graph.stopFrom sets it from
         -- the stop data); task 5's pin test needs it too, so the fixture gets
@@ -525,15 +534,16 @@ return function(h)
                 local ui, state = Dash.Debug()
                 h.truthy(ui.frame:IsShown())
                 h.eq(state.index, 1)
-                h.eq(ui.step:GetText(), "Ride to the North Gate")
-                h.eq(ui.next:GetText(), "then Zeppelin to East Dock")
+                h.eq(ui.steps[1]:GetText(), "Ride to the North Gate")
+                h.eq(ui.steps[2]:GetText(), "Zeppelin to East Dock")
             end)
             h.it("says nothing follows the last step", function()
                 local ui, state = Dash.Debug()
                 state.index = 3
                 Dash.Refresh()
-                h.eq(ui.step:GetText(), "Ride to Delta")
-                h.eq(ui.next:GetText(), "")
+                h.eq(ui.steps[1]:GetText(), "Ride to Delta")
+                h.eq(ui.steps[2]:GetText(), "", "nothing follows the last step")
+                h.eq(ui.steps[3]:GetText(), "")
                 state.index = 1
                 Dash.Refresh()
             end)
@@ -579,21 +589,39 @@ return function(h)
             h.falsy(ui.flat:IsShown(), "the square must go when the glass arrives")
         end)
 
-        h.it("gives the step line room to wrap instead of cutting a stop name in half", function()
+        h.it("truncates all three step lines, each inside its third of the art's steps box", function()
+            -- Second design: "Walk to Undercity Zeppelin Tower" no longer
+            -- gets one wrapping line -- the panel gives it a short line of
+            -- its own, sized by the artist's box, so every line truncates
+            -- instead.
             Dash.Start(plan)
             local ui = Dash.Debug()
-            -- "Walk to Undercity Zeppelin Tower" was truncated in game.
-            h.eq(ui.step.wordWrap, true, "the step line wraps; every other line truncates")
-            h.truthy(ui.step:GetHeight() >= 24, "and has the height for a second line")
-            h.eq(ui.next.wordWrap, false, "the following step stays one line")
+            local g = ns.Data.ArtGeometry
+            local box, third = g.stepsText, (g.stepsText.bottom - g.stepsText.top) / 3
+            local w, h2 = ui.content:GetWidth(), ui.content:GetHeight()
+            for i, fs in ipairs(ui.steps) do
+                h.eq(fs.wordWrap, false, "line " .. i .. " truncates; the box has no room to wrap")
+                local left, top = fs.points[1][4], fs.points[1][5]
+                local right, bottom = fs.points[2][4], fs.points[2][5]
+                h.truthy(math.abs(left - box.left * w) < 1, "line " .. i .. " starts at stepsText.left")
+                h.truthy(math.abs(right - box.right * w) < 1, "line " .. i .. " ends at stepsText.right")
+                h.truthy(math.abs(-top - (box.top + third * (i - 1)) * h2) < 1,
+                         "line " .. i .. " starts at its third of stepsText")
+                h.truthy(math.abs(-bottom - (box.top + third * i) * h2) < 1,
+                         "line " .. i .. " ends at its third of stepsText")
+            end
         end)
 
         h.it("every line of text is bounded", function()
                 local ui = Dash.Debug()
-                for _, name in ipairs({ "step", "next", "distance", "eta" }) do
+                for _, name in ipairs({ "destination", "distance", "eta" }) do
                     local fs = ui[name]
                     h.truthy(fs.points and #fs.points >= 2,
                              name .. " needs two horizontal anchors or it will draw past the frame")
+                end
+                for i, fs in ipairs(ui.steps) do
+                    h.truthy(fs.points and #fs.points >= 2,
+                             "steps[" .. i .. "] needs two horizontal anchors or it will draw past the frame")
                 end
             end)
             h.it("dragging saves the position", function()
@@ -675,7 +703,7 @@ return function(h)
                 standAt(10, 0)
                 Dash.Tick("tick")
                 h.eq(state.index, 2, "arriving moves on")
-                h.eq(ui.step:GetText(), "Zeppelin to East Dock")
+                h.eq(ui.steps[1]:GetText(), "Zeppelin to East Dock")
             end)
 
             h.it("moves Blizzard's pin onto each new step, not just the first", function()
@@ -694,7 +722,7 @@ return function(h)
                 state.index = #plan.result.steps
                 standAt(0, 0)
                 Dash.Tick("tick")
-                h.eq(ui.step:GetText(), "Arrived.")
+                h.eq(ui.steps[1]:GetText(), "Arrived.")
                 h.falsy(state.plan, "the trip is over")
             end)
 
@@ -797,7 +825,7 @@ return function(h)
                 h.eq(state.index, 1, "still short of arriving")
                 standAt(1000, 0)
                 Dash.Tick("tick")
-                h.eq(ui.step:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
+                h.eq(ui.steps[1]:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
                 h.falsy(state.plan, "the trip is over, not stuck on the old plan")
             end)
 
@@ -874,11 +902,11 @@ return function(h)
                     local before = state.plan
                     Dash.Tick("tick")
                     h.truthy(state.plan ~= before, "sanity: the plan really was replaced")
-                    h.truthy(ui.next:GetText():find("Recalculating", 1, true),
+                    h.truthy(ui.steps[1]:GetText():find("Recalculating", 1, true),
                               "the player must see the banner on the tick the stray is caught")
 
                     Dash.Tick("tick") -- the very next tick, position unchanged
-                    h.falsy(ui.next:GetText():find("Recalculating", 1, true),
+                    h.falsy(ui.steps[1]:GetText():find("Recalculating", 1, true),
                              "it must not persist once the new route is under way")
                 end)
                 where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
@@ -940,15 +968,15 @@ return function(h)
                 -- `if not ui then build() end`), and the very first Dash.Start
                 -- above already built the shared window while every texture
                 -- loaded fine. Stop/Start again would rebuild nothing and
-                -- exercise nothing new, so this loads a second, independent
-                -- copy of the module to genuinely drive a fresh build with a
-                -- texture that fails.
+                -- exercise nothing new, so this uses freshDash() (defined at
+                -- the top of this block) to genuinely drive a fresh build with
+                -- a texture that fails.
                 Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash2-housing"] = true
-                local FreshDash = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+                local FreshDash = freshDash()
                 FreshDash.Start(plan)
                 local ui = FreshDash.Debug()
                 h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
-                h.truthy(ui.step:GetText() ~= "", "the directions must still be readable")
+                h.truthy(ui.steps[1]:GetText() ~= "", "the directions must still be readable")
                 h.falsy(ui.housing, "a texture that would not load must not be laid over the colour")
                 Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash2-housing"] = nil
             end)
@@ -959,7 +987,7 @@ return function(h)
                 -- texture must leave WHITE8X8 in place, not the failed path
                 -- SetTexture leaves behind on its own.
                 Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\arrow"] = true
-                local FreshDash = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+                local FreshDash = freshDash()
                 FreshDash.Start(plan)
                 local ui = FreshDash.Debug()
                 h.truthy(ui.frame:IsShown(), "a missing arrow texture must not take the window with it")
@@ -980,6 +1008,72 @@ return function(h)
                           "the housing must draw above the art layer so its holes line up with it")
                 h.truthy(ui.content:GetFrameLevel() > ui.housingFrame:GetFrameLevel(),
                           "the text must draw above the housing or the chassis would hide it")
+            end)
+        end)
+
+        h.describe("the dash unit's words and stop button", function()
+            h.it("puts the current step's name and distance on the glass", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(700, 0)
+                Dash.Tick("tick")
+                h.eq(ui.destination:GetText(), "the North Gate",
+                     "the glass names what the arrow points at, not the journey's end")
+                h.eq(ui.distance:GetText(), "700 yd")
+            end)
+
+            h.it("shows the step you are on and the next two", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                h.eq(ui.steps[1]:GetText(), "Ride to the North Gate")
+                h.eq(ui.steps[2]:GetText(), "Zeppelin to East Dock")
+                h.eq(ui.steps[3]:GetText(), "Ride to Delta")
+                state.index = 3
+                Dash.Refresh()
+                h.eq(ui.steps[1]:GetText(), "Ride to Delta")
+                h.eq(ui.steps[2]:GetText(), "", "nothing follows the last step")
+                h.eq(ui.steps[3]:GetText(), "")
+                state.index = 1
+                Dash.Refresh()
+            end)
+
+            h.it("bounds every line it draws", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                local lines = { ui.destination, ui.distance, ui.eta, ui.steps[1], ui.steps[2], ui.steps[3] }
+                for i, fs in ipairs(lines) do
+                    h.truthy(fs.points and #fs.points >= 2,
+                             "line " .. i .. " needs two horizontal anchors or it draws past the frame")
+                end
+            end)
+
+            h.it("gives the stop button its three states and puts it in the socket", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                local g = ns.Data.ArtGeometry
+                h.eq(ui.stop:GetWidth(), ui.stop:GetHeight(), "the button is round art on a square")
+                local expect = ui.frame:GetWidth() * g.stop.r * 2
+                h.truthy(math.abs(ui.stop:GetWidth() - expect) < 2, "sized from geometry.stop.r")
+                h.truthy(ui.stopNormal, "the unpressed cap")
+                h.truthy(ui.stopPressed, "the pushed cap")
+            end)
+
+            h.it("still ends the trip when the button is clicked", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                h.truthy(state.plan)
+                Fake.Click(ui.stop)
+                h.falsy(ui.frame:IsShown())
+                h.falsy(state.plan, "clicking Stop ends the trip, as Escape does")
+            end)
+
+            h.it("keeps a usable button when its art will not load", function()
+                Fake.missingTextures[MEDIA_STOP] = true
+                Dash.Stop()
+                local FreshDash = freshDash()
+                FreshDash.Start(plan)
+                h.truthy(FreshDash.Debug().stop, "a missing texture must not lose the button")
+                Fake.missingTextures[MEDIA_STOP] = nil
             end)
         end)
     end
@@ -1017,6 +1111,34 @@ return function(h)
             h.truthy(ok, tostring(err))
             h.eq(type(bareNs.SelfTest and bareNs.SelfTest.Run), "function",
                  "the module must still publish Run even with no shipped art")
+        end)
+
+        h.it("leaves a malformed Data.Art entry out of the texture list instead of crashing", function()
+            -- shippedArt()'s guard `type(part) == "table" and part.file` exists
+            -- because a malformed generated entry once took the WHOLE suite
+            -- down with it, not just one test, when pairs() reached it (see
+            -- SelfTest.lua's comment on ns.Data.ArtGeometry once being nested
+            -- here by mistake). SelfTest.TEXTURES is built once, at load time,
+            -- so reusing the shared instance would prove nothing; this loads
+            -- a private copy against a namespace sharing the real ns.Data.Art
+            -- plus one bad entry. The restore runs even if an assertion above
+            -- fails, so a broken guard here cannot poison every test after it.
+            ns.Data.Art.malformed = { l = 0, r = 1, t = 0, b = 1 } -- generated-looking, but no .file
+            local ok, err = pcall(function()
+                local tempNs = { Data = ns.Data }
+                local FreshSelfTest = assert(loadfile("GoblinPS/SelfTest.lua"))("GoblinPS", tempNs)
+                local sawGood = false
+                for _, path in ipairs(FreshSelfTest.TEXTURES) do
+                    h.falsy(path:find("malformed", 1, true),
+                            "an entry with no .file must not reach the texture list")
+                    if path:find("dash2%-housing") then
+                        sawGood = true
+                    end
+                end
+                h.truthy(sawGood, "sanity: a well-formed entry still made it in")
+            end)
+            ns.Data.Art.malformed = nil
+            h.truthy(ok, err)
         end)
     end)
 
