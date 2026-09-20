@@ -500,6 +500,26 @@ return function(h)
     -- Real frame behaviour is checked in game from docs/manual-test-checklist.md.
     do
         local Dash = ns.Dash
+        local MEDIA_STOP = "Interface\\AddOns\\GoblinPS\\Media\\dash2-stop"
+
+        -- `build()` runs at most once per Dash module instance (guarded by
+        -- `if not ui then build() end`), so proving a texture-load fallback
+        -- needs a genuinely fresh copy of the module, not Stop/Start again on
+        -- the shared one. Shared by every "missing texture" test below.
+        local function freshDash()
+            return assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+        end
+
+        -- Marks `path` as a texture the fake will refuse to load, runs `fn`,
+        -- and unmarks it afterward even if an assertion inside `fn` raises --
+        -- otherwise a failure here would leave the flag stuck true for every
+        -- "missing texture" test that runs after it. Shared by all three.
+        local function withMissingTexture(path, fn)
+            Fake.missingTextures[path] = true
+            local ok, err = pcall(fn)
+            Fake.missingTextures[path] = nil
+            h.truthy(ok, err)
+        end
 
         -- A real step's `to` always carries a map (Graph.stopFrom sets it from
         -- the stop data); task 5's pin test needs it too, so the fixture gets
@@ -525,44 +545,48 @@ return function(h)
                 local ui, state = Dash.Debug()
                 h.truthy(ui.frame:IsShown())
                 h.eq(state.index, 1)
-                h.eq(ui.step:GetText(), "Ride to the North Gate")
-                h.eq(ui.next:GetText(), "then Zeppelin to East Dock")
+                h.eq(ui.steps[1]:GetText(), "Ride to the North Gate")
+                h.eq(ui.steps[2]:GetText(), "Zeppelin to East Dock")
             end)
             h.it("says nothing follows the last step", function()
                 local ui, state = Dash.Debug()
                 state.index = 3
                 Dash.Refresh()
-                h.eq(ui.step:GetText(), "Ride to Delta")
-                h.eq(ui.next:GetText(), "")
+                h.eq(ui.steps[1]:GetText(), "Ride to Delta")
+                h.eq(ui.steps[2]:GetText(), "", "nothing follows the last step")
+                h.eq(ui.steps[3]:GetText(), "")
                 state.index = 1
                 Dash.Refresh()
             end)
-            h.it("keeps the round art on a square frame so it cannot render as an oval", function()
+            h.it("keeps the frame at the art's aspect ratio so it cannot render stretched", function()
             Dash.Start(plan)
             local ui = Dash.Debug()
-            -- Seen in game 2026-09-20: the body art is round on a square
-            -- texture, and the bezel filled the whole 200x250 frame, so the
-            -- device drew as an oval. Whatever carries it must be square.
-            h.eq(ui.device:GetWidth(), ui.device:GetHeight(), "the device frame must be square")
+            local g = ns.Data.ArtGeometry
+            -- Seen in game 2026-09-20 (first design): a square frame carrying
+            -- round art on a square texture drew as an oval. The second
+            -- design's art is 1024x1280, not square, so squareness is no
+            -- longer the property that matters -- but a frame whose own
+            -- width:height ratio drifts from the art's still draws it
+            -- stretched or squashed. Same defect, stated for the new shape.
             local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
-            h.truthy(h2 > w, "the frame is taller than the device: it carries a text band too")
-            h.truthy(h2 - ui.device:GetHeight() >= 100,
-                     "the text band needs real room under the device, not the leftovers")
+            -- Cross-multiplied so this is an exact check, not a tolerance:
+            -- w/h2 == canvas.w/canvas.h without dividing at all.
+            h.eq(w * g.canvas.h, h2 * g.canvas.w,
+                 "the frame must keep the art's 1024x1280 aspect ratio exactly")
         end)
 
         h.it("draws the three stacked layers at one square, as the art requires", function()
             Dash.Start(plan)
             local ui = Dash.Debug()
-            -- dash-screen, dash-compass and dash-body were drawn concentric
-            -- on one 1024px canvas and are sized as fractions of it: the
-            -- glass disc is 61% of its width, the compass ring 55%, the
-            -- body's hole 58%. Drawing any of them at a different size puts
-            -- the disc inside the hole instead of filling it. Seen in game
-            -- 2026-09-20: the screen was 180 while the bezel was 200, and
-            -- the compass vanished behind the brass.
-            for _, name in ipairs({ "screen", "bezel" }) do
-                h.eq(ui[name]:GetWidth(), ui.device:GetWidth(), name .. " must match the device")
-                h.eq(ui[name]:GetHeight(), ui.device:GetHeight(), name .. " must match the device")
+            -- dash2-glass, dash2-steps-screen, dash2-eta-screen and
+            -- dash2-housing were drawn corner to corner on one 1024x1280
+            -- canvas. Drawing any of them at a different size shifts it off
+            -- the others. Seen in game 2026-09-20 (first design): the screen
+            -- was 180 while the bezel was 200, and the compass vanished
+            -- behind the brass.
+            for _, name in ipairs({ "glass", "stepsScreen", "etaScreen", "housing" }) do
+                h.eq(ui[name]:GetWidth(), ui.artLayer:GetWidth(), name .. " must match the art layer")
+                h.eq(ui[name]:GetHeight(), ui.artLayer:GetHeight(), name .. " must match the art layer")
             end
         end)
 
@@ -570,27 +594,91 @@ return function(h)
             Dash.Start(plan)
             local ui = Dash.Debug()
             -- The flat colour exists so a missing texture still leaves a
-            -- readable device, but it is a square: left showing behind round
-            -- art it frames the device with a dark box.
-            h.truthy(ui.screenArt, "this test is meaningless if the art did not load")
-            h.falsy(ui.screenFlat:IsShown(), "the square must go when the glass arrives")
+            -- readable device, but it is a rectangle: left showing behind
+            -- round art it frames the device with a dark box.
+            h.truthy(ui.glass, "this test is meaningless if the art did not load")
+            h.falsy(ui.flat:IsShown(), "the square must go when the glass arrives")
         end)
 
-        h.it("gives the step line room to wrap instead of cutting a stop name in half", function()
+        h.it("gives the device frame no regions of its own, so every rectangle can be hidden", function()
             Dash.Start(plan)
             local ui = Dash.Debug()
-            -- "Walk to Undercity Zeppelin Tower" was truncated in game.
-            h.eq(ui.step.wordWrap, true, "the step line wraps; every other line truncates")
-            h.truthy(ui.step:GetHeight() >= 24, "and has the height for a second line")
-            h.eq(ui.next.wordWrap, false, "the following step stays one line")
+            -- A frame's own textures go wherever the frame goes: the only way
+            -- to take one off screen is to hide the frame, and this frame must
+            -- stay shown for the whole trip. So a texture laid directly on it
+            -- is a rectangle nothing can ever remove -- brass down both edges
+            -- of art that is 39.65% transparent. Same fault as the one seen in
+            -- game on 2026-09-20 and fixed in 2d58322.
+            h.eq(#ui.frame.regions, 0,
+                 "the device frame must carry no texture of its own; art goes on a child frame")
+            h.truthy(#ui.flat.regions > 0,
+                     "the fallback colour lives on its own frame, which is what makes it hideable")
+        end)
+
+        h.it("sits all three step lines on the centre of their third of the art's steps box", function()
+            -- Second design: "Walk to Undercity Zeppelin Tower" no longer
+            -- gets one wrapping line -- the panel gives it a short line of
+            -- its own, sized by the artist's box, so every line truncates
+            -- instead.
+            --
+            -- Each line is hung on the vertical centre of its third, LEFT and
+            -- RIGHT, not stretched corner to corner: a third of this box is
+            -- about 21 px and the client's fonts decide their own height, so
+            -- pinning top AND bottom would squeeze the text into a rect the
+            -- artist drew as a line to sit on, not a box to fit in.
+            Dash.Start(plan)
+            local ui = Dash.Debug()
+            local g = ns.Data.ArtGeometry
+            local box, third = g.stepsText, (g.stepsText.bottom - g.stepsText.top) / 3
+            local w, h2 = ui.content:GetWidth(), ui.content:GetHeight()
+            for i, fs in ipairs(ui.steps) do
+                h.eq(fs.wordWrap, false, "line " .. i .. " truncates; the box has no room to wrap")
+                local left, right = fs.points[1], fs.points[2]
+                h.eq(left[1], "LEFT", "line " .. i .. " hangs by its left edge")
+                h.eq(right[1], "RIGHT", "line " .. i .. " hangs by its right edge")
+                h.truthy(math.abs(left[4] - box.left * w) < 1, "line " .. i .. " starts at stepsText.left")
+                h.truthy(math.abs(right[4] - box.right * w) < 1, "line " .. i .. " ends at stepsText.right")
+                local middle = (box.top + third * (i - 0.5)) * h2
+                h.truthy(math.abs(-left[5] - middle) < 1,
+                         "line " .. i .. " sits on the centre of its third of stepsText")
+                h.eq(left[5], right[5], "line " .. i .. " is level: one line, not a wedge")
+            end
+        end)
+
+        h.it("sits the destination, distance and ETA on their own centre lines too", function()
+            -- The artist named these `destination_line` and `distance_line`:
+            -- they are 6.8 and 5.9 px tall on this device, so corner to
+            -- corner would crush a 10 and a 16 px font into nothing. Same
+            -- treatment as the step lines, from the same helper.
+            Dash.Start(plan)
+            local ui = Dash.Debug()
+            local g = ns.Data.ArtGeometry
+            local w, h2 = ui.content:GetWidth(), ui.content:GetHeight()
+            for _, pair in ipairs({ { ui.destination, g.destination, "destination" },
+                                    { ui.distance, g.distance, "distance" },
+                                    { ui.eta, g.etaText, "eta" } }) do
+                local fs, rect, name = pair[1], pair[2], pair[3]
+                local left, right = fs.points[1], fs.points[2]
+                h.eq(left[1], "LEFT", name .. " hangs by its left edge")
+                h.eq(right[1], "RIGHT", name .. " hangs by its right edge")
+                h.truthy(math.abs(left[4] - rect.left * w) < 1, name .. " starts at its rect's left")
+                h.truthy(math.abs(right[4] - rect.right * w) < 1, name .. " ends at its rect's right")
+                h.truthy(math.abs(-left[5] - (rect.top + rect.bottom) / 2 * h2) < 1,
+                         name .. " sits on the centre of its own line, not inside a 7 px box")
+                h.eq(left[5], right[5], name .. " is level")
+            end
         end)
 
         h.it("every line of text is bounded", function()
                 local ui = Dash.Debug()
-                for _, name in ipairs({ "step", "next", "distance", "eta" }) do
+                for _, name in ipairs({ "destination", "distance", "eta" }) do
                     local fs = ui[name]
                     h.truthy(fs.points and #fs.points >= 2,
                              name .. " needs two horizontal anchors or it will draw past the frame")
+                end
+                for i, fs in ipairs(ui.steps) do
+                    h.truthy(fs.points and #fs.points >= 2,
+                             "steps[" .. i .. "] needs two horizontal anchors or it will draw past the frame")
                 end
             end)
             h.it("dragging saves the position", function()
@@ -609,9 +697,68 @@ return function(h)
                 Dash.Stop()
                 h.falsy(ui.frame:IsShown())
             end)
+            h.it("does not open a new trip under the old one's banner", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                state.banner = "Recalculating..."
+                Dash.Refresh()
+                h.eq(ui.steps[2]:GetText(), "", "sanity: the banner takes the panel for its one tick")
+                -- A second Start before the next tick used to keep that
+                -- banner: the new trip opened announcing the old one's
+                -- replan, with all three step lines blanked behind it.
+                Dash.Start(plan)
+                h.falsy(state.banner, "a new trip starts with no banner of its own")
+                h.eq(ui.steps[1]:GetText(), "Ride to the North Gate")
+                h.eq(ui.steps[2]:GetText(), "Zeppelin to East Dock",
+                     "the new trip's directions, not a blanked panel")
+                Dash.Stop()   -- leave it closed, as the test before this one did
+            end)
+
             h.it("Start with no steps does not open", function()
                 Dash.Start({ result = { steps = {} } })
                 h.falsy(Dash.Debug().frame:IsShown())
+            end)
+
+            h.it("lays the five shared layers on one rectangle", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                -- They were drawn corner to corner on one canvas: any that is
+                -- sized differently is drawn somewhere the artist did not mean.
+                for _, name in ipairs({ "glass", "stepsScreen", "etaScreen", "housing" }) do
+                    h.truthy(ui[name], name .. " is missing")
+                    h.eq(ui[name]:GetWidth(), ui.artLayer:GetWidth(), name .. " must fill the device")
+                    h.eq(ui[name]:GetHeight(), ui.artLayer:GetHeight(), name .. " must fill the device")
+                end
+            end)
+
+            h.it("makes the compass and the arrow square, because both turn", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                for _, name in ipairs({ "compass", "arrow" }) do
+                    h.eq(ui[name]:GetWidth(), ui[name]:GetHeight(),
+                         name .. " rotates about its own middle, so it must be square")
+                end
+            end)
+
+            h.it("takes every position from the generated geometry, not from constants", function()
+                local g = ns.Data.ArtGeometry
+                h.truthy(g, "Task 1 must have written ns.Data.ArtGeometry")
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                -- The compass is sized as a share of the device, so a change in
+                -- the art reaches the layout by regenerating Art.lua.
+                local expect = ui.artLayer:GetWidth() * g.compassCrop.share
+                h.truthy(math.abs(ui.compass:GetWidth() - expect) < 1,
+                         "the compass is sized from geometry.compassCrop.share")
+            end)
+
+            h.it("stacks the housing above the art and the text above the housing", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                h.truthy(ui.housingFrame:GetFrameLevel() > ui.artLayer:GetFrameLevel(),
+                         "the housing covers the art")
+                h.truthy(ui.content:GetFrameLevel() > ui.housingFrame:GetFrameLevel(),
+                         "nothing the player reads is ever behind the chassis")
             end)
         end)
 
@@ -630,7 +777,7 @@ return function(h)
                 standAt(10, 0)
                 Dash.Tick("tick")
                 h.eq(state.index, 2, "arriving moves on")
-                h.eq(ui.step:GetText(), "Zeppelin to East Dock")
+                h.eq(ui.steps[1]:GetText(), "Zeppelin to East Dock")
             end)
 
             h.it("moves Blizzard's pin onto each new step, not just the first", function()
@@ -649,7 +796,7 @@ return function(h)
                 state.index = #plan.result.steps
                 standAt(0, 0)
                 Dash.Tick("tick")
-                h.eq(ui.step:GetText(), "Arrived.")
+                h.eq(ui.steps[1]:GetText(), "Arrived.")
                 h.falsy(state.plan, "the trip is over")
             end)
 
@@ -752,7 +899,7 @@ return function(h)
                 h.eq(state.index, 1, "still short of arriving")
                 standAt(1000, 0)
                 Dash.Tick("tick")
-                h.eq(ui.step:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
+                h.eq(ui.steps[1]:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
                 h.falsy(state.plan, "the trip is over, not stuck on the old plan")
             end)
 
@@ -817,22 +964,27 @@ return function(h)
 
                 Dash.Start(hotelPlan)
                 local ui, state = Dash.Debug()
-                standAt(9700, 5000); facing = 0 -- close to the North Gate: sets a small state.best
-                Dash.Tick("tick")
-                h.eq(state.index, 1, "not yet at the arrival radius")
+                -- The restore below must run even if an assertion fails, or
+                -- a regression here would leave `where` corrupted for every
+                -- dash test that follows.
+                local ok, err = pcall(function()
+                    standAt(9700, 5000); facing = 0 -- close to the North Gate: sets a small state.best
+                    Dash.Tick("tick")
+                    h.eq(state.index, 1, "not yet at the arrival radius")
 
-                standAt(0, 0) -- far enough that d > best + STRAY_YARDS
-                local before = state.plan
-                Dash.Tick("tick")
-                h.truthy(state.plan ~= before, "sanity: the plan really was replaced")
-                h.truthy(ui.next:GetText():find("Recalculating", 1, true),
-                          "the player must see the banner on the tick the stray is caught")
+                    standAt(0, 0) -- far enough that d > best + STRAY_YARDS
+                    local before = state.plan
+                    Dash.Tick("tick")
+                    h.truthy(state.plan ~= before, "sanity: the plan really was replaced")
+                    h.truthy(ui.steps[1]:GetText():find("Recalculating", 1, true),
+                              "the player must see the banner on the tick the stray is caught")
 
-                Dash.Tick("tick") -- the very next tick, position unchanged
-                h.falsy(ui.next:GetText():find("Recalculating", 1, true),
-                         "it must not persist once the new route is under way")
-
+                    Dash.Tick("tick") -- the very next tick, position unchanged
+                    h.falsy(ui.steps[1]:GetText():find("Recalculating", 1, true),
+                             "it must not persist once the new route is under way")
+                end)
                 where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
+                h.truthy(ok, err)
             end)
 
             h.it("re-pins the replanned route's first step, not just the trip's very first one", function()
@@ -840,13 +992,18 @@ return function(h)
                 where.map, where.mx, where.my = 1, 0.89, 0.9
                 local hotelPlan = ns.Core.PlanRoute(hotel)
                 Dash.Start(hotelPlan)
-                standAt(9700, 5000); facing = 0
-                Dash.Tick("tick")
-                local before = #pins
-                standAt(0, 0)
-                Dash.Tick("tick")
-                h.truthy(#pins > before, "a replan must re-pin its new first step, per spec decision 3")
+                -- Same reasoning as above: the restore must not be skippable
+                -- by a failing assertion.
+                local ok, err = pcall(function()
+                    standAt(9700, 5000); facing = 0
+                    Dash.Tick("tick")
+                    local before = #pins
+                    standAt(0, 0)
+                    Dash.Tick("tick")
+                    h.truthy(#pins > before, "a replan must re-pin its new first step, per spec decision 3")
+                end)
                 where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
+                h.truthy(ok, err)
             end)
         end)
 
@@ -868,9 +1025,10 @@ return function(h)
             h.it("lays every part on with the coordinates the tool generated", function()
                 Dash.Start(plan)
                 local ui = Dash.Debug()
-                for _, pair in ipairs({ { ui.bodyArt, "dash-body" }, { ui.screenArt, "dash-screen" },
-                                        { ui.compass, "dash-compass" }, { ui.arrow, "arrow" },
-                                        { ui.plateArt, "dash-eta-plate" } }) do
+                for _, pair in ipairs({ { ui.housing, "dash2-housing" }, { ui.glass, "dash2-glass" },
+                                        { ui.compass, "dash2-compass" }, { ui.arrow, "arrow" },
+                                        { ui.stepsScreen, "dash2-steps-screen" },
+                                        { ui.etaScreen, "dash2-eta-screen" } }) do
                     local texture, name = pair[1], pair[2]
                     local art = ns.Data.Art[name]
                     h.truthy(art, name .. " is missing from the generated table")
@@ -879,53 +1037,220 @@ return function(h)
                     h.eq(texture.texCoord[2], art.r)
                 end
             end)
+            h.it("stacks the layers in the order the artist stated", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                -- images/parts/dash2-notes.md: "Draw glass, compass, existing
+                -- arrow, steps insert, ETA insert, then housing." Within one
+                -- frame only the draw layer decides that, and both inserts
+                -- used to sit at BACKGROUND, under everything. Nothing
+                -- overlaps today, so this is the only thing that would catch
+                -- a redraw that widened either insert.
+                local rank = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
+                local order = { "glass", "compass", "arrow", "stepsScreen", "etaScreen" }
+                local last = 0
+                for _, name in ipairs(order) do
+                    local layer = ui[name].drawLayer
+                    h.truthy(rank[layer], name .. " must name a real draw layer, got " .. tostring(layer))
+                    h.truthy(rank[layer] >= last, name .. " draws after the part before it")
+                    last = rank[layer]
+                end
+                h.truthy(rank[ui.stepsScreen.drawLayer] > rank[ui.arrow.drawLayer],
+                         "the inserts go over the arrow, not under the glass")
+                h.truthy(ui.housingFrame:GetFrameLevel() > ui.artLayer:GetFrameLevel(),
+                         "and the housing goes over all of them")
+            end)
+
+            h.it("reads the geometry even when no part table shipped with it", function()
+                -- The two are separate files' worth of answer: the parts table
+                -- says which textures exist, the geometry says where things
+                -- go. Gating the second on the first dropped the whole layout
+                -- to its unplaced fallback while a good geometry sat unread.
+                Dash.Stop()
+                local savedArt = ns.Data.Art
+                ns.Data.Art = nil
+                local ok, err = pcall(function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    local g = ns.Data.ArtGeometry
+                    local expect = ui.frame:GetWidth() * g.stop.r * 2
+                    h.truthy(math.abs(ui.stop:GetWidth() - expect) < 2,
+                             "the button is still placed from the geometry, not from the 20x20 fallback")
+                    h.truthy(math.abs(ui.destination.points[1][4] - g.destination.left * ui.content:GetWidth()) < 1,
+                             "and so is every line of text")
+                end)
+                ns.Data.Art = savedArt
+                h.truthy(ok, err)
+            end)
+
             h.it("keeps a working device when a texture will not load", function()
                 -- build() runs at most once per Dash module instance (guarded by
                 -- `if not ui then build() end`), and the very first Dash.Start
                 -- above already built the shared window while every texture
                 -- loaded fine. Stop/Start again would rebuild nothing and
-                -- exercise nothing new, so this loads a second, independent
-                -- copy of the module to genuinely drive a fresh build with a
-                -- texture that fails.
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash-body"] = true
-                local FreshDash = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
-                FreshDash.Start(plan)
-                local ui = FreshDash.Debug()
-                h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
-                h.truthy(ui.step:GetText() ~= "", "the directions must still be readable")
-                h.falsy(ui.bodyArt, "a texture that would not load must not be laid over the colour")
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash-body"] = nil
+                -- exercise nothing new, so this uses freshDash() (defined at
+                -- the top of this block) to genuinely drive a fresh build with
+                -- a texture that fails.
+                withMissingTexture("Interface\\AddOns\\GoblinPS\\Media\\dash2-housing", function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
+                    h.truthy(ui.steps[1]:GetText() ~= "", "the directions must still be readable")
+                    h.falsy(ui.housing, "a texture that would not load must not be laid over the colour")
+                end)
             end)
             h.it("keeps the flat placeholder when the arrow's own texture will not load", function()
                 -- The arrow is the one part with no colour behind it -- it
-                -- IS the content -- so unlike dash-body (which just leaves
-                -- ui.bodyArt nil and the colour showing), a failed arrow
-                -- texture must leave WHITE8X8 in place, not the failed path
-                -- SetTexture leaves behind on its own.
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\arrow"] = true
-                local FreshDash = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
-                FreshDash.Start(plan)
-                local ui = FreshDash.Debug()
-                h.truthy(ui.frame:IsShown(), "a missing arrow texture must not take the window with it")
-                h.eq(ui.arrow:GetTexture(), "Interface\\Buttons\\WHITE8X8",
-                     "a failed arrow texture must fall back to the flat placeholder")
-                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\arrow"] = nil
+                -- IS the content -- so unlike dash2-housing (which just
+                -- leaves ui.housing nil and the fallback panel showing), a
+                -- failed arrow texture must leave WHITE8X8 in place, not the
+                -- failed path SetTexture leaves behind on its own.
+                withMissingTexture("Interface\\AddOns\\GoblinPS\\Media\\arrow", function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    h.truthy(ui.frame:IsShown(), "a missing arrow texture must not take the window with it")
+                    h.eq(ui.arrow:GetTexture(), "Interface\\Buttons\\WHITE8X8",
+                         "a failed arrow texture must fall back to the flat placeholder")
+                end)
             end)
             h.it("the directions are never hidden behind the device", function()
                 -- A child frame draws entirely above every draw layer of its
-                -- parent, so the body's frame must sit strictly below the
-                -- content that carries the text, which must sit strictly
-                -- above the screen, which must sit above the body's own
-                -- frame -- pinned by level, not by hoping draw layers and
-                -- creation order line up on their own.
+                -- parent, so the housing's frame must sit strictly above the
+                -- art layer whose holes it lines up with, and the content
+                -- that carries the text must sit strictly above the housing
+                -- -- pinned by level, not by hoping draw layers and creation
+                -- order line up on their own.
                 Dash.Start(plan)
                 local ui = Dash.Debug()
-                h.truthy(ui.screen:GetFrameLevel() > ui.frame:GetFrameLevel(),
-                          "the screen must draw above the device's own flat colours")
-                h.truthy(ui.bezel:GetFrameLevel() > ui.screen:GetFrameLevel(),
-                          "the body art must draw above the screen so its hole lines up with it")
-                h.truthy(ui.content:GetFrameLevel() > ui.bezel:GetFrameLevel(),
-                          "the text must draw above the body art or the body would hide it")
+                h.truthy(ui.housingFrame:GetFrameLevel() > ui.artLayer:GetFrameLevel(),
+                          "the housing must draw above the art layer so its holes line up with it")
+                h.truthy(ui.content:GetFrameLevel() > ui.housingFrame:GetFrameLevel(),
+                          "the text must draw above the housing or the chassis would hide it")
+            end)
+        end)
+
+        h.describe("the dash unit's words and stop button", function()
+            h.it("puts the current step's name and distance on the glass", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(700, 0)
+                Dash.Tick("tick")
+                h.eq(ui.destination:GetText(), "the North Gate",
+                     "the glass names what the arrow points at, not the journey's end")
+                h.eq(ui.distance:GetText(), "700 yd")
+            end)
+
+            h.it("shows the step you are on and the next two", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                h.eq(ui.steps[1]:GetText(), "Ride to the North Gate")
+                h.eq(ui.steps[2]:GetText(), "Zeppelin to East Dock")
+                h.eq(ui.steps[3]:GetText(), "Ride to Delta")
+                state.index = 3
+                Dash.Refresh()
+                h.eq(ui.steps[1]:GetText(), "Ride to Delta")
+                h.eq(ui.steps[2]:GetText(), "", "nothing follows the last step")
+                h.eq(ui.steps[3]:GetText(), "")
+                state.index = 1
+                Dash.Refresh()
+            end)
+
+            h.it("bounds every line it draws", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                local lines = { ui.destination, ui.distance, ui.eta, ui.steps[1], ui.steps[2], ui.steps[3] }
+                for i, fs in ipairs(lines) do
+                    h.truthy(fs.points and #fs.points >= 2,
+                             "line " .. i .. " needs two horizontal anchors or it draws past the frame")
+                end
+            end)
+
+            h.it("gives the stop button its three states and puts it in the socket", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                local g = ns.Data.ArtGeometry
+                h.eq(ui.stop:GetWidth(), ui.stop:GetHeight(), "the button is round art on a square")
+                local expect = ui.frame:GetWidth() * g.stop.r * 2
+                h.truthy(math.abs(ui.stop:GetWidth() - expect) < 2, "sized from geometry.stop.r")
+                h.truthy(ui.stopNormal, "the unpressed cap")
+                h.truthy(ui.stopPressed, "the pushed cap")
+            end)
+
+            h.it("crops the hover cap exactly as it crops the other two", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                -- Every shipped part sits on a padded power-of-two canvas and
+                -- needs its generated coordinates to crop that padding away.
+                -- The hover cap used to be handed to SetHighlightTexture as a
+                -- bare path, which is only right while its art happens to
+                -- fill its canvas -- an accident of this one part's size.
+                local part = ns.Data.Art["dash2-stop-hover"]
+                h.truthy(ui.stopHover, "the hover cap is a texture we own, not a path we hand over")
+                h.eq(ui.stopHover:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. part.file)
+                h.eq(ui.stopHover.texCoord[1], part.l)
+                h.eq(ui.stopHover.texCoord[2], part.r)
+                h.eq(ui.stopHover.texCoord[4], part.b)
+                h.eq(ui.stopHover.drawLayer, "HIGHLIGHT", "a highlight texture draws on the highlight layer")
+            end)
+
+            h.it("still ends the trip when the button is clicked", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                h.truthy(state.plan)
+                Fake.Click(ui.stop)
+                h.falsy(ui.frame:IsShown())
+                h.falsy(state.plan, "clicking Stop ends the trip, as Escape does")
+            end)
+
+            h.it("keeps a usable button when its art will not load", function()
+                Dash.Stop()
+                withMissingTexture(MEDIA_STOP, function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    h.truthy(FreshDash.Debug().stop, "a missing texture must not lose the button")
+                end)
+            end)
+
+            h.it("keeps the text legible when the generated geometry is absent", function()
+                -- Every `if g then placeLine(...) end` block had no `else`: with
+                -- no generated geometry, destination/distance/steps/eta got
+                -- no anchors at all, so SetText succeeded but nothing drew --
+                -- silently, since only the compass/arrow/dial/stop button had
+                -- a fallback. Build with Data.Art and ArtGeometry both nil
+                -- (as they are before tools/build_graph.py has ever run) and
+                -- pin that all six still get two anchors apiece.
+                Dash.Stop()
+                local savedArt, savedGeometry = ns.Data.Art, ns.Data.ArtGeometry
+                ns.Data.Art, ns.Data.ArtGeometry = nil, nil
+                local ok, err = pcall(function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    local lines = { ui.destination, ui.distance, ui.steps[1], ui.steps[2], ui.steps[3], ui.eta }
+                    for i, fs in ipairs(lines) do
+                        h.truthy(fs.points and #fs.points >= 2,
+                                 "line " .. i .. " needs two anchors even with no generated geometry")
+                        -- Counting anchors is not enough: two anchors that
+                        -- name nothing to hang from bound nothing. Each one
+                        -- must state a real frame AND the point on it, and
+                        -- the pair must be a left edge and a right edge or
+                        -- the line is not bounded horizontally at all.
+                        for j, want in ipairs({ "LEFT", "RIGHT" }) do
+                            local anchor = fs.points[j]
+                            h.eq(type(anchor[2]), "table",
+                                 "line " .. i .. " anchor " .. j .. " must hang from a real frame")
+                            h.truthy(type(anchor[3]) == "string" and anchor[3]:match("%u"),
+                                     "line " .. i .. " anchor " .. j .. " must name a point on that frame")
+                            h.truthy(anchor[1]:find(want, 1, true) and anchor[3]:find(want, 1, true),
+                                     "line " .. i .. " anchor " .. j .. " must be its " .. want .. " edge")
+                        end
+                    end
+                end)
+                ns.Data.Art, ns.Data.ArtGeometry = savedArt, savedGeometry
+                h.truthy(ok, err)
             end)
         end)
     end
@@ -963,6 +1288,34 @@ return function(h)
             h.truthy(ok, tostring(err))
             h.eq(type(bareNs.SelfTest and bareNs.SelfTest.Run), "function",
                  "the module must still publish Run even with no shipped art")
+        end)
+
+        h.it("leaves a malformed Data.Art entry out of the texture list instead of crashing", function()
+            -- shippedArt()'s guard `type(part) == "table" and part.file` exists
+            -- because a malformed generated entry once took the WHOLE suite
+            -- down with it, not just one test, when pairs() reached it (see
+            -- SelfTest.lua's comment on ns.Data.ArtGeometry once being nested
+            -- here by mistake). SelfTest.TEXTURES is built once, at load time,
+            -- so reusing the shared instance would prove nothing; this loads
+            -- a private copy against a namespace sharing the real ns.Data.Art
+            -- plus one bad entry. The restore runs even if an assertion above
+            -- fails, so a broken guard here cannot poison every test after it.
+            ns.Data.Art.malformed = { l = 0, r = 1, t = 0, b = 1 } -- generated-looking, but no .file
+            local ok, err = pcall(function()
+                local tempNs = { Data = ns.Data }
+                local FreshSelfTest = assert(loadfile("GoblinPS/SelfTest.lua"))("GoblinPS", tempNs)
+                local sawGood = false
+                for _, path in ipairs(FreshSelfTest.TEXTURES) do
+                    h.falsy(path:find("malformed", 1, true),
+                            "an entry with no .file must not reach the texture list")
+                    if path:find("dash2%-housing") then
+                        sawGood = true
+                    end
+                end
+                h.truthy(sawGood, "sanity: a well-formed entry still made it in")
+            end)
+            ns.Data.Art.malformed = nil
+            h.truthy(ok, err)
         end)
     end)
 

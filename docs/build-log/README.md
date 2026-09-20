@@ -1,6 +1,6 @@
 # Build log
 
-How plans 2, 3 and 4 were actually built, kept because the commits say *what*
+How plans 2 to 5 were actually built, kept because the commits say *what*
 changed and these say *why*. Nothing here is current documentation: the design
 is `docs/superpowers/specs/2026-09-19-goblinps-design.md` and the plans are in
 `docs/superpowers/plans/`. Read those first; read this when you want to know
@@ -33,6 +33,15 @@ is reused by later plans; this copy is the permanent one.
   review rather than by tests, every one because a reviewer ran the code
   instead of reading it. `progress.md` holds the eleven rulings made while
   it executed, including why the compass had to read `Trip.ROTATION_SIGN`.
+- `2026-09-20-dash-second-design/final-review.md` — plan 5's whole-branch
+  review, with `fix-brief.md`, `fix-report.md` and `re-review.md` beside it.
+  Three Important findings, all of them things the tests could not see: an
+  opaque rectangle the device frame drew under its own round art, a device
+  size that was the one layout number still hand-typed, and a fake-frame
+  harness that mis-parsed `SetPoint`'s three-argument form — which meant the
+  regression test guarding this branch's worst finding passed on garbage.
+  `progress.md` holds the rulings, including the one the fixer talked me out
+  of.
 
 ## The diffs are not here
 

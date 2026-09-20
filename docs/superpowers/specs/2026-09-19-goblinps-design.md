@@ -1,10 +1,15 @@
 # GoblinPS design
 
-Status: **approved by the user on 2026-09-19.** Implemented in five plans
+Status: **approved by the user on 2026-09-19.** Implemented in six plans
 under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window
-(built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit
-(built), 5 route strip. Each is written after the one before it has been used in
-game. Update this file whenever behaviour changes.
+(built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit,
+first design (built and run in the client twice on 2026-09-20, which found
+and fixed an oval device -- a square texture stretched across a non-square
+frame -- and a compass hidden behind the brass, its stacked layers drawn at
+different sizes), 5 dash unit, second design (built around a redrawn art set
+after those in-game faults; not run in the client at all), 6 route strip.
+Each plan is written after the one before it has been used in game. Update
+this file whenever behaviour changes.
 
 **What the product is** (the user, 2026-09-19, after trying a level-1
 character): a GPS. Point to point to point, with the arrow and the map pin on
@@ -42,15 +47,23 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 3. **Two frames (Garmin model).**
    - *Planner*: the big device. Search box, the route strip, step list.
    - *Dash unit*: a small draggable round brass device opened when GO closes
-     the planner. A green arrow that turns to point at the current step, with
-     the distance and an ETA on the plate beneath it; the current step plus the
-     next in text ("Fly to Orgrimmar · then Zeppelin to Tirisfal"); advances
-     on arrival; shows "Recalculating…" when the player strays; sets Blizzard's
-     map waypoint on each new step as the trip advances, not only on the first
-     one. The arrow is its own texture, pointing up and centred on its pivot,
-     so it can be rotated in code. An active trip is **not saved**: `/reload`
-     ends it. The planner's recents make restarting one click. Reopening the
-     planner with `/gps` carries the trip on without ending it.
+     the planner, rebuilt in plan 5 around a second art set. The glass names
+     the **current step's target** and counts the distance down to it in
+     yards -- never the journey's final destination. The arrow only ever
+     points at the current step, and putting the trip's end on the same glass
+     would invite reading the arrow as pointing there; the glass, the arrow
+     and the distance all describe one thing. Below it, a lit panel shows
+     three lines: the step you are on, then the next two. An ETA plate on its
+     own shows the time left for the whole journey. A stop button sits in the
+     housing's socket, with hover and pressed art states, and ends the trip
+     exactly as Escape does. The compass ring and the arrow both turn, on the
+     same `Trip.ROTATION_SIGN`: the compass shows which way is north as the
+     player turns, the arrow turns to point at the current step. The device
+     advances on arrival; shows "Recalculating…" when the player strays; sets
+     Blizzard's map waypoint on each new step as the trip advances, not only
+     on the first one. An active trip is **not saved**: `/reload` ends it.
+     The planner's recents make restarting one click. Reopening the planner
+     with `/gps` carries the trip on without ending it.
 4. **Destination input, two ways:** type-ahead search over cities, zones and
    flight masters with recents on top; Ctrl-click on Blizzard's world map for
    an exact spot (react to `USER_WAYPOINT_UPDATED`). A third way, clicking a
@@ -75,6 +88,17 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    texture coordinates. A separate `images/parts/export_tga.py` creates
    uncompressed TGAs at authoring resolution (~49 MiB, gitignored) for review;
    those are regenerable and are not inputs to anything.
+   For a part whose on-screen position matters and must survive a redraw, a
+   JSON file beside the PNGs is the placement authority: the dash unit's
+   second design reads its layout from `images/parts/dash2-geometry.json`,
+   which states the glass circle, the compass ring, both screens, the stop
+   button and the two text boxes as fractions of the shared canvas.
+   `tools/check_art.py` measures the delivered PNGs' actual pixels and fails
+   if they disagree with that file. `tools/make_art.py` then copies the same
+   numbers into `ns.Data.ArtGeometry` inside the generated
+   `GoblinPS/Data/Art.lua`, so `GoblinPS/Dash.lua` reads its layout from
+   there instead of a hand-typed coordinate; a redrawn part only needs its
+   geometry file corrected, never the Lua.
    The schematic world map is **not being built.** The spike that proved it
    feasible is kept at `docs/research/schematic-spike/` in case a later
    version wants an overview panel; until then the generator's schematic

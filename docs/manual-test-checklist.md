@@ -144,10 +144,11 @@ Restart the game first: the TOC changed.
 - [ ] Drag the window by its body: it follows the mouse from where you
       grabbed it, no jump, no Lua error
 - [x] `/gps selftest` ends "Self-test passed."; record any FAIL line here.
-      **2026-09-20: passed, and it answered the question plan 5 was waiting
-      on.** All five dash textures reported `ok`, so this client loads the
-      power-of-two TGAs `tools/make_art.py` writes from the PNG sources. The
-      remaining 34 art parts can ship the same way; no BLP conversion needed.
+      **2026-09-20: passed, and it answered the question plan 6 (the route
+      strip) was waiting on.** All five dash textures reported `ok`, so this
+      client loads the power-of-two TGAs `tools/make_art.py` writes from the
+      PNG sources. The remaining 34 art parts can ship the same way; no BLP
+      conversion needed.
       `GetPlayerFacing` and `UnitOnTaxi` are present.
       **This quietly answers a question plan 4 depends on.** One of the
       textures it checks is `Interface\AddOns\GoblinPS\Media\icon`, a TGA
@@ -358,7 +359,7 @@ turns that test red. That is the prompt to update this table, not a bug.
 - [ ] Teldrassil still needs the boat; a Darnassus character leaves by "the
       Darnassus gate"
 
-## Dash unit (plan 4)
+## Dash unit (plans 4 and 5)
 
 - [ ] GO closes the planner and opens the dash; /gps reopens the planner and
       the trip keeps running
@@ -380,7 +381,22 @@ turns that test red. That is the prompt to update this table, not a bug.
       time, hides the arrow, and stays open until Stop is pressed
 - [ ] Drag the dash; its position survives /reload. /reload mid-trip ends the
       trip, by design
-- [ ] The five dash textures load: /gps selftest names them. If one FAILS,
-      the device must still be readable on its flat colours
-- [ ] At a UI scale of 0.64 and of 1.0 the device is legible and nothing
-      overlaps
+- [ ] The device is round, not oval, and the compass ring turns with you while
+      the arrow turns toward the step. If the arrow is right and the ring is
+      wrong, that is Trip.CompassAngle, not Trip.ROTATION_SIGN
+- [ ] The glass names the step you are walking to and counts the yards down
+- [ ] The panel shows the step you are on and the next two; near the end it
+      shows fewer, not blanks with stale text
+- [ ] The ETA plate shows the time left for the whole journey
+- [ ] The red button lights on hover, pushes in on click, and ends the trip
+- [ ] Every line sits inside its own opening in the chassis; no text is cut
+      off and none draws on the brass
+- [ ] Every line of text sits on its opening and is legible: the destination,
+      the yards, the three steps and the ETA. The device is 288x360; if a line
+      is cramped or swims in its opening, that number is the one to change
+- [ ] At UI scale 0.64 and 1.0 the device is legible and nothing overlaps
+- [ ] /gps selftest names the eight second-design textures; if one FAILS the
+      device must still be readable on its flat colours. It also names the
+      first design's five parts (`dash-body`, `dash-screen`, `dash-compass`,
+      `dash-eta-plate`, `arrow`), which are kept on disk on purpose; only
+      `arrow` is drawn, so a FAIL on the other four costs nothing today

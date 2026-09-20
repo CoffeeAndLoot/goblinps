@@ -44,11 +44,24 @@ end
 
 local function new(kind, parent)
     return setmetatable({ kind = kind, parent = parent, shown = true, text = "", scripts = {}, points = {},
-                          width = 0, height = 0 }, Region)
+                          width = 0, height = 0, regions = {} }, Region)
 end
 
-function Region:CreateTexture() return new("Texture", self) end
-function Region:CreateFontString() return new("FontString", self) end
+-- Recorded, not swallowed, on two counts. `regions` is every texture and
+-- font string created ON this frame, which is the only way a test can ask
+-- whether a frame carries art of its own -- a frame's own textures cannot be
+-- hidden without hiding the frame, so "does this frame own regions" is a real
+-- question about the layout. The draw layer is kept because stacking order
+-- between textures on one frame is decided by it and nothing else.
+local function region(kind, parent, layer)
+    local r = new(kind, parent)
+    r.drawLayer = layer
+    parent.regions[#parent.regions + 1] = r
+    return r
+end
+
+function Region:CreateTexture(_, layer) return region("Texture", self, layer) end
+function Region:CreateFontString(_, layer) return region("FontString", self, layer) end
 function Region:SetText(text) self.text = text or "" end
 function Region:GetText() return self.text end
 function Region:SetTextColor(r, g, b) self.color = { r, g, b } end
@@ -86,6 +99,14 @@ end
 -- Normalises every SetPoint overload down to the five values the real
 -- GetPoint returns (point, relativeTo, relativePoint, x, y), so a
 -- save/restore round trip can be asserted the way the client really answers.
+--
+-- Three arguments is the one ambiguous count: the client takes BOTH
+-- (point, x, y) and (point, relativeTo, relativePoint), and it tells them
+-- apart by type, so this does too. Reading every three-argument call as the
+-- first form silently dropped the frame out of the second and left the
+-- anchor string sitting in y -- which a test counting anchors could not see.
+-- Four arguments has only one form, (point, relativeTo, x, y): there is no
+-- overload whose second argument is a number at that count.
 function Region:SetPoint(...)
     local n = select("#", ...)
     local point, relativeTo, relativePoint, x, y
@@ -96,7 +117,12 @@ function Region:SetPoint(...)
         point, relativeTo = ...
         x, y = 0, 0
     elseif n == 3 then
-        point, x, y = ...
+        if type((select(2, ...))) == "number" then
+            point, x, y = ...
+        else
+            point, relativeTo, relativePoint = ...
+            x, y = 0, 0
+        end
     elseif n == 4 then
         point, relativeTo, x, y = ...
     else
