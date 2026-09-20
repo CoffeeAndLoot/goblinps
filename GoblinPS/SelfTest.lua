@@ -43,7 +43,7 @@ function SelfTest.Run(say)
     for _, check in ipairs(ns.API.SelfCheck()) do
         report(check.present, "api " .. check.name)
     end
-    report(ns.Core.KnownCount() >= 0, "flight paths learned: " .. ns.Core.KnownCount())
+    say("flight paths learned: " .. ns.Core.KnownCount())
 
     say(failed == 0 and "Self-test passed." or ("Self-test: " .. failed .. " failed."))
     return failed == 0

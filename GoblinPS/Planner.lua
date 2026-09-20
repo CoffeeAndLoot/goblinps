@@ -14,6 +14,9 @@ Planner.SIZE = { wide = { 660, 400 }, tall = { 390, 600 } }
 Planner.MAX_ROWS = 12
 Planner.MAX_RESULTS = 8
 local PAD, HEADER, INPUTS, FOOTER, ROW = 10, 30, 26, 64, 18
+-- The wide layout's screen keeps this share of the window width; plan 3 (the
+-- schematic map) will revisit it once the map needs room too.
+local SCREEN_SHARE = 0.42
 
 local ui          -- built on first open
 local state = {}  -- from = place or nil ("where you stand"), to = place, plan = Core.PlanRoute's answer
@@ -46,11 +49,11 @@ function Planner.Refresh()
     end
 
     local total, hint, notes = "", "", ""
+    if plan then
+        notes = table.concat(plan.notes, "  ")
+    end
     if plan and #steps > 0 then
         total = ns.Route.FormatTime(plan.result.seconds) .. "  " .. ns.Route.FormatMoney(plan.result.copper)
-        notes = table.concat(plan.notes, "  ")
-    elseif plan then
-        total = plan.notes[#plan.notes] or ""
     end
     if plan and plan.hint then
         hint = ns.Route.HintText(plan.hint)
@@ -184,7 +187,7 @@ function Planner.ApplyLayout(mode)
     else
         ui.screen:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, top)
         ui.screen:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", PAD, PAD)
-        ui.screen:SetWidth(math.floor(size[1] * 0.56))
+        ui.screen:SetWidth(math.floor(size[1] * SCREEN_SHARE))
         ui.side:SetPoint("TOPLEFT", ui.screen, "TOPRIGHT", PAD, 0)
         ui.side:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -PAD, PAD)
     end
@@ -250,6 +253,7 @@ local function build()
     local notes = W.Text(screen, "dim")
     notes:SetPoint("TOPLEFT", 8, -8)
     notes:SetPoint("TOPRIGHT", -8, -8)
+    notes:SetWordWrap(true)
     local known = W.Text(screen, "green")
     known:SetPoint("BOTTOMLEFT", 8, 8)
     known:SetPoint("BOTTOMRIGHT", -8, 8)
@@ -270,13 +274,15 @@ local function build()
     local hint = W.Text(side, "amber")
     hint:SetPoint("BOTTOMLEFT", 8, FOOTER - 18)
     hint:SetPoint("BOTTOMRIGHT", -8, FOOTER - 18)
-    local total = W.Text(side, "green", "GameFontNormal")
-    total:SetPoint("BOTTOMLEFT", 8, 12)
     local go = W.Button(side, "GO", 56, 24, function()
         dismiss()
+        replan()
         ns.Core.Go(state.plan)
     end)
     go:SetPoint("BOTTOMRIGHT", -8, 8)
+    local total = W.Text(side, "green", "GameFontNormal")
+    total:SetPoint("BOTTOMLEFT", 8, 12)
+    total:SetPoint("RIGHT", go, "LEFT", -8, 0)
 
     local results = W.Panel(f, "steel", "brass", 1)
     results:SetFrameStrata("DIALOG")

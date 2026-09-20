@@ -51,12 +51,15 @@ function Prefs.SavePosition(db, window, point, relativePoint, x, y)
 end
 
 -- An entry saved before relativePoint existed is read as matching point.
+-- A hostile or malformed entry (not a table, or point/x/y of the wrong
+-- type) is treated as no saved position, never as a value to draw with.
 function Prefs.Position(db, window)
     local p = db.positions[window]
-    if not p then
+    if type(p) ~= "table" or type(p.point) ~= "string" or type(p.x) ~= "number" or type(p.y) ~= "number" then
         return nil
     end
-    return { point = p.point, relativePoint = p.relativePoint or p.point, x = p.x, y = p.y }
+    local relativePoint = type(p.relativePoint) == "string" and p.relativePoint or p.point
+    return { point = p.point, relativePoint = relativePoint, x = p.x, y = p.y }
 end
 
 return Prefs

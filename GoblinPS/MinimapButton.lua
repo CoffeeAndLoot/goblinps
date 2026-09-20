@@ -62,7 +62,7 @@ local function build()
     b:SetSize(31, 31)
     b:SetFrameStrata("MEDIUM")
     b:SetFrameLevel(8)
-    b:RegisterForClicks("AnyUp")
+    b:RegisterForClicks("LeftButtonUp")
     b:RegisterForDrag("LeftButton")
 
     local icon = b:CreateTexture(nil, "BACKGROUND")

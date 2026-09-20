@@ -1,6 +1,10 @@
 -- Smoke test of the window code against test/fake_frames.lua. It catches our
 -- own mistakes (nil calls, wrong fields, text in the wrong widget). Real frame
 -- behaviour is checked in game from docs/manual-test-checklist.md.
+-- These tests share one planner and run in order: a later test may rely on
+-- state an earlier one left behind.
+-- "Self-test passed." can never be reached on the desktop, since the fake
+-- defines no font objects; that happy path is checked in game instead.
 return function(h)
     local Fake = dofile("test/fake_frames.lua")
     local realPrint = print
@@ -180,11 +184,36 @@ return function(h)
             where.map = nil
             Fake.Click(ui.here)
             h.eq(ui.rows[1].left:GetText(), "")
-            h.eq(ui.total:GetText(), "Can't tell where you are. Inside an instance?")
+            h.eq(ui.notes:GetText(), "Can't tell where you are. Inside an instance?")
+            h.eq(ui.total:GetText(), "")
             h.falsy(ui.go.enabled)
             where.map = 1
             Fake.Click(ui.here)
             h.truthy(ui.go.enabled)
+        end)
+
+        h.it("GO re-plans from where you are now instead of using a stale plan", function()
+            local ui = Planner.Debug()
+            h.eq(ui.rows[1].left:GetText(), "1. Ride to Alpha")
+            -- The player moves without touching either box: the planner's
+            -- last plan (from near Alpha) is now stale.
+            where.mx, where.my = 0.1, 0.9 -- right beside Bravo now
+            Fake.Click(ui.go)
+            h.eq(ui.rows[1].left:GetText(), "1. Ride to West Dock")
+            h.truthy(printed[#printed]:find("Pin set: Ride to West Dock", 1, true))
+            h.eq(pins[#pins][1], 1)
+            where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
+        end)
+
+        h.it("shows the zero-step case when you are already at the destination", function()
+            local ui, state = Planner.Debug()
+            Fake.Type(ui.toBox, "westland")
+            Fake.Click(ui.results.rows[1])
+            h.eq(state.to.name, "Westland")
+            h.eq(ui.rows[1].left:GetText(), "")
+            h.eq(ui.notes:GetText(), "You're already at Westland.")
+            h.eq(ui.total:GetText(), "")
+            h.falsy(ui.go.enabled)
         end)
 
         h.it("closes and reopens without rebuilding", function()
