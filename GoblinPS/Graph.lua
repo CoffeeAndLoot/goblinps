@@ -107,6 +107,17 @@ function Graph.Build(data, opts)
 
     stops.START = stopFrom("START", opts.from)
     stops.DEST = stopFrom("DEST", opts.to)
+
+    -- A zone destination means "anywhere in the zone": a place already on the
+    -- zone's map has arrived, so its ride to DEST costs nothing (and Route
+    -- drops a ride that short). A stop or an exact spot is ridden to as usual.
+    local zoneMap = opts.to.kind == "zone" and opts.to.map or nil
+    local function toDest(place)
+        if zoneMap and place.map == zoneMap then
+            return 0
+        end
+        return Graph.RideSeconds(place, stops.DEST)
+    end
     local origins = { stops.START }
     if opts.hearth then
         stops.HEARTH = stopFrom("HEARTH", opts.hearth)
@@ -120,12 +131,12 @@ function Graph.Build(data, opts)
             end
         end
         if origin.c == stops.DEST.c and landOf(data, stops.DEST) == landOf(data, origin) then
-            addEdge(edges, origin.key, "DEST", "ride", Graph.RideSeconds(origin, stops.DEST))
+            addEdge(edges, origin.key, "DEST", "ride", toDest(origin))
         end
     end
     for _, key in ipairs(keys) do
         if stops[key].c == stops.DEST.c and landOf(data, stops[key]) == landOf(data, stops.DEST) then
-            addEdge(edges, key, "DEST", "ride", Graph.RideSeconds(stops[key], stops.DEST))
+            addEdge(edges, key, "DEST", "ride", toDest(stops[key]))
         end
     end
 

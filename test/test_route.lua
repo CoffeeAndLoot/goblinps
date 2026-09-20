@@ -57,6 +57,26 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("a zone destination", function()
+        local westland = loaded.ns.Search.Find(world, "westland", "H", 1)[1]
+        h.it("is reached at the first stop inside the zone", function()
+            local r = Route.Plan(world, { faction = "H", known = { [4] = true }, from = nearDelta, to = westland })
+            h.eq(kinds(r), "ride,zeppelin")
+            h.eq(r.steps[2].to.key, "west_dock")
+        end)
+        h.it("has no steps when you already stand in it", function()
+            local inWestland = { name = "You", c = 1, x = 1000, y = 1100, map = 1, mx = 0.89, my = 0.9 }
+            local r = Route.Plan(world, { faction = "H", known = {}, from = inWestland, to = westland })
+            h.eq(#r.steps, 0)
+        end)
+        h.it("still rides to an exact stop in that zone", function()
+            local charlie = loaded.ns.Search.Find(world, "charlie", "H", 1)[1]
+            local inWestland = { name = "You", c = 1, x = 1000, y = 1100, map = 1, mx = 0.89, my = 0.9 }
+            local r = Route.Plan(world, { faction = "H", known = {}, from = inWestland, to = charlie })
+            h.eq(kinds(r), "ride")
+        end)
+    end)
+
     h.describe("Route.Hint", function()
         local opts = { faction = "H", known = {}, from = nearAlpha, to = nearDelta }
         h.it("names the missing flight stops and the saving", function()
