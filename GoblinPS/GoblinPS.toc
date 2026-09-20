@@ -4,7 +4,7 @@
 ## Author: CoffeeAndLoot
 ## X-Website: https://github.com/CoffeeAndLoot/goblinps
 ## IconTexture: Interface\AddOns\GoblinPS\Media\icon
-## Version: 2026.09.19.2
+## Version: 2026.09.19.3
 ## SavedVariables: GoblinPSDB
 ## SavedVariablesPerCharacter: GoblinPSCharDB
 ## AddonCompartmentFunc: GoblinPS_OnAddonCompartmentClick
@@ -16,6 +16,9 @@ Data\Nodes.lua
 Data\Flights.lua
 Data\Links.lua
 Data\Inns.lua
+Data\Crossings.lua
+Data\Zones.lua
+Travel.lua
 Search.lua
 Graph.lua
 Route.lua

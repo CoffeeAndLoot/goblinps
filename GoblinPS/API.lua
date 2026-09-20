@@ -22,6 +22,11 @@ function API.Faction()
     return nil
 end
 
+-- The character's level, or nil. Travel.For turns it into walk-or-ride.
+function API.Level()
+    return UnitLevel and UnitLevel("player") or nil
+end
+
 -- Every flight node the client lists, for /gps probe: { { nodeID, name }, ... }.
 -- Its isUndiscovered flag is dead on build 1.60.1.69913 (false for every
 -- node), so this says nothing about what the character has discovered.
@@ -151,6 +156,7 @@ function API.SelfCheck()
         { "C_Item.GetItemCooldown", C_Item and C_Item.GetItemCooldown },
         { "GetBindLocation", GetBindLocation },
         { "UnitFactionGroup", UnitFactionGroup },
+        { "UnitLevel", UnitLevel },
     }
     local out = {}
     for i, check in ipairs(checks) do

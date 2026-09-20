@@ -84,7 +84,10 @@ function Core.PlanRoute(to, from)
             "Visit a flight master so GoblinPS can learn your flight paths. Until then, no flights."
     end
 
-    local opts = { faction = faction, known = known, from = from, to = to, hearth = bind }
+    plan.level = API.Level()
+    local travel = ns.Travel.For(plan.level)
+    local opts = { faction = faction, known = known, from = from, to = to, hearth = bind,
+                   speed = travel.speed, walk = travel.walk }
     plan.result = Route.Plan(ns.Data, opts)
     if not plan.result then
         plan.notes[#plan.notes + 1] = "No route found to " .. to.name .. "."
@@ -128,6 +131,10 @@ local function routeTo(text)
             .. Route.FormatMoney(plan.result.copper))
         for i, step in ipairs(steps) do
             say(i .. ". " .. Route.StepText(step))
+            local detail, warn = Route.StepDetail(ns.Data, step, plan.level)
+            if detail ~= "" then
+                say("     " .. (warn and "|cfff0b54a" or "|cff9c8f6d") .. detail .. "|r")
+            end
         end
     end
     if plan.hint then

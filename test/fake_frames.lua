@@ -15,7 +15,7 @@ Fake.missingTextures = {}
 -- nothing, so a bad widget call fails on the desktop instead of only in game.
 local ALLOWED_NOOP = {
     SetAllPoints = true, SetColorTexture = true, SetTexCoord = true, SetAlpha = true,
-    SetTextColor = true, SetJustifyH = true, SetWordWrap = true, SetFontObject = true,
+    SetJustifyH = true, SetWordWrap = true, SetFontObject = true,
     SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
     StartMoving = true, StopMovingOrSizing = true, SetFrameStrata = true, SetFrameLevel = true,
@@ -51,6 +51,7 @@ function Region:CreateTexture() return new("Texture", self) end
 function Region:CreateFontString() return new("FontString", self) end
 function Region:SetText(text) self.text = text or "" end
 function Region:GetText() return self.text end
+function Region:SetTextColor(r, g, b) self.color = { r, g, b } end
 function Region:Show() self.shown = true end
 function Region:Hide()
     self.shown = false

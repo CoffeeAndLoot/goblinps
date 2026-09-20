@@ -14,8 +14,10 @@ return function(h)
     local ns = { Data = dofile("test/fake_world.lua")() }
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
     local pins, loginCallbacks = {}, {}
+    local level = 60 -- mounted, so ground steps say Ride
     ns.API = {
         Faction = function() return "H" end,
+        Level = function() return level end,
         PlayerMapPosition = function() return where.map, where.mx, where.my end,
         HearthBindName = function() return nil end,
         TaxiNodes = function() return {} end,
@@ -28,7 +30,7 @@ return function(h)
         end,
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
     }
-    for _, file in ipairs({ "Geo", "Search", "Graph", "Route", "Trip", "Known", "Prefs",
+    for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Trip", "Known", "Prefs",
                             "Widgets", "Planner", "MinimapButton", "SelfTest", "Core" }) do
         assert(loadfile("GoblinPS/" .. file .. ".lua"))("GoblinPS", ns)
     end
@@ -250,6 +252,53 @@ return function(h)
             SlashCmdList.GOBLINPS("")
             h.truthy(ui.frame:IsShown())
             h.truthy(Planner.Debug() == ui)
+        end)
+    end)
+
+    h.describe("ground steps in the window", function()
+        local amber, dim = ns.Widgets.COLOR.amber, ns.Widgets.COLOR.dim
+        local function pickTo(text)
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, text)
+            Fake.Click(ui.results.rows[1])
+            return ui
+        end
+
+        h.it("shows each ground step's zone and levels on a second line", function()
+            local ui = pickTo("hotel")
+            h.eq(ui.rows[1].left:GetText(), "1. Ride to the North Gate")
+            h.eq(ui.rows[1].detail:GetText(), "into Northland · level 30-40 · trolls on the bridge")
+            h.eq(ui.rows[2].left:GetText(), "2. Ride to Hotel")
+            h.eq(ui.rows[2].detail:GetText(), "in Northland · level 30-40")
+            h.eq(ui.rows[3].detail:GetText(), "")
+        end)
+        h.it("turns the detail amber for a hazard and leaves it dim otherwise", function()
+            local ui = Planner.Debug()
+            h.eq(ui.rows[1].detail.color[1], amber[1])   -- the crossing carries a hazard note
+            h.eq(ui.rows[2].detail.color[1], dim[1])     -- level 60 in a 30-40 zone
+        end)
+        h.it("says Walk and warns about the zone for a low-level character", function()
+            level = 1
+            local ui = pickTo("hotel")
+            h.eq(ui.rows[1].left:GetText(), "1. Walk to the North Gate")
+            h.eq(ui.rows[2].left:GetText(), "2. Walk to Hotel")
+            h.eq(ui.rows[2].detail.color[1], amber[1])
+            level = 60
+        end)
+        h.it("labels a straight line when the crossings table has a hole", function()
+            local ui = pickTo("lostland")
+            h.eq(ui.rows[1].left:GetText(), "1. Ride toward Lostland (no mapped path)")
+            h.eq(ui.rows[1].detail:GetText(), "")
+            pickTo("delt")
+        end)
+        h.it("prints the detail under each step in chat too", function()
+            local from = #printed
+            SlashCmdList.GOBLINPS("to hotel")
+            local saw = false
+            for i = from + 1, #printed do
+                saw = saw or printed[i]:find("into Northland", 1, true) ~= nil
+            end
+            h.truthy(saw)
         end)
     end)
 

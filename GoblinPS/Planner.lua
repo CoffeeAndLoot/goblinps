@@ -11,9 +11,9 @@ ns.Planner = Planner
 local W = ns.Widgets
 
 Planner.SIZE = { wide = { 660, 400 }, tall = { 390, 600 } }
-Planner.MAX_ROWS = 12
+Planner.MAX_ROWS = 8 -- each step is two lines: the step, then its detail
 Planner.MAX_RESULTS = 8
-local PAD, HEADER, INPUTS, FOOTER, ROW = 10, 30, 26, 64, 18
+local PAD, HEADER, INPUTS, FOOTER, ROW, STEP_ROW = 10, 30, 26, 64, 18, 32
 -- The wide layout's screen keeps this share of the window width; plan 3 (the
 -- schematic map) will revisit it once the map needs room too.
 local SCREEN_SHARE = 0.42
@@ -38,14 +38,18 @@ function Planner.Refresh()
     local steps = plan and plan.result and plan.result.steps or {}
     for i = 1, Planner.MAX_ROWS do
         local row, step = ui.rows[i], steps[i]
-        local left, right = "", ""
+        local left, right, detail, warn = "", "", "", false
         if step and i == Planner.MAX_ROWS and #steps > Planner.MAX_ROWS then
             left = "... and " .. (#steps - i + 1) .. " more steps"
         elseif step then
             left, right = stepLine(i, step)
+            detail, warn = ns.Route.StepDetail(ns.Data, step, plan.level)
         end
         row.left:SetText(left)
         row.right:SetText(right)
+        row.detail:SetText(detail)
+        local c = W.COLOR[warn and "amber" or "dim"]
+        row.detail:SetTextColor(c[1], c[2], c[3])
     end
 
     local total, hint, notes = "", "", ""
@@ -267,10 +271,13 @@ local function build()
     local side = W.Panel(f, "steel", "steel", 1)
     local rows = {}
     for i = 1, Planner.MAX_ROWS do
-        local row = { left = W.Text(side, "green"), right = W.Text(side, "dim", nil, "RIGHT") }
-        row.left:SetPoint("TOPLEFT", 8, -(6 + (i - 1) * ROW))
-        row.right:SetPoint("TOPRIGHT", -8, -(6 + (i - 1) * ROW))
+        local row = { left = W.Text(side, "green"), right = W.Text(side, "dim", nil, "RIGHT"),
+                      detail = W.Text(side, "dim", "GameFontDisableSmall") }
+        row.left:SetPoint("TOPLEFT", 8, -(6 + (i - 1) * STEP_ROW))
+        row.right:SetPoint("TOPRIGHT", -8, -(6 + (i - 1) * STEP_ROW))
         row.left:SetPoint("TOPRIGHT", row.right, "TOPLEFT", -6, 0)
+        row.detail:SetPoint("TOPLEFT", 22, -(6 + (i - 1) * STEP_ROW + 14))
+        row.detail:SetPoint("TOPRIGHT", -8, -(6 + (i - 1) * STEP_ROW + 14))
         rows[i] = row
     end
     local hint = W.Text(side, "amber")
