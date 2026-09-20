@@ -3,6 +3,35 @@
 Frames and live game data cannot run outside the client. Add an entry for
 every UI change.
 
+## Start here: the next session, in order
+
+Plans 2 and 3 are built, reviewed and unmerged, waiting only on this. The
+list below is everything blocking the merge, cheapest and most decisive
+first. The sections further down are the full detail for each.
+
+**This needs a full game restart, not `/reload`: the TOC changed after plan 3.**
+
+1. **Does it still load?** `/gps` opens the planner, and `/gps selftest`
+   passes. If either fails nothing else matters, and the answer will be in
+   the first Lua error.
+2. **Click a destination in the dropdown.** Type part of a name and click the
+   row. This is the one plan 2 fix nobody has confirmed. If the click does
+   not take, type the name and press Enter instead and say what happens:
+   that separates a focus problem from a matching problem.
+3. **`/gps probe zones`.** One command, and it replaces reading sixty zone
+   tooltips by hand. Then log out so SavedVariables is written, and say so.
+4. **Orgrimmar's west gate.** Stand in the gateway and record the position.
+   Every Horde route north depends on this one row and it fails quietly, not
+   loudly, when it is wrong.
+5. **The other five suspect crossings**, listed under "Which crossings to
+   check first". Fifty of the fifty-six rows are already provably inside both
+   of their zones; these are not.
+6. **`/run print(GetUnitSpeed("player"))` while mounted.** Yards per second,
+   directly. Every ground time the addon prints scales off this number, and
+   it is currently assumed rather than measured.
+
+Everything after that is worth doing but does not block the merge.
+
 ## Probes to run before any code (WoW Forever beta, 1.60.1.69913)
 
 These decide the design. Record the result beside each one.
