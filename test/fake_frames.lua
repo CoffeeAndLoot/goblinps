@@ -58,6 +58,8 @@ function Region:Hide()
 end
 function Region:SetShown(shown) self.shown = shown and true or false end
 function Region:IsShown() return self.shown end
+-- The real client answers from the cursor; tests set frame.mouseOver by hand.
+function Region:IsMouseOver() return self.mouseOver == true end
 function Region:SetScript(name, fn) self.scripts[name] = fn end
 function Region:GetScript(name) return self.scripts[name] end
 function Region:SetSize(w, h) self.width, self.height = w, h end

@@ -64,7 +64,7 @@ function Planner.Refresh()
     W.SetButtonEnabled(ui.go, #steps > 0)
 
     local known = ns.Core.KnownCount()
-    ui.known:SetText(known == 0 and "No flight paths learned yet. Open a flight master's map."
+    ui.known:SetText(known == 0 and "No flight paths yet: open a flight map."
         or ("Flight paths known: " .. known))
 end
 
@@ -147,7 +147,9 @@ local function wireBox(box)
     end)
     box:SetScript("OnEditFocusGained", showResults)
     box:SetScript("OnEditFocusLost", function(self)
-        if ui.results.owner == self then
+        -- The client drops edit focus on mouse-down, before a click on a row
+        -- completes. With the cursor on the list, leave it for that click.
+        if ui.results.owner == self and not ui.results:IsMouseOver() then
             hideResults()
         end
     end)

@@ -100,6 +100,33 @@ return function(h)
             h.falsy(ui.results:IsShown())
         end)
 
+        h.it("a click on the list still lands when the client drops edit focus on mouse-down", function()
+            -- Seen in game: clicking a row closed the list and picked nothing. The box lost focus on
+            -- mouse-down, the list hid, and the row was gone before the click completed.
+            local ui, state = Planner.Debug()
+            Fake.Type(ui.toBox, "charl")
+            ui.results.mouseOver = true          -- the cursor is on the list...
+            ui.toBox:ClearFocus()                -- ...when the box loses focus
+            h.truthy(ui.results:IsShown(), "the list must survive focus loss while the mouse is on it")
+            Fake.Click(ui.results.rows[1])
+            ui.results.mouseOver = false
+            h.eq(state.to.nodeID, 3)
+            h.falsy(ui.results:IsShown())
+            -- put the destination back for the tests that follow
+            Fake.Type(ui.toBox, "delt")
+            Fake.Click(ui.results.rows[1])
+            h.eq(state.to.nodeID, 4)
+        end)
+
+        h.it("focus loss with the mouse elsewhere still closes the list", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "delt")
+            h.truthy(ui.results:IsShown())
+            ui.toBox:ClearFocus()
+            h.falsy(ui.results:IsShown())
+            ui.toBox:SetText("Delta")
+        end)
+
         h.it("remembers the destination and offers it when the box is empty", function()
             local ui = Planner.Debug()
             h.eq(GoblinPSDB.recents[1], "Delta")
