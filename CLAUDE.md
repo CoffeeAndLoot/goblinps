@@ -24,7 +24,10 @@ seen on screen and fixed. The device was then redesigned around a second art
 set -- plan 5, this work: the current step's name and distance on the glass,
 three step lines in a lit panel, the ETA on its own plate, a stop button with
 hover and pressed states, every position read from a generated geometry
-file. Plan 5 has **not** run in the client at all. `/gps` opens the planner;
+file. Plan 5 ran in the client on 2026-09-20 and drew wrong: the compass
+and arrow sat off the device and every line of text was invisible, because
+build() read sizes from frames that only inherit them (`2a9e856`). The art,
+the stop button and the housing were right on the first try. `/gps` opens the planner;
 `/gps to <place>` prints a route in chat, with ground travel going zone by
 zone through named crossings and walk-or-ride by level. GO closes the
 planner and opens the dash unit: an arrow pointing at the current step,
@@ -174,6 +177,18 @@ commit; re-read files before editing.
 - Known Blizzard bug on 1.60.1.69913: all secure snippets fail
   (`loadstring_untainted` is nil). GoblinPS uses none, so it is unaffected;
   do not add any.
+- **Never read a size from a frame that only inherits one.** A frame sized
+  by `SetAllPoints` has no resolved size until the client's layout pass, so
+  `GetWidth()` on one during `build()` answers **0** -- silently, since 0
+  multiplies fine. Measure the frame given an explicit `SetSize`. Caught in
+  the client 2026-09-20, after 257 tests passed: the fake copied the size
+  across on `SetAllPoints`, so every derived size answered correctly at the
+  one moment the client would not. `Fake.Layout()` now marks the layout pass;
+  a test wanting a resolved size must call it, and by calling it says out
+  loud that it is past build time.
+- **A test that checks how big a thing is cannot tell you it is in the wrong
+  place.** Two tests pinned the compass's size and none its position, which
+  is how a device drawn off its own frame passed a green suite. Pin both.
 - Text in the window must be bounded: give every FontString two horizontal
   anchors (or a width) and decide wrap or truncate. A one-anchor FontString
   fed a sentence draws over its neighbours and past the frame.
