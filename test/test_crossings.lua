@@ -29,7 +29,60 @@ return function(h, loaded)
                 h.truthy(type(x.name) == "string" and x.name ~= "" and not x.name:find(","),
                          label .. ": needs a name without a comma")
                 h.truthy(x.warn == nil or #x.warn <= 48, label .. ": warn must be short")
+                h.truthy(x.cross == nil or (type(x.cross) == "number" and x.cross > 0),
+                         label .. ": cross must be a positive number")
                 h.eq(data.Places[x.a].c, data.Places[x.b].c, label .. ": zones on different continents")
+            end
+        end)
+        h.it("names read the same whichever way you are going", function()
+            for _, x in ipairs(data.Crossings) do
+                for _, zoneID in ipairs({ x.a, x.b }) do
+                    local zoneName = data.Places[zoneID].name
+                    h.falsy(x.name:find(" into " .. zoneName, 1, true),
+                            x.name .. ": reads only one direction (into " .. zoneName .. ")")
+                    h.falsy(x.name:find(" to " .. zoneName, 1, true),
+                            x.name .. ": reads only one direction (to " .. zoneName .. ")")
+                end
+            end
+        end)
+        h.it("marks exactly the unverified rows: the new zones and Orgrimmar's west gate", function()
+            local expected = {
+                ["1413-1454"] = true, -- Orgrimmar's west gate
+                ["1452-2482"] = true, -- Darkwhisper Gorge, into Mount Hyjal
+                ["1443-2652"] = true, -- the Valley of Bones, into Shen'dralas
+                ["1433-2548"] = true, -- the Riverglades turnoff
+                ["1428-2548"] = true, -- the Riverglades-Burning Steppes border
+                ["1435-2548"] = true, -- the Riverglades-Swamp border
+                ["1418-2548"] = true, -- the Riverglades-Badlands border
+            }
+            local count = 0
+            for _, x in ipairs(data.Crossings) do
+                local key = math.min(x.a, x.b) .. "-" .. math.max(x.a, x.b)
+                if x.unverified then
+                    count = count + 1
+                end
+                h.eq(x.unverified == true, expected[key] == true, key .. " (" .. x.name .. ") unverified flag is wrong")
+            end
+            h.eq(count, 7)
+        end)
+        h.it("has the right number of crossings at these pinch points", function()
+            local counts = {}
+            for _, x in ipairs(data.Crossings) do
+                counts[x.a] = (counts[x.a] or 0) + 1
+                counts[x.b] = (counts[x.b] or 0) + 1
+            end
+            local expect = {
+                [1449] = 2, -- Un'Goro Crater
+                [1451] = 1, -- Silithus
+                [1450] = 2, -- Moonglade
+                [1445] = 1, -- Dustwallow Marsh
+                [1438] = 1, -- Teldrassil
+                [1419] = 1, -- Blasted Lands
+                [1457] = 1, -- Darnassus
+                [1447] = 1, -- Azshara
+            }
+            for map, n in pairs(expect) do
+                h.eq(counts[map] or 0, n, data.Places[map].name .. " should have " .. n .. " crossing(s)")
             end
         end)
         h.it("puts every point in or beside both of its zones", function()
@@ -109,7 +162,7 @@ return function(h, loaded)
             h.eq(t[3], "Walk to Orgrimmar's front gate")
             h.eq(t[4], "Walk to Orgrimmar's west gate")
             h.eq(t[5], "Walk to the Mor'shan Rampart")
-            h.eq(t[6], "Walk to the road into Felwood")
+            h.eq(t[6], "Walk to the Ashenvale-Felwood road")
             h.eq(t[7], "Walk to the Timbermaw Hold tunnels")
             h.eq(t[8], "Walk to Darkwhisper Gorge")
             h.eq(#t, 8)

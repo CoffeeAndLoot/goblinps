@@ -11,20 +11,21 @@ local _, ns = ...
 local Graph = {}
 ns.Graph = Graph
 
--- Used when the caller gives no speed: a 60% mount (7 yd/s run speed x 1.6).
 -- Core passes the character's real speed from Travel.For(level).
-Graph.RIDE_YARDS_PER_SECOND = 11.2
 Graph.RIDE_DETOUR = 1.3            -- roads are not straight lines
 Graph.HEARTH_SECONDS = 20          -- cast plus loading screen
 
+-- nil means open to both: only crossings and links carry a faction at all,
+-- and most crossings have none.
 local function legal(stopFaction, faction)
     return not stopFaction or stopFaction == "N" or stopFaction == faction
 end
 
 -- Seconds on the ground between two world positions at a speed in yards per
--- second (default: the 60% mount); math.huge across continents.
+-- second (default: the slowest mount in Travel.lua, the one place mount
+-- speed lives); math.huge across continents.
 function Graph.RideSeconds(a, b, speed)
-    return ns.Geo.Distance(a, b) * Graph.RIDE_DETOUR / (speed or Graph.RIDE_YARDS_PER_SECOND)
+    return ns.Geo.Distance(a, b) * Graph.RIDE_DETOUR / (speed or ns.Travel.MOUNTS[1].yardsPerSecond)
 end
 
 local function addEdge(edges, from, to, edge)
@@ -116,7 +117,7 @@ function Graph.Build(data, opts)
             if c then
                 local key = "x" .. i
                 stops[key] = { key = key, name = x.name, c = c, x = wx, y = wy, map = x.map, mx = x.mx, my = x.my,
-                               zones = { x.a, x.b }, warn = x.warn }
+                               zones = { x.a, x.b }, warn = x.warn, cross = x.cross, unverified = x.unverified }
             end
         end
     end
@@ -147,6 +148,9 @@ function Graph.Build(data, opts)
                 local zone = sharedZone(p, q)
                 if zone then
                     local seconds = Graph.RideSeconds(p, q, speed)
+                    if q.cross then
+                        seconds = seconds + q.cross
+                    end
                     if qk == "DEST" and zoneMap and inZone(p, zoneMap) then
                         seconds = 0
                     end

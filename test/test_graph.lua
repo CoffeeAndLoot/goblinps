@@ -150,5 +150,29 @@ return function(h, loaded)
             local g = Graph.Build(world, { faction = "H", known = { [1] = true }, from = nowhere, to = hotel })
             h.eq(g.edges.START, nil)
         end)
+        h.it("adds a crossing's own passage time to the leg that arrives at it", function()
+            -- A tiny world of its own: a tunnel between two zones that takes 90
+            -- seconds to walk even though the point is one for both zones.
+            local tunnel = {
+                Places = {
+                    [10] = { name = "Near", c = 9, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.5, ay = 0.5 },
+                    [11] = { name = "Far", c = 9, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.5, ay = 0.5 },
+                },
+                Crossings = { { a = 10, b = 11, name = "Slow Tunnel", map = 10, mx = 0.5, my = 0.5, cross = 90 } },
+                Nodes = {}, Flights = {}, Links = {},
+            }
+            local from = { name = "You", c = 9, x = 0, y = 0, map = 10 }
+            local to = { name = "There", c = 9, x = 5000, y = 5000, map = 11 }
+            local g = Graph.Build(tunnel, { faction = "H", known = {}, from = from, to = to })
+            local edge
+            for _, e in ipairs(g.edges.START or {}) do
+                if e.to == "x1" then
+                    edge = e
+                end
+            end
+            h.truthy(edge, "no edge from START to the crossing")
+            local plain = Graph.RideSeconds(from, g.stops.x1)
+            h.truthy(math.abs(edge.seconds - (plain + 90)) < 0.001)
+        end)
     end)
 end

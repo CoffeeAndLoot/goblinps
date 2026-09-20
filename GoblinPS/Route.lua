@@ -198,6 +198,9 @@ function Route.StepDetail(data, step, level)
     if step.to.warn then
         text, warn = text .. " · " .. step.to.warn, true
     end
+    if step.to.unverified then
+        text, warn = text .. " · crossing not confirmed", true
+    end
     return text, warn
 end
 
