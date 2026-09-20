@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status: executed 2026-09-19.** This plan is a historical record. Two review rounds changed some of the code
+> shown below: dragging, focus loss, the saved window position (now with `relativePoint`), the texture self-check,
+> messages bounded inside the window, GO re-planning from where you stand, a guarded `Prefs.Position`, an inn-lookup
+> loop guard, and a strict fake frame library. The code in the repo and the spec are the truth, not these listings.
+
 **Goal:** `/gps`, a minimap button and the addon compartment open a Goblin Gadget planner window: pick a destination (and optionally a start) from a type-ahead list, read the steps, times, fares and the discover hint, flip between a wide and a tall layout, and press GO to drop Blizzard's map pin on the first step.
 
 **Architecture:** Three small routing improvements first (a zone destination is reached at any stop inside it; a hand-written inn list for hearthstone binds; a pure `Prefs` module). Then the window: plain frames in our own palette with **no Blizzard frame templates**, built lazily, one set of widgets moved by `Planner.ApplyLayout`. `Core.PlanRoute` becomes the single planner that both the chat command and the window use. A fake frame library lets the window code be smoke-tested on the desktop.
