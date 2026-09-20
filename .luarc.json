@@ -4,7 +4,7 @@
   "diagnostics.globals": [
     "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB", "GoblinPSCharDB",
     "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames", "GoblinPSMinimapButton", "GoblinPSPlanner",
-    "UnitFactionGroup", "GetBindLocation",
+    "UnitFactionGroup", "GetBindLocation", "UnitLevel",
     "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint",
     "CreateFrame", "Enum",
     "UIParent", "Minimap", "GameTooltip", "GetCursorPosition"

@@ -8,7 +8,7 @@ globals = {
 }
 read_globals = {
     "print",
-    "UnitFactionGroup", "GetBindLocation",
+    "UnitFactionGroup", "GetBindLocation", "UnitLevel",
     "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint",
     "CreateFrame", "Enum",
     "UIParent", "Minimap", "GameTooltip", "GetCursorPosition",
@@ -16,6 +16,8 @@ read_globals = {
 files["GoblinPS/Data/Places.lua"] = { max_line_length = false }
 files["GoblinPS/Data/Nodes.lua"] = { max_line_length = false }
 files["GoblinPS/Data/Flights.lua"] = { max_line_length = false }
+-- Hand-written, one crossing per line with its zone names as a trailing comment.
+files["GoblinPS/Data/Crossings.lua"] = { max_line_length = false }
 -- The UI smoke test installs a fake frame API into the globals.
 files["test/fake_frames.lua"] = { globals = { "print" } }
 files["test/test_ui.lua"] = { globals = { "print" } }

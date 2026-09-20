@@ -2,9 +2,9 @@ return function(h, loaded)
     local Graph, Route = loaded.ns.Graph, loaded.ns.Route
     local world = dofile("test/fake_world.lua")()
 
-    local nearAlpha = { name = "You", c = 1, x = 1000, y = 1100 }
-    local nearDelta = { name = "Delta Inn", c = 0, x = 5000, y = 5100 }
-    local nearCharlie = { name = "Charlie Field", c = 1, x = 5000, y = 9100 }
+    local nearAlpha = { name = "You", c = 1, x = 1000, y = 1100, map = 1 }
+    local nearDelta = { name = "Delta Inn", c = 0, x = 5000, y = 5100, map = 2 }
+    local nearCharlie = { name = "Charlie Field", c = 1, x = 5000, y = 9100, map = 1 }
 
     local function kinds(result)
         local out = {}
@@ -47,7 +47,7 @@ return function(h, loaded)
         end)
         h.it("uses the hearthstone when it is offered", function()
             local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = nearDelta,
-                                          hearth = { name = "Delta Inn", c = 0, x = 5000, y = 5050 } })
+                                          hearth = { name = "Delta Inn", c = 0, x = 5000, y = 5050, map = 2 } })
             h.eq(r.steps[1].kind, "hearth")
             h.eq(r.steps[1].seconds, Graph.HEARTH_SECONDS)
         end)
@@ -74,6 +74,85 @@ return function(h, loaded)
             local inWestland = { name = "You", c = 1, x = 1000, y = 1100, map = 1, mx = 0.89, my = 0.9 }
             local r = Route.Plan(world, { faction = "H", known = {}, from = inWestland, to = charlie })
             h.eq(kinds(r), "ride")
+        end)
+    end)
+
+    h.describe("ground travel through crossings", function()
+        local northland = loaded.ns.Search.Find(world, "northland", "H", 1)[1]
+        local hotel = loaded.ns.Search.Find(world, "hotel", "H", 1)[1]
+        local lostland = loaded.ns.Search.Find(world, "lostland", "H", 1)[1]
+
+        h.it("reaches the next zone at its crossing", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = northland })
+            h.eq(kinds(r), "ride")
+            h.eq(Route.StepText(r.steps[1]), "Ride to the North Gate")
+            h.falsy(r.steps[1].rough)
+        end)
+        h.it("goes on from the crossing to an exact stop", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = hotel })
+            h.eq(kinds(r), "ride,ride")
+            h.eq(Route.StepText(r.steps[2]), "Ride to Hotel")
+            h.eq(r.steps[1].zone, 1)
+            h.eq(r.steps[2].zone, 4)
+        end)
+        h.it("says Walk on foot and takes longer", function()
+            local riding = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = hotel })
+            local walking = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = hotel,
+                                                speed = 7, walk = true })
+            h.eq(Route.StepText(walking.steps[1]), "Walk to the North Gate")
+            h.truthy(math.abs(walking.seconds - riding.seconds * 11.2 / 7) < 0.01)
+        end)
+        h.it("falls back to a labelled straight line when the crossings table has a hole", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = lostland })
+            h.truthy(r, "a hole in the table must not mean no route")
+            h.eq(kinds(r), "ride")
+            h.eq(r.steps[1].rough, true)
+            h.eq(Route.StepText(r.steps[1]), "Ride toward Lostland (no mapped path)")
+            local walking = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = lostland,
+                                                speed = 7, walk = true })
+            h.eq(Route.StepText(walking.steps[1]), "Walk toward Lostland (no mapped path)")
+        end)
+        h.it("never uses a straight line when a chain of crossings exists", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = hotel })
+            for _, s in ipairs(r.steps) do
+                h.falsy(s.rough)
+            end
+        end)
+    end)
+
+    h.describe("Route.StepDetail", function()
+        local hotel = loaded.ns.Search.Find(world, "hotel", "H", 1)[1]
+        local r = Route.Plan(world, { faction = "H", known = { [1] = true, [2] = true }, from = nearAlpha, to = hotel })
+        h.it("says which zone a crossing leads into, its levels and its hazard", function()
+            local gateStep
+            for _, s in ipairs(r.steps) do
+                if s.to.zones then
+                    gateStep = s
+                end
+            end
+            local text, warn = Route.StepDetail(world, gateStep, 35)
+            h.eq(text, "into Northland · level 30-40 · trolls on the bridge")
+            h.eq(warn, true)
+        end)
+        h.it("warns about a zone well above the character", function()
+            local last = r.steps[#r.steps]
+            local text, warn = Route.StepDetail(world, last, 5)
+            h.eq(text, "in Northland · level 30-40")
+            h.eq(warn, true)
+            local _, calm = Route.StepDetail(world, last, 35)
+            h.eq(calm, false)
+        end)
+        h.it("has nothing to say about a flight, a link or a rough line", function()
+            local text, warn = Route.StepDetail(world, { kind = "fly", to = { name = "Bravo" } }, 5)
+            h.eq(text, "")
+            h.eq(warn, false)
+            text = Route.StepDetail(world, { kind = "ride", rough = true, to = { name = "Lostland" } }, 5)
+            h.eq(text, "")
+        end)
+        h.it("copes with a zone that has no level range", function()
+            local text, warn = Route.StepDetail(world, { kind = "ride", zone = 3, to = { name = "Foxtrot" } }, 5)
+            h.eq(text, "in Isle")
+            h.eq(warn, false)
         end)
     end)
 

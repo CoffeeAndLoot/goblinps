@@ -2,8 +2,8 @@ return function(h, loaded)
     local Graph = loaded.ns.Graph
     local world = dofile("test/fake_world.lua")()
 
-    local nearAlpha = { name = "You", c = 1, x = 1000, y = 1100 }
-    local nearDelta = { name = "Delta Inn", c = 0, x = 5000, y = 5100 }
+    local nearAlpha = { name = "You", c = 1, x = 1000, y = 1100, map = 1 }
+    local nearDelta = { name = "Delta Inn", c = 0, x = 5000, y = 5100, map = 2 }
 
     h.describe("Graph.Build", function()
         h.it("keeps a flight only when both ends are known", function()
@@ -44,14 +44,14 @@ return function(h, loaded)
         h.it("adds the hearthstone only when offered", function()
             local opts = { faction = "H", known = {}, from = nearAlpha, to = nearDelta }
             h.falsy(Graph.Build(world, opts).stops.HEARTH)
-            opts.hearth = { name = "Delta Inn", c = 0, x = 5000, y = 5050 }
+            opts.hearth = { name = "Delta Inn", c = 0, x = 5000, y = 5050, map = 2 }
             local g = Graph.Build(world, opts)
             h.truthy(g.stops.HEARTH)
             h.eq(g.edges.START[1].kind, "hearth")
         end)
     end)
 
-    h.describe("Graph.Build: landmasses", function()
+    h.describe("Graph.Build: a zone with no crossing is an island", function()
         local fromIsle = { name = "You", c = 1, x = 5000, y = 4900, map = 3 }
         local toMainland = { name = "Mainland Dest", c = 1, x = 5000, y = 5100, map = 1 }
 
@@ -89,6 +89,66 @@ return function(h, loaded)
         end)
         h.it("pins the ride-time arithmetic", function()
             h.eq(Graph.RideSeconds({ c = 1, x = 0, y = 0 }, { c = 1, x = 1120, y = 0 }), 130)
+        end)
+    end)
+
+    h.describe("crossings", function()
+        local nearAlphaHere = { name = "You", c = 1, x = 1000, y = 1100, map = 1 }
+        local hotel = { name = "Hotel", c = 1, x = 9000, y = 5000, map = 4 }
+        local function edgeTo(g, from, to)
+            for _, e in ipairs(g.edges[from] or {}) do
+                if e.to == to then
+                    return e
+                end
+            end
+        end
+        local function gateKey(g)
+            for key, stop in pairs(g.stops) do
+                if stop.zones then
+                    return key
+                end
+            end
+        end
+
+        h.it("makes a crossing a stop that belongs to both of its zones", function()
+            local g = Graph.Build(world, { faction = "H", known = {}, from = nearAlphaHere, to = hotel })
+            local gate = g.stops[gateKey(g)]
+            h.eq(gate.name, "the North Gate")
+            h.eq(gate.zones[1], 1)
+            h.eq(gate.zones[2], 4)
+            h.eq(gate.warn, "trolls on the bridge")
+            h.truthy(math.abs(gate.x - 9800) < 0.001 and math.abs(gate.y - 5000) < 0.001)
+        end)
+        h.it("rides only inside a zone, so the next zone is reached through the crossing", function()
+            local g = Graph.Build(world, { faction = "H", known = { [8] = true }, from = nearAlphaHere, to = hotel })
+            local gate = gateKey(g)
+            h.falsy(edgeTo(g, "START", "f8"), "no straight line into another zone")
+            h.falsy(edgeTo(g, "START", "DEST"), "no straight line into another zone")
+            h.eq(edgeTo(g, "START", gate).zone, 1)
+            h.eq(edgeTo(g, gate, "f8").zone, 4)
+            h.eq(edgeTo(g, gate, "DEST").zone, 4)
+        end)
+        h.it("times the ground at the speed it is given and marks walking", function()
+            local opts = { faction = "H", known = {}, from = nearAlphaHere, to = hotel, speed = 7, walk = true }
+            local g = Graph.Build(world, opts)
+            local e = edgeTo(g, "START", gateKey(g))
+            h.eq(e.walk, true)
+            h.truthy(math.abs(e.seconds - Graph.RideSeconds(g.stops.START, g.stops[gateKey(g)], 7)) < 0.001)
+            h.truthy(e.seconds > Graph.RideSeconds(g.stops.START, g.stops[gateKey(g)]))
+        end)
+        h.it("adds straight lines only in rough mode, and flags them", function()
+            local lost = { name = "Lostland", kind = "zone", c = 1, x = 5000, y = 5000, map = 5 }
+            local opts = { faction = "H", known = {}, from = nearAlphaHere, to = lost }
+            h.falsy(edgeTo(Graph.Build(world, opts), "START", "DEST"))
+            opts.rough = true
+            local e = edgeTo(Graph.Build(world, opts), "START", "DEST")
+            h.eq(e.rough, true)
+            h.eq(e.zone, nil)
+        end)
+        h.it("a place with no zone has no ground edges at all", function()
+            local nowhere = { name = "You", c = 1, x = 1000, y = 1100 }
+            local g = Graph.Build(world, { faction = "H", known = { [1] = true }, from = nowhere, to = hotel })
+            h.eq(g.edges.START, nil)
         end)
     end)
 end

@@ -23,9 +23,6 @@ return function(h, loaded)
         return { name = n.name, c = n.c, x = n.x, y = n.y, map = n.map, mx = n.mx, my = n.my }
     end
 
-    local function landOf(map)
-        return (data.Islands and data.Islands[map]) or "mainland"
-    end
 
     h.describe("shipped data", function()
         h.it("has every table", function()
@@ -59,26 +56,27 @@ return function(h, loaded)
                 h.truthy(link.faction == "A" or link.faction == "H" or link.faction == "N", link.from .. " faction")
             end
         end)
-        h.it("never lets a ride undercut a link: different continents, different lands, or slower", function()
+        h.it("never lets a ride undercut a link: its docks are in different zones, or the ride is slower", function()
             for _, link in ipairs(data.Links) do
                 local a, b = data.Docks[link.from], data.Docks[link.to]
                 local ac, ax, ay = ns.Geo.ToWorld(data.Places, a.map, a.mx, a.my)
                 local bc, bx, by = ns.Geo.ToWorld(data.Places, b.map, b.mx, b.my)
                 local pa, pb = { c = ac, x = ax, y = ay }, { c = bc, x = bx, y = by }
-                local ok = ac ~= bc or landOf(a.map) ~= landOf(b.map)
+                local ok = ac ~= bc or a.map ~= b.map
                     or ns.Graph.RideSeconds(pa, pb) > link.minutes * 60
                 h.truthy(ok, link.from .. " to " .. link.to .. " is within riding range of the link")
             end
         end)
-        h.it("puts every dock within a transfer of a flight master", function()
+        h.it("puts every dock in a zone you can walk out of or fly from", function()
+            local reachable = {}
+            for _, x in ipairs(data.Crossings) do
+                reachable[x.a], reachable[x.b] = true, true
+            end
+            for _, n in pairs(data.Nodes) do
+                reachable[n.map] = true
+            end
             for id, d in pairs(data.Docks) do
-                local c, x, y = ns.Geo.ToWorld(data.Places, d.map, d.mx, d.my)
-                local best = math.huge
-                for _, n in pairs(data.Nodes) do
-                    best = math.min(best, ns.Geo.Distance({ c = c, x = x, y = y }, n))
-                end
-                h.truthy(best <= ns.Graph.TRANSFER_YARDS,
-                         id .. " is " .. math.floor(best) .. " yards from a flight master")
+                h.truthy(reachable[d.map], id .. " is in a zone with no crossing and no flight master")
             end
         end)
     end)
@@ -116,8 +114,12 @@ return function(h, loaded)
             for i, s in ipairs(r.steps) do
                 kinds[i] = s.kind
             end
-            h.eq(table.concat(kinds, ","), "fly,ride,zeppelin,ride")
+            -- out of Orgrimmar by its gate, to the tower, across, and in through the ruins
+            h.eq(table.concat(kinds, ","), "fly,ride,ride,zeppelin,ride,ride")
             h.eq(ns.Route.StepText(r.steps[1]), "Fly to Orgrimmar")
+            h.eq(ns.Route.StepText(r.steps[2]), "Ride to Orgrimmar's front gate")
+            h.eq(ns.Route.StepText(r.steps[3]), "Ride to Orgrimmar Zeppelin Tower")
+            h.eq(ns.Route.StepText(r.steps[5]), "Ride to the Ruins of Lordaeron")
         end)
         h.it("takes an Alliance character from Stormwind to Ironforge", function()
             local _, sw = findNode("Stormwind")

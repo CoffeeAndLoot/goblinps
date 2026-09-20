@@ -6,10 +6,17 @@ local function world()
             [1] = { name = "Westland", c = 1, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.2, ay = 0.5 },
             [2] = { name = "Eastland", c = 0, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.8, ay = 0.5 },
             [3] = { name = "Isle", c = 1, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.5, ay = 0.1 },
+            [4] = { name = "Northland", c = 1, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.2, ay = 0.2 },
+            [5] = { name = "Lostland", c = 1, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.3, ay = 0.8 },
         },
-        -- Isle (map 3) is an island on Westland's continent (1): a ride never
-        -- crosses from it to the mainland.
-        Islands = { [3] = "isle" },
+        -- Ground travel is zone by zone. Westland (1) and Northland (4) are joined
+        -- by one crossing. Isle (3) and Lostland (5) have none: Isle is an island
+        -- (its two stops still ride to each other), Lostland is a hole in the table.
+        Crossings = {
+            { a = 1, b = 4, name = "the North Gate", map = 1, mx = 0.5, my = 0.02, warn = "trolls on the bridge" },
+        },
+        -- { low, high } level range per zone
+        Zones = { [1] = { 1, 10 }, [4] = { 30, 40 } },
         Nodes = {
             [1] = { name = "Alpha, Westland", f = "H", c = 1, x = 1000, y = 1000, map = 1, mx = 0.9, my = 0.9 },
             [2] = { name = "Bravo, Westland", f = "H", c = 1, x = 1000, y = 9000, map = 1, mx = 0.1, my = 0.9 },
@@ -18,6 +25,7 @@ local function world()
             [5] = { name = "Echo, Westland", f = "A", c = 1, x = 9000, y = 9000, map = 1, mx = 0.1, my = 0.1 },
             [6] = { name = "Foxtrot, Isle", f = "N", c = 1, x = 5000, y = 5000, map = 3, mx = 0.5, my = 0.5 },
             [7] = { name = "Golf, Isle", f = "N", c = 1, x = 5000, y = 5300, map = 3, mx = 0.5, my = 0.47 },
+            [8] = { name = "Hotel, Northland", f = "N", c = 1, x = 9000, y = 5000, map = 4, mx = 0.5, my = 0.1 },
         },
         -- { from, to, copper, seconds }
         Flights = {

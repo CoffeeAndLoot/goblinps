@@ -11,15 +11,12 @@
 -- Not listed until confirmed in game (see the spec): Stormwind Harbor to
 -- Auberdine, Menethil to Southshore to Auberdine, Steamwheedle to Powderfuse.
 --
--- Sardor Isle (Feathermoon Stronghold, map 1444) is treated as joined to the
--- mainland -- a short swim -- until ground crossings arrive, so its ferry
--- (Feathermoon <-> Forgotten Coast) is left out for now: it returns with them.
+-- Sardor Isle (Feathermoon Stronghold) shares Feralas's map (1444), and ground
+-- travel is per map, so the isle counts as part of Feralas -- a short swim --
+-- and its ferry (Feathermoon <-> Forgotten Coast) is left out: a ride inside
+-- the zone would always undercut it. It returns if zones ever get sub-areas.
 local _, ns = ...
 ns.Data = ns.Data or {}
-
--- A ride edge never joins two different landmasses (see Graph.lua). Keyed by
--- UiMap; a map not listed here is the mainland.
-ns.Data.Islands = { [1438] = "teldrassil", [1457] = "teldrassil" }
 
 ns.Data.Docks = {
     org_zep      = { name = "Orgrimmar Zeppelin Tower", map = 1411, mx = 0.509, my = 0.140 }, -- measured in game

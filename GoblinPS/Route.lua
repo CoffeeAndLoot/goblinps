@@ -43,8 +43,8 @@ local function tidy(raw)
             last.seconds = last.seconds + s.seconds
             last.copper = last.copper + s.copper
         elseif not tooShort then
-            steps[#steps + 1] = { kind = s.kind, from = s.from, to = s.to,
-                                  seconds = s.seconds, copper = s.copper }
+            steps[#steps + 1] = { kind = s.kind, from = s.from, to = s.to, seconds = s.seconds,
+                                  copper = s.copper, zone = s.zone, walk = s.walk, rough = s.rough }
         end
     end
     return steps
@@ -61,7 +61,8 @@ function Route.Find(graph)
     while prev[key] do
         local p = prev[key]
         table.insert(raw, 1, { kind = p.edge.kind, from = graph.stops[p.from], to = graph.stops[key],
-                               seconds = p.edge.seconds, copper = p.edge.copper })
+                               seconds = p.edge.seconds, copper = p.edge.copper,
+                               zone = p.edge.zone, walk = p.edge.walk, rough = p.edge.rough })
         key = p.from
     end
     local seconds, copper = 0, 0
@@ -71,8 +72,20 @@ function Route.Find(graph)
     return { steps = tidy(raw), raw = raw, seconds = seconds, copper = copper }
 end
 
+-- Zone by zone through crossings. Only when no such route exists, once more
+-- with the old straight lines, whose steps come back flagged rough: a hole in
+-- the crossings table must never turn into "no route".
 function Route.Plan(data, opts)
-    return Route.Find(ns.Graph.Build(data, opts))
+    local result = Route.Find(ns.Graph.Build(data, opts))
+    if result or opts.rough then
+        return result
+    end
+    local again = {}
+    for k, v in pairs(opts) do
+        again[k] = v
+    end
+    again.rough = true
+    return Route.Find(ns.Graph.Build(data, again))
 end
 
 -- Would knowing every flight path help? Returns { names = { first two short
@@ -141,11 +154,51 @@ end
 
 -- Plain and glanceable. No jokes in the directions.
 function Route.StepText(step)
+    if step.kind == "ride" then
+        local verb = step.walk and "Walk" or "Ride"
+        if step.rough then
+            return verb .. " toward " .. ns.Search.ShortName(step.to.name) .. " (no mapped path)"
+        end
+        return verb .. " to " .. ns.Search.ShortName(step.to.name)
+    end
     local text = VERB[step.kind] .. " " .. ns.Search.ShortName(step.to.name)
     if WAITS[step.kind] then
         text = text .. " (" .. Route.FormatTime(step.seconds) .. " incl. wait)"
     end
     return text
+end
+
+local function levels(range)
+    if not range then
+        return ""
+    end
+    return " · level " .. (range[1] == range[2] and range[1] or (range[1] .. "-" .. range[2]))
+end
+
+-- The small line under a ground step: where it takes you and what to expect.
+-- Returns text, warn. warn is true when the zone starts well above the
+-- character's level or the crossing carries a hazard note. Other step kinds
+-- have no detail ("", false).
+function Route.StepDetail(data, step, level)
+    if step.kind ~= "ride" or not step.zone then
+        return "", false
+    end
+    local places, zones = data.Places or {}, data.Zones or {}
+    local gate = step.to.zones
+    local zone = step.zone
+    local text
+    if gate then
+        zone = gate[1] == step.zone and gate[2] or gate[1]   -- the zone being entered
+        text = "into " .. (places[zone] and places[zone].name or "the next zone")
+    else
+        text = "in " .. (places[zone] and places[zone].name or "this zone")
+    end
+    text = text .. levels(zones[zone])
+    local warn = ns.Travel.Dangerous(zones[zone], level)
+    if step.to.warn then
+        text, warn = text .. " · " .. step.to.warn, true
+    end
+    return text, warn
 end
 
 function Route.HintText(hint)
