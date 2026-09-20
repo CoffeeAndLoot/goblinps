@@ -142,7 +142,14 @@ Restart the game first: the TOC changed.
       first thing to check: an EditBox we build without a template)
 - [ ] Drag the window by its body: it follows the mouse from where you
       grabbed it, no jump, no Lua error
-- [ ] `/gps selftest` ends "Self-test passed."; record any FAIL line here
+- [ ] `/gps selftest` ends "Self-test passed."; record any FAIL line here.
+      **This quietly answers a question plan 4 depends on.** One of the
+      textures it checks is `Interface\AddOns\GoblinPS\Media\icon`, a TGA
+      written by Pillow in `tools/make_icon.py`, and `SetTexture` returns
+      whether the file actually loaded. So a pass means this client accepts
+      the TGAs our tools produce, and the 39 art parts can be shipped the same
+      way. A FAIL on that one line means the format is wrong (BLP may be
+      needed) and is worth knowing before the art is wired in, not after
       (rename GoblinPS\Media\icon.tga away, /reload: the icon texture line
       must say FAIL, then put it back)
 - [ ] A GoblinPS button is on the minimap ring with the dial icon; its tooltip
