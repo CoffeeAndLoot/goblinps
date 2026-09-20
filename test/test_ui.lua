@@ -584,9 +584,13 @@ return function(h)
             -- the others. Seen in game 2026-09-20 (first design): the screen
             -- was 180 while the bezel was 200, and the compass vanished
             -- behind the brass.
+            -- These fill their parent rather than carrying a size, so the
+            -- question only has an answer once the client has laid the frame
+            -- out. Saying so here is the point: build() must never read one.
+            Fake.Layout()
             for _, name in ipairs({ "glass", "stepsScreen", "etaScreen", "housing" }) do
-                h.eq(ui[name]:GetWidth(), ui.artLayer:GetWidth(), name .. " must match the art layer")
-                h.eq(ui[name]:GetHeight(), ui.artLayer:GetHeight(), name .. " must match the art layer")
+                h.eq(ui[name]:GetWidth(), ui.frame:GetWidth(), name .. " must match the art layer")
+                h.eq(ui[name]:GetHeight(), ui.frame:GetHeight(), name .. " must match the art layer")
             end
         end)
 
@@ -630,7 +634,7 @@ return function(h)
             local ui = Dash.Debug()
             local g = ns.Data.ArtGeometry
             local box, third = g.stepsText, (g.stepsText.bottom - g.stepsText.top) / 3
-            local w, h2 = ui.content:GetWidth(), ui.content:GetHeight()
+            local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
             for i, fs in ipairs(ui.steps) do
                 h.eq(fs.wordWrap, false, "line " .. i .. " truncates; the box has no room to wrap")
                 local left, right = fs.points[1], fs.points[2]
@@ -653,7 +657,7 @@ return function(h)
             Dash.Start(plan)
             local ui = Dash.Debug()
             local g = ns.Data.ArtGeometry
-            local w, h2 = ui.content:GetWidth(), ui.content:GetHeight()
+            local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
             for _, pair in ipairs({ { ui.destination, g.destination, "destination" },
                                     { ui.distance, g.distance, "distance" },
                                     { ui.eta, g.etaText, "eta" } }) do
@@ -724,10 +728,12 @@ return function(h)
                 local ui = Dash.Debug()
                 -- They were drawn corner to corner on one canvas: any that is
                 -- sized differently is drawn somewhere the artist did not mean.
+                -- Sized by filling their parent, so this needs the layout pass.
+                Fake.Layout()
                 for _, name in ipairs({ "glass", "stepsScreen", "etaScreen", "housing" }) do
                     h.truthy(ui[name], name .. " is missing")
-                    h.eq(ui[name]:GetWidth(), ui.artLayer:GetWidth(), name .. " must fill the device")
-                    h.eq(ui[name]:GetHeight(), ui.artLayer:GetHeight(), name .. " must fill the device")
+                    h.eq(ui[name]:GetWidth(), ui.frame:GetWidth(), name .. " must fill the device")
+                    h.eq(ui[name]:GetHeight(), ui.frame:GetHeight(), name .. " must fill the device")
                 end
             end)
 
@@ -747,9 +753,34 @@ return function(h)
                 local ui = Dash.Debug()
                 -- The compass is sized as a share of the device, so a change in
                 -- the art reaches the layout by regenerating Art.lua.
-                local expect = ui.artLayer:GetWidth() * g.compassCrop.share
+                local expect = ui.frame:GetWidth() * g.compassCrop.share
                 h.truthy(math.abs(ui.compass:GetWidth() - expect) < 1,
                          "the compass is sized from geometry.compassCrop.share")
+            end)
+
+            h.it("centres the compass and the arrow on the dial, in real pixels", function()
+                -- Seen in the client 2026-09-20: both sat up and to the left,
+                -- clear off the device, because the offsets were computed from
+                -- a frame sized by SetAllPoints -- which has no size until the
+                -- client lays it out, so both multiplications gave 0 and the
+                -- CENTER landed on the device's top-left corner. The sizes
+                -- were right, because those alone were read from the frame
+                -- with an explicit SetSize. Pin the position, not just the
+                -- size: a test that checks how big a thing is cannot tell you
+                -- it is in the wrong place.
+                local g = ns.Data.ArtGeometry
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
+                for _, name in ipairs({ "compass", "arrow" }) do
+                    local pt = ui[name].points[1]
+                    h.eq(pt[1], "CENTER", name .. " turns about its own middle")
+                    h.eq(pt[3], "TOPLEFT", name .. " is offset from the device's corner")
+                    h.truthy(math.abs(pt[4] - g.glass.cx * w) < 1,
+                             name .. " sits at the dial's x, got " .. tostring(pt[4]))
+                    h.truthy(math.abs(pt[5] + g.glass.cy * h2) < 1,
+                             name .. " sits at the dial's y, got " .. tostring(pt[5]))
+                end
             end)
 
             h.it("stacks the housing above the art and the text above the housing", function()
@@ -1077,7 +1108,7 @@ return function(h)
                     local expect = ui.frame:GetWidth() * g.stop.r * 2
                     h.truthy(math.abs(ui.stop:GetWidth() - expect) < 2,
                              "the button is still placed from the geometry, not from the 20x20 fallback")
-                    h.truthy(math.abs(ui.destination.points[1][4] - g.destination.left * ui.content:GetWidth()) < 1,
+                    h.truthy(math.abs(ui.destination.points[1][4] - g.destination.left * ui.frame:GetWidth()) < 1,
                              "and so is every line of text")
                 end)
                 ns.Data.Art = savedArt

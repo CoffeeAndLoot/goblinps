@@ -104,12 +104,20 @@ end
 -- Anything that is genuinely an area is a texture and fills its own frame;
 -- nothing in this file places one through here, and a future one must not
 -- borrow this helper -- its name says line, and it means it.
-local function placeLine(fs, parent, rect)
-    local w, h = parent:GetWidth(), parent:GetHeight()
+--
+-- `device` is the frame with the explicit SetSize, and it must be: a frame
+-- sized only by SetAllPoints has NO resolved size until the client's layout
+-- pass runs, so GetWidth on one during build() answers 0. Every fraction
+-- here would then be multiplied by nothing and the line would anchor twice
+-- to the same point -- a FontString of zero width, which draws nothing at
+-- all. Seen in the client 2026-09-20: all six lines blank. Measure and
+-- anchor the frame that was given a size, never one that inherits it.
+local function placeLine(fs, device, rect)
+    local w, h = device:GetWidth(), device:GetHeight()
     local y = -(rect.top + rect.bottom) / 2 * h
     fs:ClearAllPoints()
-    fs:SetPoint("LEFT", parent, "TOPLEFT", rect.left * w, y)
-    fs:SetPoint("RIGHT", parent, "TOPLEFT", rect.right * w, y)
+    fs:SetPoint("LEFT", device, "TOPLEFT", rect.left * w, y)
+    fs:SetPoint("RIGHT", device, "TOPLEFT", rect.right * w, y)
 end
 
 local function build()
@@ -172,8 +180,10 @@ local function build()
         local side = f:GetWidth() * share
         region:SetSize(side, side)
         region:ClearAllPoints()
-        region:SetPoint("CENTER", artLayer, "TOPLEFT",
-                        dial.x * artLayer:GetWidth(), -dial.y * artLayer:GetHeight())
+        -- `f`, not `artLayer`: artLayer is sized by SetAllPoints and so has no
+        -- resolved size during build(). See placeLine's note.
+        region:SetPoint("CENTER", f, "TOPLEFT",
+                        dial.x * f:GetWidth(), -dial.y * f:GetHeight())
     end
 
     local compass = artLayer:CreateTexture(nil, "BORDER")
@@ -221,8 +231,8 @@ local function build()
     local destination = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     local distance = W.Text(content, "green", "GameFontNormalLarge", "CENTER")
     if g then
-        placeLine(destination, content, g.destination)
-        placeLine(distance, content, g.distance)
+        placeLine(destination, f, g.destination)
+        placeLine(distance, f, g.distance)
     else
         -- Only reached when the generated geometry is absent: a plain
         -- vertical stack down the middle of the frame, not a placed layout.
@@ -243,7 +253,7 @@ local function build()
     if g then
         local box, third = g.stepsText, (g.stepsText.bottom - g.stepsText.top) / 3
         for i = 1, 3 do
-            placeLine(steps[i], content, {
+            placeLine(steps[i], f, {
                 left = box.left, right = box.right,
                 top = box.top + third * (i - 1), bottom = box.top + third * i,
             })
@@ -262,7 +272,7 @@ local function build()
     -- On its own plate: the time left.
     local eta = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     if g then
-        placeLine(eta, content, g.etaText)
+        placeLine(eta, f, g.etaText)
     else
         -- Only reached when the generated geometry is absent: the last line
         -- of the same vertical stack.

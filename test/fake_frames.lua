@@ -8,6 +8,12 @@ local Fake = {}
 -- Paths for which SetTexture below reports failure, the way a texture the
 -- client cannot find would. Tests add and remove entries; empty by default.
 Fake.missingTextures = {}
+-- The client's layout pass. Until this runs, a frame sized only by
+-- SetAllPoints has no size to report -- which is when build() reads them.
+-- Tests that want resolved sizes call Fake.Layout() first, and by having to
+-- call it they say out loud that they are past build time.
+Fake.laidOut = false
+function Fake.Layout() Fake.laidOut = true end
 
 -- Real widget methods our code calls beyond the ones modelled as full
 -- methods below, each checked against the client source. Anything else is a
@@ -43,8 +49,13 @@ Region.__index = function(_, key)
 end
 
 local function new(kind, parent)
+    -- No width or height on purpose: nil means "never given one", which is
+    -- what lets GetWidth tell an explicit size from a size that only a layout
+    -- pass could supply. A default of 0 is truthy in Lua and collapsed that
+    -- distinction, which is how a device with no resolved sizes passed 257
+    -- tests and drew wrong in the client.
     return setmetatable({ kind = kind, parent = parent, shown = true, text = "", scripts = {}, points = {},
-                          width = 0, height = 0, regions = {} }, Region)
+                          regions = {} }, Region)
 end
 
 -- Recorded, not swallowed, on two counts. `regions` is every texture and
@@ -82,15 +93,30 @@ function Region:SetHeight(h) self.height = h end
 -- Recorded, not swallowed: a region told to fill another takes that one's
 -- size in the real client, and code that lines two frames up by calling this
 -- can only be checked if the fake carries the size across.
+--
+-- But it does NOT carry it across yet. In the client a frame sized only by
+-- SetAllPoints has no resolved size until the layout pass runs, so GetWidth
+-- on one during build() answers 0 -- and an earlier version of this fake
+-- copied the size in immediately, which made every test agree with code that
+-- was broken on screen. The dash unit's compass, arrow and all six lines of
+-- text were misplaced or invisible in the client on 2026-09-20 while 257
+-- tests passed. So: record the target, resolve the size only when
+-- Fake.Layout() has run, and answer 0 before that, exactly as the client
+-- does.
 function Region:SetAllPoints(target)
     self.fills = target
-    if target then
-        self.width, self.height = target:GetWidth(), target:GetHeight()
-    end
 end
 
-function Region:GetWidth() return self.width or (self.fills and self.fills:GetWidth()) end
-function Region:GetHeight() return self.height or (self.fills and self.fills:GetHeight()) end
+function Region:GetWidth()
+    if self.width then return self.width end
+    if Fake.laidOut and self.fills then return self.fills:GetWidth() end
+    return 0                            -- what the client answers, unresolved
+end
+function Region:GetHeight()
+    if self.height then return self.height end
+    if Fake.laidOut and self.fills then return self.fills:GetHeight() end
+    return 0                            -- what the client answers, unresolved
+end
 function Region:ClearAllPoints()
     self.points = {}
     self.lastPoint = nil
@@ -187,6 +213,7 @@ end
 
 -- Installs the globals the UI files use. Returns a table of what was printed.
 function Fake.Install()
+    Fake.laidOut = false             -- a fresh client has not laid anything out
     local printed = {}
     _G.CreateFrame = function(kind, name, parent)
         local f = new(kind, parent)

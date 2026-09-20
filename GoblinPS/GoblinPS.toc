@@ -4,7 +4,7 @@
 ## Author: CoffeeAndLoot
 ## X-Website: https://github.com/CoffeeAndLoot/goblinps
 ## IconTexture: Interface\AddOns\GoblinPS\Media\icon
-## Version: 2026.09.20.4
+## Version: 2026.09.20.5
 ## SavedVariables: GoblinPSDB
 ## SavedVariablesPerCharacter: GoblinPSCharDB
 ## AddonCompartmentFunc: GoblinPS_OnAddonCompartmentClick
