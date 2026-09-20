@@ -19,6 +19,38 @@ return function(h, loaded)
         return p.c == c and x >= p.x0 - dx and x <= p.x1 + dx and y >= p.y0 - dy and y <= p.y1 + dy
     end
 
+    -- A border can only lie where the two zones' rectangles overlap, which is
+    -- the same as saying the point is inside both. `near` above tests that
+    -- with a tenth of each rectangle as slack; this tests it in yards, and
+    -- says how many when it fails. Yards matter because the slack is
+    -- proportional: a tenth of the Barrens is over a thousand yards, so a row
+    -- can be far wrong and still pass. The worst row today is 250 (the
+    -- Timbermaw tunnels, on the Felwood side) and a digit typed wrong in a map
+    -- coordinate moves a point by thousands, so 300 catches typos while
+    -- tolerating estimates nobody has walked yet.
+    local EDGE_YARDS = 300
+
+    local function distToRect(x0, x1, y0, y1, x, y)
+        local dx = math.max(x0 - x, 0, x - x1)
+        local dy = math.max(y0 - y, 0, y - y1)
+        return math.sqrt(dx * dx + dy * dy)
+    end
+
+    -- Yards from a point to the area the two zones share; math.huge when their
+    -- rectangles do not meet at all, which would mean an invented border.
+    local function fromSharedEdge(a, b, c, x, y)
+        local p, q = data.Places[a], data.Places[b]
+        if p.c ~= c or q.c ~= c then
+            return math.huge
+        end
+        local x0, x1 = math.max(p.x0, q.x0), math.min(p.x1, q.x1)
+        local y0, y1 = math.max(p.y0, q.y0), math.min(p.y1, q.y1)
+        if x0 > x1 or y0 > y1 then
+            return math.huge
+        end
+        return distToRect(x0, x1, y0, y1, x, y)
+    end
+
     h.describe("the crossings table", function()
         h.it("has sane rows", function()
             for i, x in ipairs(data.Crossings) do
@@ -93,6 +125,30 @@ return function(h, loaded)
                          "crossing " .. i .. " (" .. x.name .. ") is not near both " .. data.Places[x.a].name
                          .. " and " .. data.Places[x.b].name)
             end
+        end)
+        h.it("puts every point on the strip its two zones share", function()
+            local worst, worstName, offenders = 0, nil, 0
+            for i, x in ipairs(data.Crossings) do
+                local c, wx, wy = ns.Geo.ToWorld(data.Places, x.map, x.mx, x.my)
+                local away = fromSharedEdge(x.a, x.b, c, wx, wy)
+                h.truthy(away < math.huge, "crossing " .. i .. " (" .. x.name .. "): "
+                         .. data.Places[x.a].name .. " and " .. data.Places[x.b].name
+                         .. " do not touch, so this border cannot exist")
+                h.truthy(away <= EDGE_YARDS, "crossing " .. i .. " (" .. x.name .. ") is "
+                         .. math.floor(away) .. " yards from where " .. data.Places[x.a].name
+                         .. " and " .. data.Places[x.b].name .. " meet")
+                if away > 0 then
+                    offenders = offenders + 1
+                end
+                if away > worst then
+                    worst, worstName = away, x.name
+                end
+            end
+            -- Pinned so that correcting a point in game shows up as a failure
+            -- here, which is the prompt to update these numbers and the list in
+            -- docs/manual-test-checklist.md.
+            h.eq(offenders, 6, "rows off the shared edge; worst is "
+                 .. tostring(worstName) .. " at " .. math.floor(worst) .. " yards")
         end)
         h.it("lists each pair of zones once", function()
             local seen = {}

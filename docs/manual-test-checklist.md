@@ -202,6 +202,36 @@ Restart the game first: the TOC changed.
       `/run print(C_Map.GetBestMapForUnit("player"), C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"),"player"):GetXY())`
       and compare with the row in `GoblinPS/Data/Crossings.lua`; correct the
       row if it is off by more than 0.03. Record the ones checked here
+
+#### Which crossings to check first
+
+All 56 coordinates are estimates, but they are not equally likely to be wrong.
+Each zone has a world rectangle from the generator, and a border can only lie
+where two zones' rectangles overlap. **Fifty of the 56 rows already sit inside
+both of their zones. Six do not**, and those are the ones worth a detour:
+
+| Yards off | Crossing | Between | Note |
+|---|---|---|---|
+| 250 | the Timbermaw Hold tunnels | Felwood and Moonglade | the worst row in the table |
+| 192 | the Feralas-Desolace road | Feralas and Desolace | |
+| 110 | Darkwhisper Gorge | Winterspring and Mount Hyjal | already flagged unverified |
+| 75 | the Timbermaw Hold tunnels | Winterspring and Moonglade | |
+| 72 | Orgrimmar's west gate | Orgrimmar and the Barrens | already flagged unverified, and every Horde route north needs it |
+| 7 | the Ruins of Lordaeron | Undercity and Tirisfal Glades | noise; ignore it |
+
+Being inside both rectangles does **not** prove a row is right: the rectangles
+are bounding boxes, they overlap generously, and a point can sit inside both
+and still be in the wrong gully. It only means nothing detectable is wrong from
+the desk. So the 50 still want walking eventually; these six want it first.
+
+Regenerate this table after correcting rows:
+
+```bash
+python -c "import lupa.lua51 as L; L.LuaRuntime().execute(open('tools/survey_crossings.lua').read())"
+```
+
+`test/test_crossings.lua` pins the count at six, so correcting a row in game
+turns that test red. That is the prompt to update this table, not a bug.
 - [ ] Check the level ranges in GoblinPS/Data/Zones.lua against the in-game
       map's zone tooltips; Forever may have moved some
 - [ ] Time the passages that carry a cross time in Data/Crossings.lua
