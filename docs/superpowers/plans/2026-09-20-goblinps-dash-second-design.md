@@ -16,7 +16,7 @@
 - `GoblinPS/API.lua` is the **only** file that calls Blizzard game APIs or registers game-data events. `Dash.lua` goes through `ns.API`.
 - `GoblinPS/Trip.lua` stays pure and **is not touched by this plan**. The trip loop in `Dash.Tick` is not touched either, beyond the widgets it writes to.
 - Generated files are never hand-edited: `GoblinPS/Data/Art.lua`, everything under `GoblinPS/Media/`, and `tools/` output.
-- **No position, size or offset is hand-typed.** Every one comes from `ns.Data.Art.geometry`, which `tools/make_art.py` copies from the artist's file. A magic number in `Dash.lua` is a defect.
+- **No position, size or offset is hand-typed.** Every one comes from `ns.Data.ArtGeometry`, which `tools/make_art.py` copies from the artist's file. A magic number in `Dash.lua` is a defect.
 - Art is laid **over** flat colours. A missing or unloadable texture must leave a working, readable device; `SetTexture` returns whether the file loaded.
 - Every FontString gets two horizontal anchors or an explicit width, and a decision to wrap or truncate.
 - luacheck and the CLI `lua-language-server --check` stay at **zero** warnings. An editor's live analysis is not the gate.
@@ -32,6 +32,7 @@ Four of these cost a fix round each on plan 4. They are constraints, not advice.
 3. **The flat-colour fallback is a rectangle.** Behind round art it shows as a box. Hide it when the art it stands in for loads.
 4. **`SetRotation` turns a texture about its own centre.** The dial sits at (516, 469) on a 1024x1280 canvas whose middle is (512, 640), so a compass shipped on the shared canvas would orbit a point 171 px below the dial. Task 1 re-centres it.
 5. **`test/fake_frames.lua` has an accepted-and-ignored list**, and four methods have been found hiding in it (`SetTexCoord`, `SetFrameLevel`, `SetWordWrap`, `SetAllPoints`). If a test cannot see something, check that list before concluding the fake cannot model it.
+6. **A table of parts holds parts.** Every data table in this project is a sibling under `ns.Data` — Places, Nodes, Flights, Crossings, Zones, Inns, and `Links.lua` declares two rather than nesting. The geometry is `ns.Data.ArtGeometry`, never a key inside `ns.Data.Art`: putting it there breaks the invariant that every value in that table is a part, and `SelfTest` iterates it.
 
 ## Commands
 
@@ -79,7 +80,7 @@ Baseline before this plan: **239 Lua tests, 27 Python tests, 47 art parts, 0 lin
 - Produces, for Tasks 2 and 3:
   - `GoblinPS/Media/dash2-<name>.tga` for all eight parts.
   - `ns.Data.Art["dash2-<name>"] = { file, l, r, t, b }`, as today.
-  - `ns.Data.Art.geometry`, a Lua copy of the artist's placement numbers, shaped exactly as given in Step 3. Every position in `Dash.lua` comes from this and nothing is hand-typed.
+  - `ns.Data.ArtGeometry`, a Lua copy of the artist's placement numbers, shaped exactly as given in Step 3. Every position in `Dash.lua` comes from this and nothing is hand-typed.
 
 Read `images/parts/dash2-notes.md` first. The facts that bind this task:
 
@@ -311,7 +312,7 @@ def lua_value(v, indent):
 ```
 
 Then in `main()`, after the parts loop, add the geometry table to the text it
-writes, as `ns.Data.Art.geometry = <table>`.
+writes, as `ns.Data.ArtGeometry = <table>`.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -357,7 +358,7 @@ git commit -m "Ship the second dash set, with the compass re-centred on the dial
 - Test: `test/test_ui.lua`
 
 **Interfaces:**
-- Consumes: `ns.Data.Art["dash2-*"]` and `ns.Data.Art.geometry` from Task 1.
+- Consumes: `ns.Data.Art["dash2-*"]` and `ns.Data.ArtGeometry` from Task 1.
 - Produces, for Task 3: a `ui` table whose art and frames are in place, with `ui.artLayer`, `ui.glass`, `ui.compass`, `ui.arrow`, `ui.stepsScreen`, `ui.etaScreen`, `ui.housingFrame`, `ui.housing` and `ui.content`; and a file-local `place(region, parent, rect)` that Task 3 calls directly. `place` is **not** put on the `ui` table: both tasks edit the same file, so the local is already in scope, and an export nothing reads is dead weight.
 
 This task replaces the device's **appearance** only. Do not touch `Dash.Tick`, `Dash.Refresh`, `Dash.Start`, `Dash.Stop` or anything in `Trip.lua`. The old widgets keep their names so the trip loop still writes to them; Task 3 moves the text.
@@ -401,8 +402,8 @@ Add to `test/test_ui.lua`, in the dash block:
         end)
 
         h.it("takes every position from the generated geometry, not from constants", function()
-            local g = ns.Data.Art.geometry
-            h.truthy(g, "Task 1 must have written ns.Data.Art.geometry")
+            local g = ns.Data.ArtGeometry
+            h.truthy(g, "Task 1 must have written ns.Data.ArtGeometry")
             Dash.Start(plan)
             local ui = Dash.Debug()
             -- The compass is sized as a share of the device, so a change in
@@ -443,7 +444,7 @@ Add two helpers above `build()`:
 
 ```lua
 local function geometry()
-    return ns.Data.Art and ns.Data.Art.geometry
+    return ns.Data.Art and ns.Data.ArtGeometry
 end
 
 -- Put a region where the geometry says, as a fraction of `parent`. `rect` is
@@ -561,7 +562,7 @@ git commit -m "Dash unit: rebuild the layout from the generated geometry" -m "Co
 - Test: `test/test_ui.lua`
 
 **Interfaces:**
-- Consumes: `ui.place`, `ui.content`, `ui.artLayer` and `ns.Data.Art.geometry` from Task 2.
+- Consumes: `ui.place`, `ui.content`, `ui.artLayer` and `ns.Data.ArtGeometry` from Task 2.
 - Produces: the device as designed. Nothing later in this plan depends on it.
 
 **What the device says, and where.** The art puts four pieces of text in four boxes, and the geometry names all four:
@@ -616,7 +617,7 @@ git commit -m "Dash unit: rebuild the layout from the generated geometry" -m "Co
         h.it("gives the stop button its three states and puts it in the socket", function()
             Dash.Start(plan)
             local ui = Dash.Debug()
-            local g = ns.Data.Art.geometry
+            local g = ns.Data.ArtGeometry
             h.eq(ui.stop:GetWidth(), ui.stop:GetHeight(), "the button is round art on a square")
             local expect = ui.frame:GetWidth() * g.stop.r * 2
             h.truthy(math.abs(ui.stop:GetWidth() - expect) < 2, "sized from geometry.stop.r")
@@ -888,7 +889,7 @@ git commit -m "Docs: the dash unit's second design" -m "Co-Authored-By: Claude S
 ## Notes for the reviewer
 
 - **No coordinate may be hand-typed in `Dash.lua`.** Every position comes from
-  `ns.Data.Art.geometry`. A literal offset or size in the layout is a finding
+  `ns.Data.ArtGeometry`. A literal offset or size in the layout is a finding
   even if it happens to look right, because the next art delivery will move it
   and nothing will notice.
 - **The compass crop is the subtle part.** `SetRotation` turns a texture about
