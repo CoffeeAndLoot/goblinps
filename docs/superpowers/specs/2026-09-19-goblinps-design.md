@@ -3,14 +3,13 @@
 Status: **approved by the user on 2026-09-19.** Implemented in six plans
 under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window
 (built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit,
-first design (built; its texture loading was confirmed in game on
-2026-09-20 via `/gps selftest`, but the assembled device was never run as a
-whole in the WoW client), 5 dash unit, second design (built, redrawn around a
-new art set after review found the first design's layering broke Blizzard's
-texture compositing; not run in game at all), 6 route strip. Each plan is
-meant to be written after the one before it has been used in game; plan 5 is
-the exception, written from that review finding rather than an in-game
-session. Update this file whenever behaviour changes.
+first design (built and run in the client twice on 2026-09-20, which found
+and fixed an oval device -- a square texture stretched across a non-square
+frame -- and a compass hidden behind the brass, its stacked layers drawn at
+different sizes), 5 dash unit, second design (built around a redrawn art set
+after those in-game faults; not run in the client at all), 6 route strip.
+Each plan is written after the one before it has been used in game. Update
+this file whenever behaviour changes.
 
 **What the product is** (the user, 2026-09-19, after trying a level-1
 character): a GPS. Point to point to point, with the arrow and the map pin on

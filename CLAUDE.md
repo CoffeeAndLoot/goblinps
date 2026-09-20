@@ -16,21 +16,22 @@ borrow patterns from them, not code.
 
 **Status: plans 1 to 5 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
-crossings). Plan 4, the dash unit's first design, is built; its texture
-loading was confirmed in game (`/gps selftest`, 2026-09-20), but the
-assembled device was never run as a whole in the WoW client. Plan 5 rebuilds
-that device around a second art set, after review found the first design's
-layering broke Blizzard's texture compositing: the current step's name and
-distance on the glass, three step lines in a lit panel, the ETA on its own
-plate, a stop button with hover and pressed states, every position read from
-a generated geometry file. Plan 5 is **also unverified in game**. `/gps`
-opens the planner; `/gps to <place>` prints a route in chat, with ground
-travel going zone by zone through named crossings and walk-or-ride by level.
-GO closes the planner and opens the dash unit: an arrow pointing at the
-current step, showing distance and time left, advancing when you arrive and
-replanning when you stray. What is still estimated is **data, not code**:
-crossing coordinates, the two mount speeds, `cross` times and some zone level
-ranges. The addon says so in amber where it matters;
+crossings). Plan 4, the dash unit's first design, ran in the client twice on
+2026-09-20: the round art rendered as an oval (a square texture stretched
+across a non-square frame, `5858643`) and the compass vanished behind the
+brass (its stacked layers drawn at different sizes, `2d58322`); both were
+seen on screen and fixed. The device was then redesigned around a second art
+set -- plan 5, this work: the current step's name and distance on the glass,
+three step lines in a lit panel, the ETA on its own plate, a stop button with
+hover and pressed states, every position read from a generated geometry
+file. Plan 5 has **not** run in the client at all. `/gps` opens the planner;
+`/gps to <place>` prints a route in chat, with ground travel going zone by
+zone through named crossings and walk-or-ride by level. GO closes the
+planner and opens the dash unit: an arrow pointing at the current step,
+showing distance and time left, advancing when you arrive and replanning
+when you stray. What is still estimated is **data, not code**: crossing
+coordinates, the two mount speeds, `cross` times and some zone level ranges.
+The addon says so in amber where it matters;
 `docs/manual-test-checklist.md` lists what to walk. Next: plan 6, the route
 strip. A schematic world map was dropped on 2026-09-20 in favour of the strip;
 the spike that proved it feasible is kept at `docs/research/schematic-spike/`.
