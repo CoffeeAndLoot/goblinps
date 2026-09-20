@@ -27,6 +27,23 @@ function API.Level()
     return UnitLevel and UnitLevel("player") or nil
 end
 
+-- The level range the client itself draws on the world map ("Ashenvale
+-- (18-30)"), for one UiMap. Blizzard's own AreaLabelDataProvider reads it the
+-- same way and treats a zero as "no range", and the documentation marks the
+-- function as one that may return nothing at all, so both are handled here.
+-- Returns low, high, or nil when the client has no range for that map.
+-- Used only by /gps probe zones, to check Data/Zones.lua against the client.
+function API.ZoneLevels(map)
+    if not (C_Map and C_Map.GetMapLevels and map) then
+        return nil
+    end
+    local low, high = C_Map.GetMapLevels(map)
+    if not low or not high or low <= 0 or high <= 0 then
+        return nil
+    end
+    return low, high
+end
+
 -- Every flight node the client lists, for /gps probe: { { nodeID, name }, ... }.
 -- Its isUndiscovered flag is dead on build 1.60.1.69913 (false for every
 -- node), so this says nothing about what the character has discovered.
@@ -149,6 +166,7 @@ function API.SelfCheck()
         { "C_TaxiMap.GetTaxiNodesForMap", C_TaxiMap and C_TaxiMap.GetTaxiNodesForMap },
         { "Enum.FlightPathState", Enum and Enum.FlightPathState },
         { "C_Map.GetBestMapForUnit", C_Map and C_Map.GetBestMapForUnit },
+        { "C_Map.GetMapLevels", C_Map and C_Map.GetMapLevels },
         { "C_Map.GetPlayerMapPosition", C_Map and C_Map.GetPlayerMapPosition },
         { "C_Map.SetUserWaypoint", C_Map and C_Map.SetUserWaypoint },
         { "UiMapPoint.CreateFromCoordinates", UiMapPoint and UiMapPoint.CreateFromCoordinates },

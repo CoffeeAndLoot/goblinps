@@ -15,9 +15,20 @@ return function(h)
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
     local pins, loginCallbacks = {}, {}
     local level = 60 -- mounted, so ground steps say Ride
+    -- What the client claims each zone's level range is, for /gps probe zones.
+    -- Westland matches Data.Zones, Northland disagrees, Isle has a range we do
+    -- not list, and Lostland answers nothing though we do list it.
+    local clientLevels = { [1] = { 1, 10 }, [4] = { 25, 35 }, [3] = { 15, 20 } }
     ns.API = {
         Faction = function() return "H" end,
         Level = function() return level end,
+        ZoneLevels = function(map)
+            local range = clientLevels[map]
+            if not range then
+                return nil
+            end
+            return range[1], range[2]
+        end,
         PlayerMapPosition = function() return where.map, where.mx, where.my end,
         HearthBindName = function() return nil end,
         TaxiNodes = function() return {} end,
@@ -317,6 +328,50 @@ return function(h)
                 saw = saw or printed[i]:find("into Northland", 1, true) ~= nil
             end
             h.truthy(saw)
+        end)
+    end)
+
+    h.describe("/gps probe zones", function()
+        local function rows()
+            local by = {}
+            for _, row in ipairs(GoblinPSDB.probe.zones) do
+                by[row.map] = row
+            end
+            return by
+        end
+
+        h.it("saves every zone, whether the client answers for it or not", function()
+            SlashCmdList.GOBLINPS("probe zones")
+            local by = rows()
+            h.eq(#GoblinPSDB.probe.zones, 5, "one row per zone in Places")
+            -- agrees
+            h.eq(by[1].ourLow, 1); h.eq(by[1].clientLow, 1); h.eq(by[1].clientHigh, 10)
+            -- the client disagrees with our hand-written range
+            h.eq(by[4].ourLow, 30); h.eq(by[4].ourHigh, 40)
+            h.eq(by[4].clientLow, 25); h.eq(by[4].clientHigh, 35)
+            -- the client has a range we never listed
+            h.eq(by[3].ourLow, nil); h.eq(by[3].clientLow, 15)
+            -- neither has one
+            h.eq(by[2].ourLow, nil); h.eq(by[2].clientLow, nil)
+        end)
+        h.it("names the zones that differ and counts the rest", function()
+            local from = #printed
+            SlashCmdList.GOBLINPS("probe zones")
+            local said = table.concat(printed, "\n", from + 1, #printed)
+            h.truthy(said:find("Northland: ours 30-40, client 25-35", 1, true), "should name the disagreement")
+            h.truthy(said:find("3 of 5 zones", 1, true), "should count the answers")
+            h.truthy(said:find("1 differ", 1, true))
+            h.truthy(said:find("1 we do not list", 1, true))
+        end)
+        h.it("says so plainly when the client answers for no zone at all", function()
+            local saved = clientLevels
+            clientLevels = {}
+            local from = #printed
+            SlashCmdList.GOBLINPS("probe zones")
+            local said = table.concat(printed, "\n", from + 1, #printed)
+            h.truthy(said:find("dead on this build", 1, true),
+                     "a silent API must be called out, not read as every zone matching")
+            clientLevels = saved
         end)
     end)
 

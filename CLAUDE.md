@@ -45,6 +45,7 @@ GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences
 GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
 GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber warnings
+                              # (/gps probe zones checks it against C_Map.GetMapLevels; not yet run in game)
 GoblinPS/Travel.lua          # pure: walk or ride by level; the ONLY place mount levels and speeds live
                               # (levels 40/60 confirmed in game 2026-09-20; the two speeds are still assumed)
 GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates

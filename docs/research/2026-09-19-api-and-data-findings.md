@@ -19,6 +19,20 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
   folders; not confirmed by the client).
 - No flying. Ground mounts and the built-in transport network only. Blizzard
   intends to grow the game "horizontally" rather than by expansions.
+- **`C_Map.GetMapLevels(uiMapID)` exists in this build's source** and is what
+  draws the level range on Blizzard's own world map. It returns
+  `playerMinLevel, playerMaxLevel, petMinLevel, petMaxLevel`;
+  `Blizzard_SharedMapDataProviders/AreaLabelDataProvider.lua:86` calls it and
+  guards with `> 0`, and `MapDocumentation.lua:346` marks it
+  `MayReturnNothing`. **Unverified in game**: `isUndiscovered` is proof that a
+  function can exist and answer uselessly, so `/gps probe zones` asks it for
+  every zone and says plainly when it answers for none. If it works,
+  `Data/Zones.lua` stops being a hand-written guess.
+  The DB2 route is a dead end on this build and was tried first: `UiMap` has a
+  `ContentTuningID` column but **all 60 rows are 0**, and `ContentTuning` has
+  no min/max level columns at all (only `LfgMinLevel`, `MinLevelSquish`).
+  `WorldMapArea` does not exist for this build. So zone level ranges cannot be
+  generated from wago.tools; they come from the client or from hand.
 - **Riding is learned at the Classic levels** (verified in game 2026-09-20,
   from the riding trainer's list): Apprentice Riding requires level 40 and
   costs 95 gold; Journeyman Riding requires level 60 and Apprentice, and

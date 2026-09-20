@@ -162,6 +162,57 @@ local function probe()
     say(("Learned from flight masters so far: %d flight paths."):format(Core.KnownCount()))
 end
 
+-- Data/Zones.lua is hand-written from Classic and drives the amber warnings,
+-- so a range Forever moved warns at the wrong level. The client draws its own
+-- range on the world map, so ask it for all of them at once instead of reading
+-- sixty tooltips. The full answer goes to GoblinPSDB.probe.zones, because it is
+-- too long to read in chat and SavedVariables can be opened on the desktop.
+local function probeZones()
+    local places, zones = ns.Data.Places, ns.Data.Zones
+    local maps = {}
+    for map in pairs(places) do
+        maps[#maps + 1] = map
+    end
+    table.sort(maps)
+
+    local dump, answered, differ, unlisted, lost, shown = {}, 0, 0, 0, 0, 0
+    for _, map in ipairs(maps) do
+        local low, high = API.ZoneLevels(map)
+        local ours = zones[map]
+        dump[#dump + 1] = {
+            map = map, name = places[map].name,
+            clientLow = low, clientHigh = high,
+            ourLow = ours and ours[1] or nil, ourHigh = ours and ours[2] or nil,
+        }
+        if low then
+            answered = answered + 1
+            if not ours then
+                unlisted = unlisted + 1
+            elseif ours[1] ~= low or ours[2] ~= high then
+                differ = differ + 1
+                if shown < 12 then
+                    shown = shown + 1
+                    say(("%s: ours %d-%d, client %d-%d"):format(places[map].name, ours[1], ours[2], low, high))
+                end
+            end
+        elseif ours then
+            lost = lost + 1
+        end
+    end
+
+    prefs().probe = { zones = dump }
+    if answered == 0 then
+        say("C_Map.GetMapLevels answered for no zone at all: it is dead on this build, like isUndiscovered.")
+        return
+    end
+    if shown < differ then
+        say(("... and %d more that differ."):format(differ - shown))
+    end
+    say(("%d of %d zones have a range from the client: %d differ from ours, "):format(answered, #maps, differ)
+        .. ("%d we do not list, %d we list and it does not."):format(unlisted, lost))
+    say("Full table saved to GoblinPSDB.probe.zones; log out to write SavedVariables.")
+end
+
 -- The only moment the client says which flight paths are discovered.
 API.OnTaxiMapOpened(function()
     local store = knownStore()
@@ -183,6 +234,8 @@ local function slash(msg)
         ns.Planner.Toggle()
     elseif command == "to" and rest ~= "" then
         routeTo(rest)
+    elseif command == "probe" and rest:lower() == "zones" then
+        probeZones()
     elseif command == "probe" then
         probe()
     elseif command == "selftest" then
@@ -196,6 +249,7 @@ local function slash(msg)
         say("/gps to <place>   print a route in chat")
         say("/gps minimap      show or hide the minimap button")
         say("/gps probe        check the flight path data against the client")
+        say("/gps probe zones  check the zone level ranges against the client")
         say("/gps selftest     check textures and fonts")
     end
 end

@@ -232,8 +232,16 @@ python -c "import lupa.lua51 as L; L.LuaRuntime().execute(open('tools/survey_cro
 
 `test/test_crossings.lua` pins the count at six, so correcting a row in game
 turns that test red. That is the prompt to update this table, not a bug.
-- [ ] Check the level ranges in GoblinPS/Data/Zones.lua against the in-game
-      map's zone tooltips; Forever may have moved some
+- [ ] **Run `/gps probe zones` instead of reading sixty tooltips.** The client
+      draws its own level range on the world map, and
+      `C_Map.GetMapLevels(uiMapID)` is where that comes from. The command asks
+      it for every zone, names the ones that disagree with
+      `GoblinPS/Data/Zones.lua`, and saves the full table to
+      `GoblinPSDB.probe.zones`. Log out afterwards so SavedVariables is
+      written, then say so and the table can be read from the desktop.
+      **The API is verified in source but not in game**, and `isUndiscovered`
+      already proved a function can exist and answer uselessly. If it says
+      `dead on this build`, fall back to hovering the zone tooltips
 - [ ] Time the passages that carry a cross time in Data/Crossings.lua
       (Blackrock Mountain, the Timbermaw tunnels, Dun Algaz, Darkwhisper
       Gorge, the Great Lift, the Thunder Bluff lifts, the Talondeep Path)
