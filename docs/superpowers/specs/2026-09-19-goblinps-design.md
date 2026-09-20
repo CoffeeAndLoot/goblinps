@@ -162,9 +162,9 @@ Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
 
 ## Behaviour
 
-**Planner.** Re-plans when the start or destination changes and on
-`TAXI_NODE_STATUS_CHANGED`. Shows steps, the hint line, total time and fare,
-and Go.
+**Planner.** Re-plans when the start or destination changes, when GO is
+pressed, and when a flight master visit teaches it a new path
+(`TAXIMAP_OPENED`). Shows steps, the hint line, total time and fare, and Go.
 
 **Dash.** Sets the waypoint on the current step's target. Its close button
 ends the trip and clears the waypoint only if it is still the one we set.
@@ -191,8 +191,8 @@ Degrade, never error.
 
 - Map texture missing: the planner is search + step list.
 - Template or atlas missing: plain control.
-- No route: "No route found. You may need to discover a flight path in
-  <zone>."
+- No route: "No route found to <place>." and, when knowing more flight
+  paths would help, the "Discover ..." line.
 - Unknown hearth bind name: no hearth edge, small note.
 - Every event name is checked against the local Forever source
   (`D:\wow-api\1.60.1.69913`) before it is registered.

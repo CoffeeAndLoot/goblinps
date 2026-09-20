@@ -15,6 +15,8 @@ These decide the design. Record the result beside each one.
       `docs/research/data/TaxiNodes.csv`
 - [ ] Learn a new flight path: `TAXI_NODE_STATUS_CHANGED` fires
       (`/etrace` or `/eventtrace`) and the call above flips to discovered
+      (Moot: isUndiscovered is dead on this build. GoblinPS registers
+      TAXIMAP_OPENED only; do not add this event.)
 - [ ] `/dump C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player")`
       returns a position in the open world
 - [ ] `/dump GetBindLocation()` returns the inn's area name
@@ -28,7 +30,9 @@ These decide the design. Record the result beside each one.
 ## Routing core (plan 1)
 
 - [x] The addon loads with no Lua error; `/gps` prints the two usage lines
-      (2026-09-19: loads and `/gps to` runs; usage lines not yet looked at)
+      (2026-09-19: loads and `/gps to` runs; usage lines not yet looked at.
+      Since plan 2, /gps opens the planner; /gps help (any unknown word)
+      prints five usage lines.)
 - [x] `/gps probe`: node IDs and names match the client. 2026-09-19: 74
       nodes listed, 0 named differently; the 3 "not in our data" are
       Blizzard's `zzOLD` Riverglades rows, skipped on purpose. It also showed
@@ -131,6 +135,26 @@ Restart the game first: the TOC changed.
 - [ ] GO with a flight or ride first step: Blizzard's map pin and the
       on-screen arrow appear at the step's target, and chat says "Pin set"
 - [ ] GO when step 1 is the hearthstone: chat says to use it; no pin
+- [ ] With no destination, and with a destination that has no route, GO is
+      grey and does nothing
+- [ ] Pick the zone you are standing in: no steps, GO grey, the screen says
+      "You're already at <zone>."
+- [ ] GO, ride part of the way, GO again: the pin moves to the step that is
+      first from where you now stand
+- [ ] Step 1 is the hearthstone: GO says to use it; use it, press GO again:
+      the pin is set for the next step
+- [ ] Open the planner inside an instance with a destination set: the screen
+      says it cannot tell where you are, the text stays inside the window,
+      GO is grey
+- [ ] Every message on the green screen wraps or truncates inside the
+      screen; nothing draws over GO or past the frame, in both layouts
+- [ ] /reload with the planner open: it stays closed afterwards (by design);
+      /gps reopens it where it was
+- [ ] A second character on the same account: its "Flight paths known" is
+      its own; layout, window position, recents and the minimap button angle
+      are shared
+- [ ] Right-clicking the minimap button does nothing; left-click opens the
+      planner
 - [ ] The Tall/Wide button flips the layout; nothing overlaps, nothing is cut
       off, the steps stay; the choice survives `/reload`
 - [ ] Drag the window; its position survives `/reload`

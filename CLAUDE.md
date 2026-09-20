@@ -26,7 +26,7 @@ Everything known about the client API and data sources is in
 what is **verified in source** versus **unverified in game**; do not promote
 the second to the first without an in-game check.
 
-## Intended layout (from the sibling projects; nothing exists yet)
+## Layout
 
 ```
 GoblinPS/GoblinPS.toc        # manifest; Interface 16001
@@ -133,3 +133,6 @@ commit; re-read files before editing.
 - Known Blizzard bug on 1.60.1.69913: all secure snippets fail
   (`loadstring_untainted` is nil). GoblinPS uses none, so it is unaffected;
   do not add any.
+- Text in the window must be bounded: give every FontString two horizontal
+  anchors (or a width) and decide wrap or truncate. A one-anchor FontString
+  fed a sentence draws over its neighbours and past the frame.
