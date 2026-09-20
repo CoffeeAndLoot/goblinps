@@ -65,16 +65,12 @@ local function build()
     b:RegisterForClicks("LeftButtonUp")
     b:RegisterForDrag("LeftButton")
 
-    local icon = b:CreateTexture(nil, "BACKGROUND")
-    icon:SetSize(20, 20)
-    icon:SetPoint("TOPLEFT", 7, -6)
+    -- The art is its own brass ring with its own round alpha, so it fills the
+    -- button and there is no Blizzard tracking border over it: that would be a
+    -- ring inside a ring, and it would shrink the icon to 20 px of the 31.
+    local icon = b:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints(b)
     icon:SetTexture(ICON)
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93) -- trim so a square icon reads as round in the ring
-
-    local border = b:CreateTexture(nil, "OVERLAY")
-    border:SetSize(53, 53)
-    border:SetPoint("TOPLEFT")
-    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 
     b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
 

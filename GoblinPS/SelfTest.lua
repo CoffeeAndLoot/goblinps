@@ -13,7 +13,6 @@ SelfTest.FONTS = {
 }
 SelfTest.TEXTURES = {
     "Interface\\AddOns\\GoblinPS\\Media\\icon",
-    "Interface\\Minimap\\MiniMap-TrackingBorder",
     "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight",
 }
 local COLOUR = { pass = "|cff6fe08aok|r  ", fail = "|cffe0501cFAIL|r" }
