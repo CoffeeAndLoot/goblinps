@@ -1,0 +1,236 @@
+{
+  "_units": {
+    "origin": "top-left",
+    "x": "fraction of that layout's canvas width",
+    "y": "fraction of that layout's canvas height",
+    "r": "fraction of canvas WIDTH, always",
+    "canvas": "source pixel dimensions; the exception to normalized numbers",
+    "strip": "all three lengths are fractions of the active layout canvas WIDTH"
+  },
+  "_placement": {
+    "screen-backdrop": "independent insert: uniformly cover screen rectangle, center-crop overflow; never stack at canvas origin",
+    "planner-panel": "tile behind contents, clipped to interior opening; no exterior background",
+    "controls": "destination rectangles describe full sprite canvases; use fixed end caps for inputs and buttons",
+    "tools_button": "compatibility alias of close_button; disabled as a separate control; never draw twice",
+    "layout_button": "existing button art with runtime Wide/Tall label",
+    "results_list": "overlay above content while either search is active; hide otherwise",
+    "screen": "contains strip_track; backdrop is decorative, not a geographic map",
+    "side_panel": "always-visible scrollable detailed step list; below screen in tall mode",
+    "lines": "vertical center slots for live text, not clipping rectangles",
+    "source_art_changed": false,
+    "in_game_verified": false
+  },
+  "wide": {
+    "canvas": [
+      1600,
+      1024
+    ],
+    "title_plate": {
+      "left": 0.3,
+      "top": 0.09765625,
+      "right": 0.7,
+      "bottom": 0.25390625
+    },
+    "tagline_plate": {
+      "left": 0.7,
+      "top": 0.888671875,
+      "right": 0.9,
+      "bottom": 0.966796875
+    },
+    "close_button": {
+      "cx": 0.88125,
+      "cy": 0.224609375,
+      "r": 0.02375
+    },
+    "gear_button": {
+      "cx": 0.825,
+      "cy": 0.224609375,
+      "r": 0.02375
+    },
+    "tools_button": {
+      "cx": 0.88125,
+      "cy": 0.224609375,
+      "r": 0.02375
+    },
+    "layout_button": {
+      "left": 0.09375,
+      "top": 0.2099609375,
+      "right": 0.20625,
+      "bottom": 0.263671875
+    },
+    "from_box": {
+      "left": 0.09375,
+      "top": 0.29296875,
+      "right": 0.38125,
+      "bottom": 0.365234375
+    },
+    "here_button": {
+      "left": 0.38875,
+      "top": 0.29296875,
+      "right": 0.48875,
+      "bottom": 0.365234375
+    },
+    "to_box": {
+      "left": 0.50125,
+      "top": 0.29296875,
+      "right": 0.84375,
+      "bottom": 0.365234375
+    },
+    "dropdown_button": {
+      "cx": 0.87625,
+      "cy": 0.3291015625,
+      "r": 0.023125
+    },
+    "results_list": {
+      "left": 0.09375,
+      "top": 0.373046875,
+      "right": 0.9,
+      "bottom": 0.64453125
+    },
+    "screen": {
+      "left": 0.09375,
+      "top": 0.38671875,
+      "right": 0.57,
+      "bottom": 0.73046875
+    },
+    "strip_track": {
+      "left": 0.115625,
+      "top": 0.46875,
+      "right": 0.548125,
+      "bottom": 0.638671875
+    },
+    "side_panel": {
+      "left": 0.58375,
+      "top": 0.38671875,
+      "right": 0.9,
+      "bottom": 0.73046875
+    },
+    "go_button": {
+      "left": 0.7,
+      "top": 0.748046875,
+      "right": 0.9,
+      "bottom": 0.826171875
+    },
+    "total_line": {
+      "left": 0.1,
+      "top": 0.7470703125,
+      "right": 0.675,
+      "bottom": 0.7783203125
+    },
+    "hint_line": {
+      "left": 0.1,
+      "top": 0.7880859375,
+      "right": 0.675,
+      "bottom": 0.8193359375
+    }
+  },
+  "tall": {
+    "canvas": [
+      1024,
+      1600
+    ],
+    "title_plate": {
+      "left": 0.29296875,
+      "top": 0.0625,
+      "right": 0.70703125,
+      "bottom": 0.12875
+    },
+    "tagline_plate": {
+      "left": 0.34375,
+      "top": 0.934375,
+      "right": 0.65625,
+      "bottom": 0.984375
+    },
+    "close_button": {
+      "cx": 0.837890625,
+      "cy": 0.16875,
+      "r": 0.033203125
+    },
+    "gear_button": {
+      "cx": 0.7578125,
+      "cy": 0.16875,
+      "r": 0.033203125
+    },
+    "tools_button": {
+      "cx": 0.837890625,
+      "cy": 0.16875,
+      "r": 0.033203125
+    },
+    "layout_button": {
+      "left": 0.13671875,
+      "top": 0.1525,
+      "right": 0.33203125,
+      "bottom": 0.1875
+    },
+    "from_box": {
+      "left": 0.13671875,
+      "top": 0.2,
+      "right": 0.6640625,
+      "bottom": 0.24625
+    },
+    "here_button": {
+      "left": 0.6796875,
+      "top": 0.2,
+      "right": 0.86328125,
+      "bottom": 0.24625
+    },
+    "to_box": {
+      "left": 0.13671875,
+      "top": 0.25875,
+      "right": 0.7734375,
+      "bottom": 0.305
+    },
+    "dropdown_button": {
+      "cx": 0.828125,
+      "cy": 0.281875,
+      "r": 0.03515625
+    },
+    "results_list": {
+      "left": 0.13671875,
+      "top": 0.3125,
+      "right": 0.86328125,
+      "bottom": 0.5075
+    },
+    "screen": {
+      "left": 0.13671875,
+      "top": 0.31875,
+      "right": 0.86328125,
+      "bottom": 0.51375
+    },
+    "strip_track": {
+      "left": 0.1708984375,
+      "top": 0.365,
+      "right": 0.8291015625,
+      "bottom": 0.4725
+    },
+    "side_panel": {
+      "left": 0.13671875,
+      "top": 0.5275,
+      "right": 0.86328125,
+      "bottom": 0.77125
+    },
+    "go_button": {
+      "left": 0.51171875,
+      "top": 0.83125,
+      "right": 0.86328125,
+      "bottom": 0.8875
+    },
+    "total_line": {
+      "left": 0.146484375,
+      "top": 0.83625,
+      "right": 0.498046875,
+      "bottom": 0.85875
+    },
+    "hint_line": {
+      "left": 0.146484375,
+      "top": 0.78875,
+      "right": 0.853515625,
+      "bottom": 0.81375
+    }
+  },
+  "strip": {
+    "node_diameter": 0.06,
+    "line_thickness": 0.003,
+    "label_gap": 0.012
+  }
+}
