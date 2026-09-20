@@ -61,10 +61,13 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    Faction zones are subtle tints; the amber route is the only bright thing.
    The art is greyscale layers (base, Horde zones, Alliance zones) tinted in
    code, so the palette is colour constants, not a redraw.
-6. **v1 graph scope:** flight edges (generated), boats, zeppelins and the
-   tram (hand-written, about a dozen), the hearthstone, and a straight-line
-   ride at each end. Zone-to-zone ground crossings are **later**, and must
-   arrive as more rows in the same links table, not a redesign.
+6. **Graph scope:** flight edges (generated), boats, zeppelins and the tram
+   (hand-written, about a dozen), the hearthstone, and travel on the ground.
+   Plans 1 and 2 shipped the ground as one straight-line ride at each end;
+   plan 3 replaces that with zone-to-zone **ground crossings** (decisions
+   15 to 19). That changes how `Graph` builds ride edges, which the first
+   draft hoped to avoid; the straight line turned out to be useless for a
+   character with no flight paths.
 7. **Look: "Goblin Gadget".** A dented brass device: rivets, hazard-stripe
    trim, a green screen. Palette: brass/copper, oily dark steel, screen
    green, hazard orange. Humour in the frame, tagline and tooltips
@@ -102,6 +105,39 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     checked in both modes. If it ever needs two sets of widgets, cut one.
 14. **Entry points:** `/gps`, a draggable minimap button, and an addon
     compartment entry, as in HealMe.
+15. **Ground travel goes zone by zone, through named crossings.** Riding
+    happens only inside one zone. To reach the next zone you pass a crossing:
+    a named point on the border ("Mor'shan Rampart"). Cities are zones too,
+    with their gates as crossings (Orgrimmar's front gate into Durotar and
+    west gate into the Barrens; Undercity to Tirisfal; Thunder Bluff's lifts
+    to Mulgore; Stormwind to Elwynn; Ironforge to Dun Morogh; Darnassus to
+    Teldrassil). A long trip is a chain of short legs, each ending at a place
+    an arrow can point at, which is what the dash unit needs. Inside a zone a
+    leg is still a straight line (a cliff or a lake can be in the way): the
+    error is bounded to one zone, and the "~" stays. A road network is out
+    of scope unless play shows it matters. An island is just a zone with no
+    land crossing, so the `Islands` table and the 800-yard "same town"
+    transfer rule both go away.
+16. **A crossing step reads as the turn, with the zone as detail:**
+    "Walk to the Mor'shan Rampart" over a smaller line "into Ashenvale ·
+    level 18-30". Every planner step becomes two lines (step, detail).
+17. **Walk or ride by level, as settings.** Below the first mount level the
+    step says "Walk to" and uses walking speed; at or above it, "Ride to" and
+    the mount's speed. The levels and speeds are named settings in one
+    place. Defaults, from press coverage and **not confirmed**: 7 yards a
+    second on foot, a 60% mount (11.2) at level 40, a 100% mount (14) at
+    level 60. Level is a deliberate approximation of "has a mount"; the
+    riding-skill and mount-list APIs are unverified on this client.
+18. **Warn, never reroute.** The route is always the fastest. A step's detail
+    line turns amber when its zone's level range starts well above the
+    character's level, or when its crossing carries a hand-written hazard
+    ("Timbermaw furbolgs attack until you have reputation with them"). The
+    player decides. A "prefer safer routes" setting can come later.
+19. **A hole in the crossings table never becomes "No route".** If no chain
+    of crossings reaches the destination, the router falls back to the old
+    straight line and labels the step "Walk toward Mount Hyjal (no mapped
+    path)". The player still gets a direction; the label names the row to
+    add. The desktop tests (below) are there so this is rare.
 
 ## Data
 
@@ -132,6 +168,17 @@ hand-placed dock positions. New Forever routes (Stormwind Harbor ↔ Auberdine,
 Menethil ↔ Southshore ↔ Auberdine, Steamwheedle ↔ Powderfuse) go in only
 once confirmed in game.
 
+**Hand-written for ground travel (plan 3):**
+
+- `Data/Crossings.lua`: about 55 rows plus Forever's new zones. Each row: the
+  two zone UiMaps, the crossing's name, one map point, an optional hazard
+  note, an optional faction. The atlas fan site has a similar table but no
+  license; which zones border which is plain geography, so these rows and
+  their coordinates are our own. Coordinates start as estimates and are
+  corrected in game, like the dock positions.
+- `Data/Zones.lua`: level range per zone (about 45 rows), for the warnings.
+- Travel settings (speeds and mount levels) as named constants in one place.
+
 ## Modules
 
 Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
@@ -148,15 +195,18 @@ Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
 - **`Graph`** (pure): takes the data, a known-node set, the faction and an
   optional hearth node. Flight edges need both ends known; link edges are
   filtered by faction; the hearth is one edge from the start. Start and
-  destination are temporary nodes with "ride" edges to nearby stops on the
-  same continent, timed as straight-line distance over mount speed. This
-  undersells mountains; it is an honest "~" until ground crossings arrive.
-  A ride edge never joins two different landmasses, even on the same
-  continent: a hand-written `Islands` table (`Data/Links.lua`) names the
-  UiMaps that are their own landmass (Teldrassil today); a map not listed
-  is the mainland. Sardor Isle is treated as joined to the mainland until
-  ground crossings arrive, so its Feathermoon ↔ Forgotten Coast ferry is
-  deferred with them. A zone destination is reached at any place on the
+  destination are temporary nodes. **Until plan 3:** ride edges run to
+  nearby stops on the same continent as straight lines, never between two
+  landmasses (a hand-written `Islands` table), with Sardor Isle treated as
+  mainland and its ferry deferred. **From plan 3:** a ride edge joins two
+  points only when they are in the same zone; a crossing is a point that
+  belongs to both of its zones, so Dijkstra chains zones through crossings.
+  The `Islands` table and the 800-yard transfer rule are deleted, the
+  Feathermoon ferry returns as an ordinary link, and the travel speed comes
+  in with the options (walk or mount, by level). If no route exists with
+  crossings alone, the graph is rebuilt with the old continent-wide straight
+  lines and those steps are flagged rough. A zone destination is reached at
+  any place on the
   zone's map: that ride to the destination costs nothing, so hearthing to
   Crossroads for "The Barrens" does not add a ride to the zone's centre.
 - **`Route`** (pure): Dijkstra by seconds. Returns steps
@@ -202,6 +252,8 @@ Degrade, never error.
 - Template or atlas missing: plain control.
 - No route: "No route found to <place>." and, when knowing more flight
   paths would help, the "Discover ..." line.
+- No chain of crossings to the destination: the straight line, labelled
+  "(no mapped path)", never "No route" (decision 19).
 - Unknown hearth bind name: no hearth edge, small note.
 - Every event name is checked against the local Forever source
   (`D:\wow-api\1.60.1.69913`) before it is registered.
@@ -220,6 +272,13 @@ recent destinations, minimap button angle.
 
 - `Graph`, `Route`, `Trip` and the step formatter: desktop unit tests over a
   small fake world, run through lupa.
+- Ground crossings: an **all-pairs test** over the real data. Every zone to
+  every other zone on its continent must connect through crossings alone,
+  except a short written list of allowed exceptions (islands, closed zones);
+  a forgotten crossing fails on the desktop. Each row is checked too: its
+  zones exist and its point lies in or near both. A real-route test pins the
+  example that prompted the feature: Deathknell to Mount Hyjal, Horde, no
+  flight paths, by zeppelin and then zone by zone.
 - The generator: Python tests under `test/tools/`.
 - Frames and live game data: `docs/manual-test-checklist.md`, planner
   entries in both layouts.
@@ -248,4 +307,8 @@ These do not block the plan; each has a designed fallback.
 - `TaxiNodes.Flags` faction bits (1 = Alliance, 2 = Horde).
 - How the new zones are reached (Mount Hyjal, Zephras Isle, Darkspear
   Islands, Riverglades, Shen'dralas) and the three new boat routes.
+- Mount levels and speeds on Forever (defaults 40/60% and 60/100% are from
+  press coverage). Record them when a character first gets a mount.
+- Every crossing point's coordinates, and which crossings Forever added or
+  closed (Mount Hyjal by Darkwhisper Gorge, Riverglades, Shen'dralas).
 - The rest of the probes in `docs/manual-test-checklist.md`.
