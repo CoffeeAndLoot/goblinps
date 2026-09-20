@@ -16,10 +16,9 @@ below hold the full detail, and nothing here replaces them.
 1. **Does it still load?** `/gps` opens the planner, and `/gps selftest`
    passes. If either fails nothing else matters, and the answer will be in
    the first Lua error.
-2. **Click a destination in the dropdown.** Type part of a name and click the
-   row. This is the one plan 2 fix nobody has confirmed. If the click does
-   not take, type the name and press Enter instead and say what happens:
-   that separates a focus problem from a matching problem.
+2. ~~**Click a destination in the dropdown.**~~ Done 2026-09-20: typed "S",
+   clicked Stonetalon Mountains in the list, the route drew. The plan 2 click
+   fix works in the client.
 3. **`/gps probe zones`.** One command, and it replaces reading sixty zone
    tooltips by hand. Then log out so SavedVariables is written, and say so.
 4. **Orgrimmar's west gate.** Stand in the gateway and record the position.
@@ -162,8 +161,13 @@ Restart the game first: the TOC changed.
 - [ ] `/gps` opens the window: brass border, orange strip, title and tagline,
       From and To boxes, a green screen, a step panel. Escape closes it
 - [ ] The green screen says "Flight paths known: N" with the right N
-- [ ] Click To and type "und": a list drops under the box with Undercity;
+- [x] Click To and type "und": a list drops under the box with Undercity;
       click it; the steps, per-step time and fare, total and hint appear
+      (2026-09-20: clicked the To box, typed "S", Stonetalon Mountains
+      appeared in the list, clicked it and the route drew. **This is the fix
+      from 2341cf2 confirmed** -- the client drops edit focus on mouse-down,
+      so the list now survives focus loss while the cursor is over it. It had
+      been unconfirmed since before plan 3 began.)
 - [ ] With the results list open, click GO, Here, the layout button or the
       window body: the list closes
 - [ ] Press Enter with text in To: the first match is taken
@@ -232,8 +236,8 @@ Two faults it found, both fixed in `a8ae73a`:
   SUBZONE, and inside a town that is usually the inn building. **Expect this
   at every inn**: record the name each time and add a line to `Data/Inns.lua`.
 
-Still unconfirmed from that run: whether clicking a row in the destination
-dropdown selects it. The destination may have been typed in full.
+The destination was chosen by clicking a row in the dropdown (typed "S", then
+clicked Stonetalon Mountains), which confirms the plan 2 click fix as well.
 
 Restart the game first: the TOC changed.
 
