@@ -1,0 +1,676 @@
+{
+  "format": "TGA, type 2, 32-bit BGRA, 8-bit alpha",
+  "placement": "art at top-left; right/bottom padding transparent",
+  "tex_coords_order": [
+    "left",
+    "right",
+    "top",
+    "bottom"
+  ],
+  "in_game_verified": false,
+  "textures": {
+    "dash-body": {
+      "file": "dash-body.tga",
+      "art_size": [
+        1024,
+        1024
+      ],
+      "texture_size": [
+        1024,
+        1024
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "dash-screen": {
+      "file": "dash-screen.tga",
+      "art_size": [
+        1024,
+        1024
+      ],
+      "texture_size": [
+        1024,
+        1024
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "dash-compass": {
+      "file": "dash-compass.tga",
+      "art_size": [
+        1024,
+        1024
+      ],
+      "texture_size": [
+        1024,
+        1024
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "dash-eta-plate": {
+      "file": "dash-eta-plate.tga",
+      "art_size": [
+        512,
+        128
+      ],
+      "texture_size": [
+        512,
+        128
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "arrow": {
+      "file": "arrow.tga",
+      "art_size": [
+        512,
+        512
+      ],
+      "texture_size": [
+        512,
+        512
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "planner-frame-wide": {
+      "file": "planner-frame-wide.tga",
+      "art_size": [
+        1600,
+        1024
+      ],
+      "texture_size": [
+        2048,
+        1024
+      ],
+      "tex_coords": [
+        0,
+        0.78125,
+        0,
+        1.0
+      ]
+    },
+    "planner-frame-tall": {
+      "file": "planner-frame-tall.tga",
+      "art_size": [
+        1024,
+        1600
+      ],
+      "texture_size": [
+        1024,
+        2048
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        0.78125
+      ]
+    },
+    "planner-panel": {
+      "file": "planner-panel.tga",
+      "art_size": [
+        512,
+        512
+      ],
+      "texture_size": [
+        512,
+        512
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "title-plate": {
+      "file": "title-plate.tga",
+      "art_size": [
+        1024,
+        256
+      ],
+      "texture_size": [
+        1024,
+        256
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "tagline-plate": {
+      "file": "tagline-plate.tga",
+      "art_size": [
+        512,
+        128
+      ],
+      "texture_size": [
+        512,
+        128
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "input-box": {
+      "file": "input-box.tga",
+      "art_size": [
+        1024,
+        128
+      ],
+      "texture_size": [
+        1024,
+        128
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "dropdown-button": {
+      "file": "dropdown-button.tga",
+      "art_size": [
+        128,
+        128
+      ],
+      "texture_size": [
+        128,
+        128
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "screen-backdrop": {
+      "file": "screen-backdrop.tga",
+      "art_size": [
+        1600,
+        640
+      ],
+      "texture_size": [
+        2048,
+        1024
+      ],
+      "tex_coords": [
+        0,
+        0.78125,
+        0,
+        0.625
+      ]
+    },
+    "button": {
+      "file": "button.tga",
+      "art_size": [
+        768,
+        192
+      ],
+      "texture_size": [
+        1024,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "button-hover": {
+      "file": "button-hover.tga",
+      "art_size": [
+        768,
+        192
+      ],
+      "texture_size": [
+        1024,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "button-pressed": {
+      "file": "button-pressed.tga",
+      "art_size": [
+        768,
+        192
+      ],
+      "texture_size": [
+        1024,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "button-disabled": {
+      "file": "button-disabled.tga",
+      "art_size": [
+        768,
+        192
+      ],
+      "texture_size": [
+        1024,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "gear": {
+      "file": "gear.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "gear-hover": {
+      "file": "gear-hover.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "close": {
+      "file": "close.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "close-hover": {
+      "file": "close-hover.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "node-ring": {
+      "file": "node-ring.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "node-current": {
+      "file": "node-current.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "node-destination": {
+      "file": "node-destination.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-horde": {
+      "file": "icon-horde.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-alliance": {
+      "file": "icon-alliance.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-neutral": {
+      "file": "icon-neutral.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-flight": {
+      "file": "icon-flight.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-boat": {
+      "file": "icon-boat.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-zeppelin": {
+      "file": "icon-zeppelin.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-tram": {
+      "file": "icon-tram.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-hearth": {
+      "file": "icon-hearth.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-gate": {
+      "file": "icon-gate.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-walk": {
+      "file": "icon-walk.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-ride": {
+      "file": "icon-ride.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "icon-warning": {
+      "file": "icon-warning.tga",
+      "art_size": [
+        192,
+        192
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        0.75,
+        0,
+        0.75
+      ]
+    },
+    "line-solid": {
+      "file": "line-solid.tga",
+      "art_size": [
+        512,
+        64
+      ],
+      "texture_size": [
+        512,
+        64
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "line-dashed": {
+      "file": "line-dashed.tga",
+      "art_size": [
+        512,
+        64
+      ],
+      "texture_size": [
+        512,
+        64
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "line-dot": {
+      "file": "line-dot.tga",
+      "art_size": [
+        64,
+        64
+      ],
+      "texture_size": [
+        64,
+        64
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    }
+  }
+}
