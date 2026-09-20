@@ -269,7 +269,13 @@ Restart the game first: the TOC changed.
       `GetUnitSpeed("player")` unmounted returned `0, 7, 7, 4.7222218513489`
       (current, run, flight, swim). Run speed is exactly 7, so
       `Travel.WALK_YARDS_PER_SECOND` is measured rather than assumed
-- [ ] **Measure the two mount speeds.** `Travel.lua` assumes +60% and +100%
+- [ ] *Optional, nothing blocked on it:* confirm the two mount speeds with
+      `/run print(GetUnitSpeed("player"))` from horseback. Expect 11.2 with
+      Apprentice Riding and 14 with Journeyman. Those follow from vanilla's
+      +60% and +100% applied to the measured base of 7, which the user
+      confirmed Forever uses; this would turn a stated number into a measured
+      one. Original wording follows
+- [ ] ~~**Measure the two mount speeds.**~~ `Travel.lua` assumes +60% and +100%
       of 7 yards a second (11.2 and 14) from the skill names alone. While
       mounted, run `/run print(GetUnitSpeed("player"))`: it reports yards per
       second directly. Do it on each mount and correct `Travel.MOUNTS`

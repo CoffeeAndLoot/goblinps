@@ -1,20 +1,23 @@
 local _, ns = ...
 
 -- Pure: how fast this character covers ground, and the settings behind it.
--- The mount LEVELS are confirmed on Forever (2026-09-20, from the riding
--- trainer: Apprentice Riding requires level 40, Journeyman requires 60).
--- The SPEEDS are not: they are the Classic values the two skill names imply
--- (+60% and +100% of 7 yards a second), not yet measured in game. They live
--- here, in one place, so a measurement is a one-line change. Level stands in
--- for "has a mount" on purpose: the riding skill and mount list APIs are
--- unverified on this client.
+-- All three numbers are now settled, and none of them is a guess any more.
+--   base 7 yards a second: MEASURED in game 2026-09-20, GetUnitSpeed("player")
+--     unmounted returned 0, 7, 7, 4.7222 (current, run, flight, swim).
+--   levels 40 and 60: READ OFF the riding trainer in game 2026-09-20,
+--     Apprentice Riding requires 40, Journeyman requires 60.
+--   speeds 11.2 and 14: the user states Forever uses vanilla riding, which is
+--     +60% and +100%, so 7 x 1.6 and 7 x 2.0. Stated rather than measured, on
+--     a base that was measured.
+-- Level stands in for "has a mount" on purpose: the riding skill and mount
+-- list APIs are unverified on this client.
 local Travel = {}
 ns.Travel = Travel
 
 Travel.WALK_YARDS_PER_SECOND = 7
 Travel.MOUNTS = {               -- lowest level first
-    { level = 40, yardsPerSecond = 11.2 }, -- Apprentice Riding; +60% is assumed
-    { level = 60, yardsPerSecond = 14 },   -- Journeyman Riding; +100% is assumed
+    { level = 40, yardsPerSecond = 11.2 }, -- Apprentice Riding, +60% of 7
+    { level = 60, yardsPerSecond = 14 },   -- Journeyman Riding, +100% of 7
 }
 Travel.WARN_LEVELS_ABOVE = 5    -- a zone that starts this far above you gets an amber warning
 

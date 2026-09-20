@@ -163,12 +163,14 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 17. **Walk or ride by level, as settings.** Below the first mount level the
     step says "Walk to" and uses walking speed; at or above it, "Ride to" and
     the mount's speed. The levels and speeds are named settings in one
-    place. The **levels are confirmed** in game (2026-09-20, the riding
-    trainer: Apprentice Riding requires level 40, Journeyman requires 60).
-    The **speeds are not**: 11.2 and 14 yards a second are the Classic values
-    the two skill names imply (+60% and +100% of 7 on foot), not yet
-    measured. Level is a deliberate approximation of "has a mount"; the
-    riding-skill and mount-list APIs are unverified on this client.
+    place. All three numbers are settled as of 2026-09-20. The base of 7
+    yards a second is **measured** (`GetUnitSpeed("player")` unmounted). The
+    **levels** 40 and 60 are **read off the riding trainer** in game. The
+    **speeds** 11.2 and 14 follow from the user's statement that Forever uses
+    vanilla riding, +60% and +100%, applied to that measured base — stated
+    rather than measured, but on a base that was measured. Level is a
+    deliberate approximation of "has a mount"; the riding-skill and
+    mount-list APIs are unverified on this client.
 18. **Warn, never reroute.** The route is always the fastest. A step's detail
     line turns amber when its zone's level range starts well above the
     character's level, or when its crossing carries a hand-written hazard

@@ -63,8 +63,11 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
   `GetUnitSpeed("player")` unmounted returned `0, 7, 7, 4.7222218513489`:
   current, run, flight, swim. `Travel.WALK_YARDS_PER_SECOND = 7` is therefore
   measured, not assumed, and every walking time the addon prints rests on it.
-  Swimming at 4.72 is not modelled. The two **mount** speeds are still
-  unverified; they need the same call from a mounted character.
+  Swimming at 4.72 is not modelled. The two **mount** speeds follow from the
+  user's statement (2026-09-20) that Forever uses vanilla riding, so +60% and
+  +100% of that measured base: 11.2 and 14. Stated rather than measured, on a
+  measured base. `GetUnitSpeed` from horseback would confirm it in five
+  seconds and is worth doing when convenient, but nothing is blocked on it.
 - **`GetPlayerFacing` and `UnitOnTaxi` are present** (`/gps selftest`,
   2026-09-20). Presence only: neither has been seen to return a useful value
   yet, and the arrow's rotation direction remains underived from anything the
