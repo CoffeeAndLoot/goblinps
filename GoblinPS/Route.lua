@@ -75,17 +75,48 @@ end
 -- Zone by zone through crossings. Only when no such route exists, once more
 -- with the old straight lines, whose steps come back flagged rough: a hole in
 -- the crossings table must never turn into "no route".
-function Route.Plan(data, opts)
+local function copy(opts, changes)
+    local out = {}
+    for k, v in pairs(opts) do
+        out[k] = v
+    end
+    for k, v in pairs(changes) do
+        out[k] = v
+    end
+    return out
+end
+
+-- The fastest route for these options, falling back to the labelled straight
+-- line when no chain of crossings reaches the destination.
+local function solve(data, opts)
     local result = Route.Find(ns.Graph.Build(data, opts))
     if result or opts.rough then
         return result
     end
-    local again = {}
-    for k, v in pairs(opts) do
-        again[k] = v
+    return Route.Find(ns.Graph.Build(data, copy(opts, { rough = true })))
+end
+
+-- The graph prices the hearthstone at Graph.HEARTH_SECONDS: the cast and the
+-- loading screen. It cannot price the half-hour cooldown, so on its own the
+-- router will spend the stone to save twenty seconds. `opts.hearthSaving` is
+-- the least it must save to be worth taking; plan both ways and keep the
+-- hearthstone only when it earns its keep. Nil or 0 means the old behaviour,
+-- always fastest. Refusing it never costs the player a route: the plain plan
+-- is returned instead, and it is the one the player would have had anyway.
+function Route.Plan(data, opts)
+    local best = solve(data, opts)
+    local bar = opts.hearthSaving or 0
+    if not opts.hearth or bar <= 0 or not best then
+        return best
     end
-    again.rough = true
-    return Route.Find(ns.Graph.Build(data, again))
+    if not (best.steps[1] and best.steps[1].kind == "hearth") then
+        return best
+    end
+    local plain = solve(data, copy(opts, { hearth = false }))
+    if plain and plain.seconds - best.seconds < bar then
+        return plain
+    end
+    return best
 end
 
 -- Would knowing every flight path help? Returns { names = { first two short

@@ -14,6 +14,7 @@ local Prefs = {}
 ns.Prefs = Prefs
 
 Prefs.MAX_RECENTS = 8
+Prefs.HEARTH_SAVING_DEFAULT = 300   -- five minutes
 local LAYOUTS = { wide = "tall", tall = "wide" } -- each layout's other one
 
 -- Returns db (or a new table) with every missing preference filled in.
@@ -29,6 +30,12 @@ function Prefs.Init(db)
         db.minimap.angle = 215
     end
     db.minimap.hide = db.minimap.hide == true
+    -- The least the hearthstone must save to be worth its half-hour cooldown,
+    -- in seconds. 0 means "always take the fastest route". A hostile or
+    -- missing value falls back to the default rather than breaking planning.
+    if type(db.hearthSaving) ~= "number" or db.hearthSaving < 0 then
+        db.hearthSaving = Prefs.HEARTH_SAVING_DEFAULT
+    end
     return db
 end
 

@@ -57,6 +57,44 @@ return function(h, loaded)
         end)
     end)
 
+    -- The graph prices the hearthstone at HEARTH_SECONDS, the cast and the
+    -- loading screen. It cannot price the half-hour cooldown, so left alone the
+    -- router will spend the stone to save seconds. opts.hearthSaving is the
+    -- least it must save to be worth taking.
+    h.describe("the hearthstone has to earn its cooldown", function()
+        -- Measured against this fake world: binding at y=2000 saves about 85
+        -- seconds off the 1261s plain route, and y=5000 saves about 433. A
+        -- five-minute bar should reject the first and keep the second.
+        local pennyworth = { name = "Alpha Inn", c = 1, x = 1000, y = 2000, map = 1 }
+        local worthIt = { name = "Charlie Inn", c = 1, x = 1000, y = 5000, map = 1 }
+        local BAR = 300
+
+        h.it("takes a saving of seconds when nothing is asked of it", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = nearDelta,
+                                          hearth = pennyworth })
+            h.eq(r.steps[1].kind, "hearth", "with no threshold the old behaviour stands")
+        end)
+        h.it("refuses a saving smaller than the threshold and routes without it", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = nearDelta,
+                                          hearth = pennyworth, hearthSaving = BAR })
+            h.truthy(r, "refusing the hearthstone must not mean no route")
+            h.falsy(r.steps[1].kind == "hearth", "85 seconds is not worth a half-hour cooldown")
+            local free = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = nearDelta })
+            h.eq(r.seconds, free.seconds, "it must fall back to the plain route, not a worse one")
+        end)
+        h.it("still takes a saving that clears the threshold", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = nearDelta,
+                                          hearth = worthIt, hearthSaving = BAR })
+            h.eq(r.steps[1].kind, "hearth", "seven minutes is worth the cooldown")
+        end)
+        h.it("never turns a route into no route, whatever the threshold", function()
+            local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = nearDelta,
+                                          hearth = worthIt, hearthSaving = 1000000 })
+            h.truthy(r, "an impossible threshold must still leave the plain route")
+            h.falsy(r.steps[1].kind == "hearth")
+        end)
+    end)
+
     h.describe("Route.Find tie-breaking", function()
         h.it("always goes through the stop whose key sorts first when two routes tie exactly", function()
             local graph = {

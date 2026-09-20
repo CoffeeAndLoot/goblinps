@@ -38,6 +38,8 @@ function Core.SavePosition(window, point, relativePoint, x, y)
     Prefs.SavePosition(prefs(), window, point, relativePoint, x, y)
 end
 function Core.MinimapPrefs() return prefs().minimap end
+function Core.HearthSaving() return prefs().hearthSaving end
+function Core.SetHearthSaving(seconds) prefs().hearthSaving = seconds end
 
 -- Escape closes a frame only through its global name.
 function Core.CloseOnEscape(frame, globalName)
@@ -87,7 +89,8 @@ function Core.PlanRoute(to, from)
 
     local travel = ns.Travel.For(plan.level)
     local opts = { faction = faction, known = known, from = from, to = to, hearth = bind,
-                   speed = travel.speed, walk = travel.walk }
+                   speed = travel.speed, walk = travel.walk,
+                   hearthSaving = prefs().hearthSaving }
     plan.result = Route.Plan(ns.Data, opts)
     if not plan.result then
         plan.notes[#plan.notes + 1] = "No route found to " .. to.name .. "."
@@ -240,6 +243,22 @@ local function slash(msg)
         probe()
     elseif command == "selftest" then
         ns.SelfTest.Run(say)
+    elseif command == "hearth" then
+        local minutes = tonumber(rest)
+        if rest == "" or not minutes or minutes < 0 then
+            say(("Hearthstone: used only when it saves at least %s."):format(
+                Route.FormatTime(Core.HearthSaving())))
+            say("/gps hearth <minutes>   change it; 0 always takes the fastest route")
+        else
+            Core.SetHearthSaving(math.floor(minutes * 60 + 0.5))
+            if minutes == 0 then
+                say("Hearthstone: always used when it is faster, however small the saving.")
+            else
+                say(("Hearthstone: used only when it saves at least %s."):format(
+                    Route.FormatTime(Core.HearthSaving())))
+            end
+            ns.Planner.Replan()
+        end
     elseif command == "minimap" then
         ns.MinimapButton.SetHidden(not Core.MinimapPrefs().hide)
         say(Core.MinimapPrefs().hide and "Minimap button hidden. /gps minimap shows it again."
@@ -249,6 +268,7 @@ local function slash(msg)
         say("/gps to <place>   print a route in chat")
         say("/gps minimap      show or hide the minimap button")
         say("/gps probe        check the flight path data against the client")
+        say("/gps hearth <min>  how much the hearthstone must save to be used")
         say("/gps probe zones  check the zone level ranges against the client")
         say("/gps selftest     check textures and fonts")
     end

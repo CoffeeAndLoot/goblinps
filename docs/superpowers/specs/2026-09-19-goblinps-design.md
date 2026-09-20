@@ -99,6 +99,19 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     an error. Hand-written rows in Data/Inns.lua cover inns beside a
     differently named flight stop and towns with an inn but no flight
     master; add a row whenever "unknown inn" is seen in game.
+    `GetBindLocation()` returns the **subzone**, which inside a town is usually
+    the inn building ("Gallows' End Tavern" for Brill, seen in game
+    2026-09-20), so a building shares the row of the town it stands in.
+    **The hearthstone must earn its cooldown.** The graph can price the cast
+    and the loading screen (20s) but not the half-hour wait, so left alone the
+    router spends the stone to save seconds: seen in game on 2026-09-20 taking
+    it for a 0.4-second gain. `Route.Plan` plans both ways and keeps the
+    hearthstone only when it saves at least `opts.hearthSaving`. That is a
+    player preference (`GoblinPSDB.hearthSaving`, default five minutes,
+    `/gps hearth <minutes>`, 0 meaning always fastest) because how freely to
+    spend a hearthstone is a judgement about play, not about routing. It
+    belongs in the settings panel when one exists. Refusing the stone never
+    costs a route: the plain plan is returned instead.
 11. **Boats, zeppelins and the tram carry a fixed average wait.** Each link's
     `minutes` is ride time plus about half its loop, so the router compares
     them fairly against flights. The step reads "Zeppelin to Tirisfal" with
