@@ -71,20 +71,24 @@ end
 
 -- Whole-name match, used for the hearthstone bind name. Nil when unknown.
 -- A zone wins over a stop of the same name; faction nil means any.
-function Search.Exact(data, name, faction)
+-- skipInns is internal: set on the recursive call for inn.stop so an inn
+-- that (wrongly) names itself as its own stop cannot recurse forever.
+function Search.Exact(data, name, faction, skipInns)
     local needle = plain(name)
     if needle == "" then
         return nil
     end
     local best
-    for bind, inn in pairs(data.Inns or {}) do
-        if plain(bind) == needle then
-            if inn.stop then
-                return Search.Exact(data, inn.stop, faction)
-            end
-            local c, x, y = ns.Geo.ToWorld(data.Places, inn.map, inn.mx, inn.my)
-            if c then
-                return { kind = "inn", name = bind, c = c, x = x, y = y, map = inn.map, mx = inn.mx, my = inn.my }
+    if not skipInns then
+        for bind, inn in pairs(data.Inns or {}) do
+            if plain(bind) == needle then
+                if inn.stop then
+                    return Search.Exact(data, inn.stop, faction, true)
+                end
+                local c, x, y = ns.Geo.ToWorld(data.Places, inn.map, inn.mx, inn.my)
+                if c then
+                    return { kind = "inn", name = bind, c = c, x = x, y = y, map = inn.map, mx = inn.mx, my = inn.my }
+                end
             end
         end
     end

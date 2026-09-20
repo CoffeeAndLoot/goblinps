@@ -34,7 +34,9 @@ function Core.Remember(name) Prefs.Remember(prefs(), name) end
 function Core.Layout() return prefs().layout end
 function Core.ToggleLayout() return Prefs.ToggleLayout(prefs()) end
 function Core.Position(window) return Prefs.Position(prefs(), window) end
-function Core.SavePosition(window, point, x, y) Prefs.SavePosition(prefs(), window, point, x, y) end
+function Core.SavePosition(window, point, relativePoint, x, y)
+    Prefs.SavePosition(prefs(), window, point, relativePoint, x, y)
+end
 function Core.MinimapPrefs() return prefs().minimap end
 
 -- Escape closes a frame only through its global name.

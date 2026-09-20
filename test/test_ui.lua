@@ -42,6 +42,25 @@ return function(h)
             h.eq(UISpecialFrames[1], "GoblinPSPlanner")
         end)
 
+        h.it("the strict fake raises for a widget method it does not model", function()
+            local ui = Planner.Debug()
+            local ok, err = pcall(function() return ui.frame.NotAWidgetMethod end)
+            h.falsy(ok)
+            h.truthy(tostring(err):find("unknown widget method", 1, true))
+        end)
+
+        h.it("dragging saves point, relativePoint, x and y", function()
+            local ui = Planner.Debug()
+            ui.frame:SetPoint("TOP", UIParent, "BOTTOM", 5, -20)
+            ui.frame.scripts.OnDragStart(ui.frame)
+            ui.frame.scripts.OnDragStop(ui.frame)
+            local p = GoblinPSDB.positions.planner
+            h.eq(p.point, "TOP")
+            h.eq(p.relativePoint, "BOTTOM")
+            h.eq(p.x, 5)
+            h.eq(p.y, -20)
+        end)
+
         h.it("offers matches as you type and plans when you pick one", function()
             local ui, state = Planner.Debug()
             Fake.Type(ui.toBox, "delt")
@@ -61,11 +80,36 @@ return function(h)
             h.truthy(ui.go.enabled)
         end)
 
+        h.it("clicking Here dismisses the open results list", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "delt")
+            h.truthy(ui.results:IsShown())
+            Fake.Click(ui.here)
+            h.falsy(ui.results:IsShown())
+        end)
+
+        h.it("a mouse-down on the frame body also dismisses the open results list", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "delt")
+            h.truthy(ui.results:IsShown())
+            Fake.MouseDown(GoblinPSPlanner)
+            h.falsy(ui.results:IsShown())
+        end)
+
         h.it("remembers the destination and offers it when the box is empty", function()
             local ui = Planner.Debug()
             h.eq(GoblinPSDB.recents[1], "Delta")
             Fake.Type(ui.toBox, "")
             h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+        end)
+
+        h.it("offers the next real recent when the newest one no longer resolves", function()
+            local ui = Planner.Debug()
+            table.insert(GoblinPSDB.recents, 1, "Ghost Town")
+            ui.toBox:SetText("")
+            ui.toBox.scripts.OnEditFocusGained(ui.toBox)
+            h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+            table.remove(GoblinPSDB.recents, 1)
         end)
 
         h.it("plans from another place", function()
@@ -102,6 +146,33 @@ return function(h)
             h.eq(state.from, nil)
             h.eq(ui.fromBox:GetText(), "")
             h.eq(ui.rows[1].left:GetText(), "1. Ride to Alpha")
+        end)
+
+        h.it("shows the plan's notes on the screen when the route has steps", function()
+            local ui = Planner.Debug()
+            local originalHearthBindName = ns.API.HearthBindName
+            ns.API.HearthBindName = function() return "Nowhere Inn Bind" end
+            Fake.Click(ui.here)
+            h.truthy(ui.notes:GetText():find("Hearth: unknown inn", 1, true))
+            ns.API.HearthBindName = originalHearthBindName
+            Fake.Click(ui.here)
+            h.eq(ui.notes:GetText(), "")
+        end)
+
+        h.it("shows an overflow row for a route longer than MAX_ROWS", function()
+            local ui, state = Planner.Debug()
+            local savedMax, savedPlan = Planner.MAX_ROWS, state.plan
+            Planner.MAX_ROWS = 3
+            local steps = {}
+            for i = 1, 5 do
+                steps[i] = { kind = "ride", to = { name = "Stop " .. i }, seconds = 60, copper = 0 }
+            end
+            state.plan = { to = { name = "Stop 5" }, notes = {}, result = { steps = steps, seconds = 300, copper = 0 } }
+            Planner.Refresh()
+            h.eq(ui.rows[3].left:GetText(), "... and 3 more steps")
+            Planner.MAX_ROWS = savedMax
+            state.plan = savedPlan
+            Planner.Refresh()
         end)
 
         h.it("explains itself when it cannot tell where you are", function()
@@ -157,6 +228,32 @@ return function(h)
             SlashCmdList.GOBLINPS("selftest")
             h.truthy(#printed - from >= 5)
             h.truthy(printed[#printed]:find("Self%-test"))
+        end)
+
+        -- The desktop fake defines none of the client's font globals, so the
+        -- font checks always fail here even with no missing texture; that is
+        -- unrelated to this fix and pre-dates it. What this proves is the
+        -- one thing the ruling is about: a texture the fake is told to
+        -- reject adds exactly one more FAIL, for that path, to the count.
+        h.it("fails when a texture cannot load", function()
+            local badPath = ns.SelfTest.TEXTURES[1]
+
+            SlashCmdList.GOBLINPS("selftest")
+            local before = tonumber(printed[#printed]:match("(%d+) failed")) or 0
+
+            Fake.missingTextures[badPath] = true
+            local from = #printed
+            SlashCmdList.GOBLINPS("selftest")
+            Fake.missingTextures[badPath] = nil
+
+            local sawFail = false
+            for i = from + 1, #printed do
+                if printed[i]:find("FAIL", 1, true) and printed[i]:find(badPath, 1, true) then
+                    sawFail = true
+                end
+            end
+            h.truthy(sawFail)
+            h.eq(tonumber(printed[#printed]:match("(%d+) failed")), before + 1)
         end)
     end)
 

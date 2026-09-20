@@ -5,9 +5,41 @@
 -- docs/manual-test-checklist.md is for.
 local Fake = {}
 
+-- Paths for which SetTexture below reports failure, the way a texture the
+-- client cannot find would. Tests add and remove entries; empty by default.
+Fake.missingTextures = {}
+
+-- Real widget methods our code calls beyond the ones modelled as full
+-- methods below, each checked against the client source. Anything else is a
+-- misspelt or invented call, and the fake raises instead of quietly doing
+-- nothing, so a bad widget call fails on the desktop instead of only in game.
+local ALLOWED_NOOP = {
+    SetAllPoints = true, SetColorTexture = true, SetTexCoord = true, SetAlpha = true,
+    SetTextColor = true, SetJustifyH = true, SetWordWrap = true, SetFontObject = true,
+    SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
+    SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
+    StartMoving = true, StopMovingOrSizing = true, SetFrameStrata = true, SetFrameLevel = true,
+    SetHighlightTexture = true, RegisterEvent = true, SetOwner = true, AddLine = true,
+}
+
 local Region = {}
 Region.__index = function(_, key)
-    return Region[key] or function() end -- any method we did not model is a no-op
+    local method = Region[key]
+    if method then
+        return method
+    end
+    if ALLOWED_NOOP[key] then
+        return function() end
+    end
+    -- Blizzard's own widget methods are always PascalCase (SetPoint,
+    -- GetText, ...); anything shaped like one that we have not modelled or
+    -- allow-listed is a misspelt or invented call, so raise. A lowercase key
+    -- is the addon's own instance data (row.item, results.owner, ...), not
+    -- yet set on this object: real frames answer that with plain nil too.
+    if key:match("^%u") then
+        error("fake_frames: unknown widget method '" .. key .. "'", 2)
+    end
+    return nil
 end
 
 local function new(kind, parent)
@@ -33,14 +65,49 @@ function Region:SetWidth(w) self.width = w end
 function Region:SetHeight(h) self.height = h end
 function Region:GetWidth() return self.width end
 function Region:GetHeight() return self.height end
-function Region:ClearAllPoints() self.points = {} end
-function Region:SetPoint(...) self.points[#self.points + 1] = { ... } end
-function Region:GetPoint(i)
-    local p = self.points[i or 1] or { "CENTER", nil, "CENTER", 0, 0 }
-    return p[1], p[2], p[3], p[4] or 0, p[5] or 0
+function Region:ClearAllPoints()
+    self.points = {}
+    self.lastPoint = nil
 end
+
+-- Normalises every SetPoint overload down to the five values the real
+-- GetPoint returns (point, relativeTo, relativePoint, x, y), so a
+-- save/restore round trip can be asserted the way the client really answers.
+function Region:SetPoint(...)
+    local n = select("#", ...)
+    local point, relativeTo, relativePoint, x, y
+    if n <= 1 then
+        point = ...
+        x, y = 0, 0
+    elseif n == 2 then
+        point, relativeTo = ...
+        x, y = 0, 0
+    elseif n == 3 then
+        point, x, y = ...
+    elseif n == 4 then
+        point, relativeTo, x, y = ...
+    else
+        point, relativeTo, relativePoint, x, y = ...
+    end
+    local p = { point, relativeTo, relativePoint or point, x, y }
+    self.points[#self.points + 1] = p
+    self.lastPoint = p
+end
+
+-- Always the last point set, matching how the addon only ever keeps one
+-- anchor (ClearAllPoints then a single SetPoint).
+function Region:GetPoint()
+    local p = self.lastPoint or { "CENTER", nil, "CENTER", 0, 0 }
+    return p[1], p[2], p[3], p[4], p[5]
+end
+
 function Region:SetEnabled(enabled) self.enabled = enabled end
-function Region:SetTexture(path) self.texture = path end
+
+-- The real SetTexture returns a documented success bool.
+function Region:SetTexture(path)
+    self.texture = path
+    return path ~= nil and not Fake.missingTextures[path]
+end
 function Region:GetTexture() return self.texture end
 function Region:GetCenter() return 100, 100 end
 function Region:GetEffectiveScale() return 1 end
@@ -55,6 +122,9 @@ function Fake.Type(editBox, text)
 end
 function Fake.Click(button)
     button.scripts.OnClick(button, "LeftButton")
+end
+function Fake.MouseDown(frame)
+    frame.scripts.OnMouseDown(frame, "LeftButton")
 end
 
 -- Installs the globals the UI files use. Returns a table of what was printed.
@@ -73,6 +143,7 @@ function Fake.Install()
     _G.GetCursorPosition = function() return 150, 100 end
     _G.SlashCmdList = {}
     _G.print = function(text) printed[#printed + 1] = text end
+    Fake.missingTextures = {}
     return printed
 end
 

@@ -46,12 +46,17 @@ function Prefs.Remember(db, name)
     end
 end
 
-function Prefs.SavePosition(db, window, point, x, y)
-    db.positions[window] = { point = point, x = x, y = y }
+function Prefs.SavePosition(db, window, point, relativePoint, x, y)
+    db.positions[window] = { point = point, relativePoint = relativePoint, x = x, y = y }
 end
 
+-- An entry saved before relativePoint existed is read as matching point.
 function Prefs.Position(db, window)
-    return db.positions[window]
+    local p = db.positions[window]
+    if not p then
+        return nil
+    end
+    return { point = p.point, relativePoint = p.relativePoint or p.point, x = p.x, y = p.y }
 end
 
 return Prefs

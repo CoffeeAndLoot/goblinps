@@ -45,9 +45,10 @@ function Planner.Refresh()
         row.right:SetText(right)
     end
 
-    local total, hint = "", ""
+    local total, hint, notes = "", "", ""
     if plan and #steps > 0 then
         total = ns.Route.FormatTime(plan.result.seconds) .. "  " .. ns.Route.FormatMoney(plan.result.copper)
+        notes = table.concat(plan.notes, "  ")
     elseif plan then
         total = plan.notes[#plan.notes] or ""
     end
@@ -56,6 +57,7 @@ function Planner.Refresh()
     end
     ui.total:SetText(total)
     ui.hint:SetText(hint)
+    ui.notes:SetText(notes)
     W.SetButtonEnabled(ui.go, #steps > 0)
 
     local known = ns.Core.KnownCount()
@@ -73,6 +75,14 @@ end
 local function hideResults()
     ui.results:Hide()
     ui.results.owner = nil
+end
+
+-- Puts the results list away and drops focus from both boxes: used wherever
+-- clicking something other than a result row should end the search.
+local function dismiss()
+    ui.fromBox:ClearFocus()
+    ui.toBox:ClearFocus()
+    hideResults()
 end
 
 local function pick(box, item)
@@ -133,6 +143,11 @@ local function wireBox(box)
         end
     end)
     box:SetScript("OnEditFocusGained", showResults)
+    box:SetScript("OnEditFocusLost", function(self)
+        if ui.results.owner == self then
+            hideResults()
+        end
+    end)
     box:SetScript("OnEnterPressed", function(self)
         local first = candidatesFor(self)[1]
         if first then
@@ -185,12 +200,13 @@ local function build()
     f:EnableMouse(true)
     f:SetClampedToScreen(true)
     f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        local point, _, _, x, y = self:GetPoint(1)
-        ns.Core.SavePosition("planner", point, x, y)
+        local point, _, relativePoint, x, y = self:GetPoint(1)
+        ns.Core.SavePosition("planner", point, relativePoint, x, y)
     end)
+    f:SetScript("OnMouseDown", dismiss)
     f:Hide()
 
     local stripe = f:CreateTexture(nil, "ARTWORK")
@@ -206,9 +222,13 @@ local function build()
     tagline:SetPoint("LEFT", title, "RIGHT", 8, -1)
     tagline:SetText("Accuracy not guaranteed. No refunds.")
 
-    local close = W.Button(f, "X", 20, 18, function() f:Hide() end)
+    local close = W.Button(f, "X", 20, 18, function()
+        dismiss()
+        f:Hide()
+    end)
     close:SetPoint("TOPRIGHT", -PAD, -10)
     local layoutButton = W.Button(f, "Tall", 44, 18, function()
+        dismiss()
         Planner.ApplyLayout(ns.Core.ToggleLayout())
     end)
     layoutButton:SetPoint("RIGHT", close, "LEFT", -6, 0)
@@ -218,6 +238,7 @@ local function build()
     local toBox = W.EditBox(f, 170, 20, "To: city, zone or flight stop")
     toBox:SetPoint("LEFT", fromBox, "RIGHT", 6, 0)
     local here = W.Button(f, "Here", 40, 20, function()
+        dismiss()
         state.from = nil
         ui.fromBox:SetText("")
         W.UpdatePlaceholder(ui.fromBox)
@@ -226,6 +247,9 @@ local function build()
     here:SetPoint("LEFT", toBox, "RIGHT", 6, 0)
 
     local screen = W.Panel(f, "screen", "steel", 2)
+    local notes = W.Text(screen, "dim")
+    notes:SetPoint("TOPLEFT", 8, -8)
+    notes:SetPoint("TOPRIGHT", -8, -8)
     local known = W.Text(screen, "green")
     known:SetPoint("BOTTOMLEFT", 8, 8)
     known:SetPoint("BOTTOMRIGHT", -8, 8)
@@ -240,7 +264,7 @@ local function build()
         local row = { left = W.Text(side, "green"), right = W.Text(side, "dim", nil, "RIGHT") }
         row.left:SetPoint("TOPLEFT", 8, -(6 + (i - 1) * ROW))
         row.right:SetPoint("TOPRIGHT", -8, -(6 + (i - 1) * ROW))
-        row.left:SetPoint("RIGHT", row.right, "LEFT", -6, 0)
+        row.left:SetPoint("TOPRIGHT", row.right, "TOPLEFT", -6, 0)
         rows[i] = row
     end
     local hint = W.Text(side, "amber")
@@ -248,11 +272,15 @@ local function build()
     hint:SetPoint("BOTTOMRIGHT", -8, FOOTER - 18)
     local total = W.Text(side, "green", "GameFontNormal")
     total:SetPoint("BOTTOMLEFT", 8, 12)
-    local go = W.Button(side, "GO", 56, 24, function() ns.Core.Go(state.plan) end)
+    local go = W.Button(side, "GO", 56, 24, function()
+        dismiss()
+        ns.Core.Go(state.plan)
+    end)
     go:SetPoint("BOTTOMRIGHT", -8, 8)
 
     local results = W.Panel(f, "steel", "brass", 1)
     results:SetFrameStrata("DIALOG")
+    results:EnableMouse(true)
     results:Hide()
     results.rows = {}
     for i = 1, Planner.MAX_RESULTS do
@@ -272,7 +300,7 @@ local function build()
 
     ui = { frame = f, fromBox = fromBox, toBox = toBox, screen = screen, side = side, rows = rows,
            hint = hint, total = total, go = go, here = here, known = known, results = results,
-           layoutButton = layoutButton }
+           layoutButton = layoutButton, notes = notes }
     wireBox(fromBox)
     wireBox(toBox)
     f:SetScript("OnHide", hideResults)
@@ -285,7 +313,7 @@ function Planner.Toggle()
         local p = ns.Core.Position("planner")
         ui.frame:ClearAllPoints()
         if p then
-            ui.frame:SetPoint(p.point, UIParent, p.point, p.x, p.y)
+            ui.frame:SetPoint(p.point, UIParent, p.relativePoint, p.x, p.y)
         else
             ui.frame:SetPoint("CENTER")
         end

@@ -4,6 +4,7 @@ self = false
 globals = {
     "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB", "GoblinPSCharDB",
     "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames",
+    "GoblinPSMinimapButton", "GoblinPSPlanner",
 }
 read_globals = {
     "print",
@@ -17,4 +18,4 @@ files["GoblinPS/Data/Nodes.lua"] = { max_line_length = false }
 files["GoblinPS/Data/Flights.lua"] = { max_line_length = false }
 -- The UI smoke test installs a fake frame API into the globals.
 files["test/fake_frames.lua"] = { globals = { "print" } }
-files["test/test_ui.lua"] = { globals = { "print" }, read_globals = { "GoblinPSMinimapButton" } }
+files["test/test_ui.lua"] = { globals = { "print" } }

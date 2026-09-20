@@ -76,7 +76,7 @@ local function build()
     border:SetPoint("TOPLEFT")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 
-    b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
 
     b:SetScript("OnClick", function() ns.Planner.Toggle() end)
     b:SetScript("OnDragStart", function(self)

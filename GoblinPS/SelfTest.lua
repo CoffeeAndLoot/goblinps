@@ -18,11 +18,9 @@ SelfTest.TEXTURES = {
 }
 local COLOUR = { pass = "|cff6fe08aok|r  ", fail = "|cffe0501cFAIL|r" }
 
--- A texture that failed to load reports no file; GetTexture is nil then.
+-- SetTexture returns whether the file was found and loaded.
 local function textureLoads(probe, path)
-    probe:SetTexture(nil)
-    probe:SetTexture(path)
-    return probe:GetTexture() ~= nil
+    return probe:SetTexture(path) and true or false
 end
 
 function SelfTest.Run(say)

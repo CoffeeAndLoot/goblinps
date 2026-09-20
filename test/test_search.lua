@@ -72,5 +72,8 @@ return function(h, loaded)
         h.it("returns nil for an inn it does not know", function()
             h.eq(Search.Exact(world, "Some Backwater Inn"), nil)
         end)
+        h.it("does not loop forever on an inn that names itself as its own stop", function()
+            h.eq(Search.Exact(world, "Loop Inn", "H"), nil)
+        end)
     end)
 end

@@ -32,6 +32,7 @@ local function world()
             ["Delta Harbour Inn"] = { stop = "Delta" },                 -- an inn beside a flight stop
             ["Quiet Hollow"] = { map = 1, mx = 0.25, my = 0.5 },        -- a town with no flight master
             ["Nowhere Inn"] = { map = 99, mx = 0.5, my = 0.5 },         -- a map we do not have
+            ["Loop Inn"] = { stop = "Loop Inn" },                       -- names itself as its own stop
         },
         Links = {
             { from = "west_dock", to = "east_dock", kind = "zeppelin", minutes = 4, faction = "H" },

@@ -105,7 +105,13 @@ These decide the design. Record the result beside each one.
 
 Restart the game first: the TOC changed.
 
+- [ ] Click into the To box: a text cursor appears and typing works (the
+      first thing to check: an EditBox we build without a template)
+- [ ] Drag the window by its body: it follows the mouse from where you
+      grabbed it, no jump, no Lua error
 - [ ] `/gps selftest` ends "Self-test passed."; record any FAIL line here
+      (rename GoblinPS\Media\icon.tga away, /reload: the icon texture line
+      must say FAIL, then put it back)
 - [ ] A GoblinPS button is on the minimap ring with the dial icon; its tooltip
       has three lines and "May explode."; dragging moves it round the ring and
       the position survives `/reload`; `/gps minimap` hides and shows it
@@ -116,6 +122,8 @@ Restart the game first: the TOC changed.
 - [ ] The green screen says "Flight paths known: N" with the right N
 - [ ] Click To and type "und": a list drops under the box with Undercity;
       click it; the steps, per-step time and fare, total and hint appear
+- [ ] With the results list open, click GO, Here, the layout button or the
+      window body: the list closes
 - [ ] Press Enter with text in To: the first match is taken
 - [ ] Empty the To box and click it: recent destinations are offered
 - [ ] Type a start in From and pick it: the route re-plans from there;

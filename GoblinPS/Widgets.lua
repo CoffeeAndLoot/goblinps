@@ -82,6 +82,7 @@ function Widgets.EditBox(parent, width, height, placeholder)
     local e = CreateFrame("EditBox", nil, parent)
     e:SetSize(width, height)
     e:SetAutoFocus(false)
+    e:EnableMouse(true)
     e:SetFontObject("GameFontHighlightSmall")
     e:SetTextInsets(6, 6, 0, 0)
     e:SetMaxLetters(60)
@@ -93,7 +94,6 @@ function Widgets.EditBox(parent, width, height, placeholder)
     e.placeholder = Widgets.Text(e, "dim", "GameFontDisableSmall")
     e.placeholder:SetPoint("LEFT", 6, 0)
     e.placeholder:SetText(placeholder or "")
-    e:SetScript("OnEscapePressed", e.ClearFocus)
     return e
 end
 
