@@ -14,11 +14,12 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: routing core built (plan 1); no window yet.** `/gps to <place>`
-prints a route in chat and `/gps probe` checks the flight data against the
-client. The design is `docs/superpowers/specs/2026-09-19-goblinps-design.md`;
-plan 2 (planner window, schematic map, dash unit) is written once the
-routing core's manual checks have been run in game.
+**Status: routing core and planner window built (plans 1 and 2).** `/gps`
+opens the planner; `/gps to <place>` prints a route in chat. Next: plan 3,
+the schematic map on the green screen (approach proven in
+`docs/research/schematic-spike/`), then plan 4, the dash unit. The design is
+`docs/superpowers/specs/2026-09-19-goblinps-design.md`. Write each plan after
+the one before it has been used in game.
 
 Everything known about the client API and data sources is in
 `docs/research/2026-09-19-api-and-data-findings.md`. Read it first. It marks
@@ -34,7 +35,12 @@ GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram (and later ground crossings)
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
-GoblinPS/...                 # Trip (pure arrival rules), planner window, dash unit, schematic map, Core
+GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences
+GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
+GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates
+GoblinPS/Planner.lua         # the window; one set of widgets, ApplyLayout moves them
+GoblinPS/MinimapButton.lua, SelfTest.lua, Core.lua
+test/fake_frames.lua         # fake frame API: smoke-tests OUR window code, not Blizzard's
 tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
 tools/catalog.lock           # pinned client build
 test/run.lua                 # desktop Lua test runner
@@ -116,10 +122,10 @@ commit; re-read files before editing.
   flyable ones to `GoblinPSCharDB.known` (per character). That store only
   ever grows and is never edited by hand or by any other code path. If a
   later build fixes `isUndiscovered`, switch back to the live read.
-- Every constructor that leans on a Blizzard template or atlas checks for it
-  and falls back to a plain control. The map is our own schematic texture,
-  not Blizzard's map canvas; if it is missing, the planner must still work
-  as search + step list.
+- The window uses **no Blizzard frame templates**: plain frames and colour
+  textures, so a template renamed by a beta patch cannot break it. Art is
+  laid over the colours (`docs/art-specs.md`); a missing texture must leave a
+  working window. `/gps selftest` checks fonts, stock textures and APIs.
 - Route text must stay plain and glanceable. The goblin jokes live in the
   frame, the tagline and the tooltips, never in the directions.
 - Known Blizzard bug on 1.60.1.69913: all secure snippets fail

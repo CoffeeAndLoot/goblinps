@@ -1,9 +1,9 @@
 # GoblinPS design
 
-Status: **approved by the user on 2026-09-19.** Implemented in two plans:
-`docs/superpowers/plans/2026-09-19-goblinps-routing-core.md` (data, routing,
-`/gps to`), then a second plan for the windows, written once the first is
-running in game. Update this file whenever behaviour changes.
+Status: **approved by the user on 2026-09-19.** Implemented in four plans
+under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window,
+3 schematic map, 4 dash unit. Each is written after the one before it has
+been used in game. Update this file whenever behaviour changes.
 
 ## Purpose
 
@@ -61,8 +61,10 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    green, hazard orange. Humour in the frame, tagline and tooltips
    ("Accuracy not guaranteed. No refunds.", "May explode."), never in the
    directions, which stay plain and glanceable. A few small custom textures;
-   colours and fonts otherwise. Falls back to stock Blizzard templates if a
-   texture is missing.
+   colours and fonts otherwise. The window uses no Blizzard frame templates
+   at all: plain frames in the palette's flat colours, with art laid over
+   them (docs/art-specs.md), so a missing texture or a renamed template
+   cannot break it.
 8. **Show the fare.** `TaxiPath.Cost` is in the data; per step and in total.
 9. **No class travel in v1.** No mage teleports or portals, druid Moonglade
    or warlock summons. The hearthstone is the only personal teleport. The
@@ -72,7 +74,9 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     says "wait, then hearth". The bind point comes from `GetBindLocation()`,
     matched by name against generated flight-node, zone and city names. No
     match means no hearth edge and a small "Hearth: unknown inn" note, never
-    an error. Add hand-written name rows only for misses met in game.
+    an error. Hand-written rows in Data/Inns.lua cover inns beside a
+    differently named flight stop and towns with an inn but no flight
+    master; add a row whenever "unknown inn" is seen in game.
 11. **Boats, zeppelins and the tram carry a fixed average wait.** Each link's
     `minutes` is ride time plus about half its loop, so the router compares
     them fairly against flights. The step shows it plainly:
@@ -143,7 +147,9 @@ Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
   UiMaps that are their own landmass (Teldrassil today); a map not listed
   is the mainland. Sardor Isle is treated as joined to the mainland until
   ground crossings arrive, so its Feathermoon ↔ Forgotten Coast ferry is
-  deferred with them.
+  deferred with them. A zone destination is reached at any place on the
+  zone's map: that ride to the destination costs nothing, so hearthing to
+  Crossroads for "The Barrens" does not add a ride to the zone's centre.
 - **`Route`** (pure): Dijkstra by seconds. Returns steps
   `{kind, from, to, seconds, copper}` plus totals. `Route.Hint` does the
   "discover X" comparison. One plain step-text formatter, no jokes.

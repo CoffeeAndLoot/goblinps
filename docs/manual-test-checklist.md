@@ -74,12 +74,12 @@ These decide the design. Record the result beside each one.
       said "unknown inn (The Crossroads)": the bind name carries "The", fixed
       in Search.Exact. After the fix: "Hearthstone to Crossroads, Fly to
       Thunder Bluff", ~3 min, 1s 10c. The on-cooldown half is still to see.)
-- [ ] Known wart for plan 2: a zone destination aims at the zone's centre, so
+- [x] Known wart for plan 2: a zone destination aims at the zone's centre, so
       hearthing to Crossroads for "The Barrens" adds "Ride to The Barrens".
-      Arriving at any stop inside the destination zone should count.
-- [ ] Inns in towns with no flight master (Brill, Razor Hill, Goldshire,
+      Arriving at any stop inside the destination zone should count. (done in plan 2)
+- [x] Inns in towns with no flight master (Brill, Razor Hill, Goldshire,
       Kharanos ...) do not match a bind name; plan 2 adds a hand-written
-      inn list
+      inn list (done in plan 2)
 - [ ] `/gps to qqqq` prints `No place matches "qqqq".`
 - [ ] Inside an instance `/gps to orgrimmar` prints "Can't tell where you are"
 - [ ] Stand on each dock and compare `/dump C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()`
@@ -100,3 +100,39 @@ These decide the design. Record the result beside each one.
 - [ ] Standing on Zephras Isle or the Darkspear Islands, `/gps to orgrimmar`
       says it cannot tell where you are: these maps are off the two
       continents and are not routable yet. Record how each is reached.
+
+## Planner window (plan 2): check every line in BOTH layouts
+
+Restart the game first: the TOC changed.
+
+- [ ] `/gps selftest` ends "Self-test passed."; record any FAIL line here
+- [ ] A GoblinPS button is on the minimap ring with the dial icon; its tooltip
+      has three lines and "May explode."; dragging moves it round the ring and
+      the position survives `/reload`; `/gps minimap` hides and shows it
+- [ ] The addon compartment (top right of the minimap) lists GoblinPS with the
+      icon, and clicking it opens the planner
+- [ ] `/gps` opens the window: brass border, orange strip, title and tagline,
+      From and To boxes, a green screen, a step panel. Escape closes it
+- [ ] The green screen says "Flight paths known: N" with the right N
+- [ ] Click To and type "und": a list drops under the box with Undercity;
+      click it; the steps, per-step time and fare, total and hint appear
+- [ ] Press Enter with text in To: the first match is taken
+- [ ] Empty the To box and click it: recent destinations are offered
+- [ ] Type a start in From and pick it: the route re-plans from there;
+      "Here" goes back to where you stand
+- [ ] GO with a flight or ride first step: Blizzard's map pin and the
+      on-screen arrow appear at the step's target, and chat says "Pin set"
+- [ ] GO when step 1 is the hearthstone: chat says to use it; no pin
+- [ ] The Tall/Wide button flips the layout; nothing overlaps, nothing is cut
+      off, the steps stay; the choice survives `/reload`
+- [ ] Drag the window; its position survives `/reload`
+- [ ] Open a flight master's map with the planner open and a route showing:
+      if paths were learned, the route and "Flight paths known" update
+- [ ] `/gps to barrens` bound at the Crossroads inn: "Hearthstone to
+      Crossroads" and no "Ride to The Barrens"
+- [ ] Bound in Brill, Razor Hill, Goldshire, Kharanos, Dolanaar or Bloodhoof
+      Village: no "unknown inn" line. Stand in the inn and compare
+      `/run print(C_Map.GetBestMapForUnit("player"), C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"),"player"):GetXY())`
+      with the row in `GoblinPS/Data/Inns.lua`
+- [ ] Any other "Hearth: unknown inn (...)" line seen: add the name to
+      `GoblinPS/Data/Inns.lua`
