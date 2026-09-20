@@ -1,10 +1,12 @@
 {
   "runtime.version": "Lua 5.1",
-  "workspace.ignoreDir": [".remember", ".superpowers", "tools"],
+  "workspace.ignoreDir": [".remember", ".superpowers", "tools", "docs"],
   "diagnostics.globals": [
-    "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSCharDB",
+    "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB", "GoblinPSCharDB",
+    "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames", "GoblinPSMinimapButton",
     "UnitFactionGroup", "GetBindLocation",
-    "C_TaxiMap", "C_Map", "C_Item",
-    "CreateFrame", "Enum"
+    "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint",
+    "CreateFrame", "Enum",
+    "UIParent", "Minimap", "GameTooltip", "GetCursorPosition"
   ]
 }

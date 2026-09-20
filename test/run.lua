@@ -37,6 +37,7 @@ local suites = {
     "test/test_trip.lua",
     "test/test_known.lua",
     "test/test_prefs.lua",
+    "test/test_ui.lua",
     "test/test_data.lua",
 }
 

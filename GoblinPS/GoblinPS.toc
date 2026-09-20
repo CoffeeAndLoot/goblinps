@@ -3,8 +3,11 @@
 ## Notes: Goblin Positioning System. The fastest route from where you stand. Accuracy not guaranteed. No refunds.
 ## Author: CoffeeAndLoot
 ## X-Website: https://github.com/CoffeeAndLoot/goblinps
-## Version: 2026.09.19
+## IconTexture: Interface\AddOns\GoblinPS\Media\icon
+## Version: 2026.09.19.2
+## SavedVariables: GoblinPSDB
 ## SavedVariablesPerCharacter: GoblinPSCharDB
+## AddonCompartmentFunc: GoblinPS_OnAddonCompartmentClick
 
 API.lua
 Geo.lua
@@ -18,4 +21,9 @@ Graph.lua
 Route.lua
 Trip.lua
 Known.lua
+Prefs.lua
+Widgets.lua
+Planner.lua
+MinimapButton.lua
+SelfTest.lua
 Core.lua

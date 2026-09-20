@@ -59,6 +59,30 @@ function API.OpenTaxiNodes()
     return out
 end
 
+-- Blizzard's own map pin plus the on-screen arrow. False when this client or
+-- this map cannot take a pin.
+function API.SetWaypoint(map, x, y)
+    if not (C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates) then
+        return false
+    end
+    if not (map and x and y) or (C_Map.CanSetUserWaypointOnMap and not C_Map.CanSetUserWaypointOnMap(map)) then
+        return false
+    end
+    C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x, y))
+    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+        C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+    end
+    return true
+end
+
+-- Calls back once, when the character is in the world and saved variables
+-- have loaded.
+function API.OnLogin(callback)
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_LOGIN") -- verified in the forever source
+    frame:SetScript("OnEvent", callback)
+end
+
 -- Calls back every time a flight master's map opens.
 function API.OnTaxiMapOpened(callback)
     local frame = CreateFrame("Frame")
@@ -110,6 +134,29 @@ function API.HearthBindName()
         return nil
     end
     return GetBindLocation()
+end
+
+-- For /gps selftest: every client API this file leans on, and whether it is
+-- there. { { name, present }, ... }
+function API.SelfCheck()
+    local checks = {
+        { "C_TaxiMap.GetAllTaxiNodes", C_TaxiMap and C_TaxiMap.GetAllTaxiNodes },
+        { "C_TaxiMap.GetTaxiNodesForMap", C_TaxiMap and C_TaxiMap.GetTaxiNodesForMap },
+        { "Enum.FlightPathState", Enum and Enum.FlightPathState },
+        { "C_Map.GetBestMapForUnit", C_Map and C_Map.GetBestMapForUnit },
+        { "C_Map.GetPlayerMapPosition", C_Map and C_Map.GetPlayerMapPosition },
+        { "C_Map.SetUserWaypoint", C_Map and C_Map.SetUserWaypoint },
+        { "UiMapPoint.CreateFromCoordinates", UiMapPoint and UiMapPoint.CreateFromCoordinates },
+        { "C_SuperTrack.SetSuperTrackedUserWaypoint", C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint },
+        { "C_Item.GetItemCooldown", C_Item and C_Item.GetItemCooldown },
+        { "GetBindLocation", GetBindLocation },
+        { "UnitFactionGroup", UnitFactionGroup },
+    }
+    local out = {}
+    for i, check in ipairs(checks) do
+        out[i] = { name = check[1], present = check[2] ~= nil and check[2] ~= false }
+    end
+    return out
 end
 
 return API
