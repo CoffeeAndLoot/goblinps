@@ -298,6 +298,12 @@ local function build()
         dismiss()
         replan()
         ns.Core.Go(state.plan)
+        -- The Garmin model: plan the route, then drive. /gps reopens the
+        -- planner without ending the trip.
+        local plan = state.plan
+        if ui.frame:IsShown() and plan and plan.result and #plan.result.steps > 0 then
+            ui.frame:Hide()
+        end
     end)
     go:SetPoint("BOTTOMRIGHT", -8, 8)
     local total = W.Text(side, "green", "GameFontNormal")

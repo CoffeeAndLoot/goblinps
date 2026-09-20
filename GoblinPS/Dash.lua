@@ -82,6 +82,16 @@ local function build()
     ui = { frame = f, screen = screen, arrow = arrow, distance = distance,
            eta = eta, step = step, next = following, stop = stop }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")
+
+    local since = 0
+    f:SetScript("OnUpdate", function(_, elapsed)
+        since = since + elapsed
+        if since >= Dash.TICK then
+            since = 0
+            Dash.Tick("tick")
+        end
+    end)
+    ns.API.OnTripEvent(function(kind) Dash.Tick(kind) end)
 end
 
 -- Begin a trip. A plan with no steps is not a trip, and opens nothing.
@@ -110,6 +120,96 @@ function Dash.Stop()
     if ui then
         ui.frame:Hide()
     end
+end
+
+Dash.TICK = 0.5        -- seconds between checks; every frame is jitter, not accuracy
+
+local function yards(d)
+    return ("%d yd"):format(math.floor(d + 0.5))
+end
+
+-- Point the arrow at the current step, or hide it. The client can decline to
+-- say which way the player faces, and an arrow pointing the wrong way is worse
+-- than no arrow at all.
+local function aimArrow(pos, step)
+    local angle = ns.Trip.ArrowAngle(ns.Trip.Bearing(pos, step.to), ns.API.PlayerFacing())
+    if not angle then
+        ui.arrow:Hide()
+        return
+    end
+    ui.arrow:SetRotation(angle)
+    ui.arrow:Show()
+end
+
+local function finish()
+    ui.step:SetText("Arrived.")
+    ui.next:SetText("")
+    ui.distance:SetText("")
+    ui.eta:SetText("")
+    ui.arrow:Hide()
+    state.plan, state.index, state.best = nil, nil, nil
+end
+
+-- One look at where the player is against the step they are on. `event` is
+-- "tick", "zone" or "landed" and is handed straight to Trip.Check.
+function Dash.Tick(event)
+    if not ui or not state.plan then
+        return
+    end
+    local steps = state.plan.result.steps
+    local step = steps[state.index]
+    if not step then
+        return
+    end
+    local pos = ns.Core.Here()
+    local verdict = ns.Trip.Check(step, {
+        pos = pos, onTaxi = ns.API.OnTaxi(), event = event, best = state.best,
+    })
+
+    if verdict == "pause" then
+        ui.distance:SetText("Waiting...")
+        ui.eta:SetText("")
+        ui.arrow:Hide()
+        return
+    end
+    if verdict == "advance" then
+        if state.index >= #steps then
+            finish()
+            return
+        end
+        state.index, state.best = state.index + 1, nil
+        Dash.Refresh()
+        ns.Core.PinStep(steps[state.index])   -- the pin follows the step you are on
+        return
+    end
+    if verdict == "recalculate" then
+        local replanned = ns.Core.PlanRoute(state.plan.to, pos)
+        if replanned.result and #replanned.result.steps > 0 then
+            state.plan, state.index, state.best = replanned, 1, nil
+            ui.next:SetText("Recalculating...")
+            Dash.Refresh()
+        elseif replanned.result then
+            -- The replan found nothing left to do: the player was already at
+            -- the destination. That is arrival, not a plan to sit on quietly;
+            -- finish() is the same path an advance past the last step takes,
+            -- so the text never goes stale on an old, now-pointless step.
+            finish()
+        end
+        return
+    end
+
+    local d = ns.Trip.DistanceTo(pos, step)
+    if d then
+        state.best = math.min(state.best or d, d)
+        ui.distance:SetText(yards(d))
+        aimArrow(pos, step)
+    else
+        ui.distance:SetText("")
+        ui.arrow:Hide()
+    end
+    local travel = ns.Travel.For(state.plan.level)
+    local left = ns.Trip.Remaining(state.plan.result, state.index, pos, travel.speed)
+    ui.eta:SetText(left and ns.Route.FormatTime(left) or "")
 end
 
 -- For the desktop smoke test only.

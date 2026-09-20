@@ -106,8 +106,18 @@ function Core.PlanRoute(to, from)
     return plan
 end
 
--- Go: for now, Blizzard's map pin and arrow on the first step you travel to.
--- The dash unit takes this over in a later plan.
+-- Blizzard's map pin and on-screen arrow for one step. Spec decision 3 puts
+-- the pin on the step you are ON, so the dash calls this again each time it
+-- advances, not only when GO is pressed. Quiet: only GO explains itself.
+function Core.PinStep(step)
+    if not step or step.kind == "hearth" or not step.to.map then
+        return false
+    end
+    return API.SetWaypoint(step.to.map, step.to.mx, step.to.my) and true or false
+end
+
+-- Go: pin the first step, say what happened, and hand the plan to the dash
+-- unit, which takes over from here.
 function Core.Go(plan)
     local step = plan and plan.result and plan.result.steps[1]
     if not step then
@@ -115,11 +125,12 @@ function Core.Go(plan)
     end
     if step.kind == "hearth" then
         say("Use your hearthstone, then press GO again.")
-    elseif step.to.map and API.SetWaypoint(step.to.map, step.to.mx, step.to.my) then
+    elseif Core.PinStep(step) then
         say("Pin set: " .. Route.StepText(step) .. ".")
     else
         say("Can't put a map pin there. " .. Route.StepText(step) .. ".")
     end
+    ns.Dash.Start(plan)
 end
 
 local function routeTo(text)

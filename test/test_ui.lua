@@ -15,6 +15,7 @@ return function(h)
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
     local pins, loginCallbacks = {}, {}
     local level = 60 -- mounted, so ground steps say Ride
+    ---@type number|nil, boolean, function[]
     local facing, onTaxi, tripCallbacks = 0, false, {}
     -- What the client claims each zone's level range is, for /gps probe zones.
     -- All four cases the command has to tell apart: Westland (1) matches
@@ -185,6 +186,8 @@ return function(h)
         h.it("GO drops a pin on the first step", function()
             local ui = Planner.Debug()
             Fake.Click(ui.go)
+            h.falsy(ui.frame:IsShown(), "GO hands off to the dash and gets out of the way")
+            SlashCmdList.GOBLINPS("") -- /gps reopens it, without ending the trip, for the tests that follow
             h.eq(#pins, 1)
             h.eq(pins[1][1], 1)
             h.truthy(printed[#printed]:find("Pin set: Ride to West Dock", 1, true))
@@ -263,6 +266,7 @@ return function(h)
             h.truthy(printed[#printed]:find("Pin set: Ride to West Dock", 1, true))
             h.eq(pins[#pins][1], 1)
             where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
+            SlashCmdList.GOBLINPS("") -- GO hid the planner; /gps reopens it for the tests that follow
         end)
 
         h.it("shows the zero-step case when you are already at the destination", function()
@@ -493,14 +497,20 @@ return function(h)
     do
         local Dash = ns.Dash
 
+        -- A real step's `to` always carries a map (Graph.stopFrom sets it from
+        -- the stop data); task 5's pin test needs it too, so the fixture gets
+        -- one. `plan.to` is the destination a recalculation replans towards,
+        -- same as Core.PlanRoute always sets it; Westland is the zone the fake
+        -- player already stands in, on purpose, for the zero-step test below.
         local plan = {
             level = 60,
+            to = ns.Search.Exact(ns.Data, "Westland", "H"),
             result = {
                 seconds = 600,
                 steps = {
-                    { kind = "ride", seconds = 200, to = { name = "the North Gate", c = 1, x = 0, y = 0 } },
-                    { kind = "zeppelin", seconds = 240, to = { name = "East Dock", c = 1, x = 0, y = 0 } },
-                    { kind = "ride", seconds = 160, to = { name = "Delta", c = 1, x = 0, y = 0 } },
+                    { kind = "ride", seconds = 200, to = { name = "the North Gate", c = 1, x = 0, y = 0, map = 1 } },
+                    { kind = "zeppelin", seconds = 240, to = { name = "East Dock", c = 1, x = 0, y = 0, map = 1 } },
+                    { kind = "ride", seconds = 160, to = { name = "Delta", c = 1, x = 0, y = 0, map = 1 } },
                 },
             },
         }
@@ -550,6 +560,112 @@ return function(h)
             h.it("Start with no steps does not open", function()
                 Dash.Start({ result = { steps = {} } })
                 h.falsy(Dash.Debug().frame:IsShown())
+            end)
+        end)
+
+        -- Stand the player at a world position on map 1.
+        local function standAt(x, y)
+            where.map, where.mx, where.my = 1, (10000 - y) / 10000, (10000 - x) / 10000
+        end
+
+        h.describe("the dash unit drives the trip", function()
+            h.it("advances when you reach the step's target", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                standAt(5000, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(state.index, 1, "still on the way")
+                standAt(10, 0)
+                Dash.Tick("tick")
+                h.eq(state.index, 2, "arriving moves on")
+                h.eq(ui.step:GetText(), "Zeppelin to East Dock")
+            end)
+
+            h.it("moves Blizzard's pin onto each new step, not just the first", function()
+                Dash.Start(plan)
+                local _, state = Dash.Debug()
+                local before = #pins
+                standAt(10, 0)
+                Dash.Tick("tick")
+                h.eq(state.index, 2)
+                h.truthy(#pins > before, "the spec puts the pin on the step you are on")
+            end)
+
+            h.it("says Arrived and stops at the end", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                state.index = #plan.result.steps
+                standAt(0, 0)
+                Dash.Tick("tick")
+                h.eq(ui.step:GetText(), "Arrived.")
+                h.falsy(state.plan, "the trip is over")
+            end)
+
+            h.it("shows the distance and the time left while travelling", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(700, 0)
+                Dash.Tick("tick")
+                h.eq(ui.distance:GetText(), "700 yd")
+                h.truthy(ui.eta:GetText():find("min", 1, true), ui.eta:GetText())
+            end)
+
+            h.it("turns the arrow toward the step and hides it when facing is unknown", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(-100, 0); facing = 0
+                Dash.Tick("tick")
+                h.truthy(ui.arrow:IsShown())
+                h.eq(ui.arrow.rotation, 0, "the target is due north of us and we face north")
+                facing = nil
+                Dash.Tick("tick")
+                h.falsy(ui.arrow:IsShown(), "never point somewhere we cannot work out")
+                facing = 0
+            end)
+
+            h.it("does not advance or stray while on a zeppelin", function()
+                Dash.Start(plan)
+                local _, state = Dash.Debug()
+                state.index = 2
+                onTaxi = true
+                standAt(0, 0)
+                Dash.Tick("tick")
+                h.eq(state.index, 2, "aboard, arriving at the target means nothing")
+                onTaxi = false
+            end)
+
+            h.it("waits, without losing the trip, when the client will not place you", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                where.map = nil
+                Dash.Tick("tick")
+                h.eq(ui.distance:GetText(), "Waiting...")
+                h.truthy(state.plan, "an instance must not end the trip")
+                where.map, where.mx, where.my = 1, 0.89, 0.9
+            end)
+
+            h.it("does nothing at all when no trip is running", function()
+                Dash.Stop()
+                standAt(10, 0)
+                Dash.Tick("tick")           -- must not error
+                h.falsy(Dash.Debug().frame:IsShown())
+            end)
+
+            -- The only way to reach a zero-step replan is a recalculation that
+            -- finds the player already at their destination (plan.to here is
+            -- Westland, the zone map 1 stands in, so PlanRoute always returns
+            -- 0 steps for it). That must finish the trip like arriving at the
+            -- last step does, not leave the old step's text stuck on screen.
+            h.it("finishes the trip when a recalculation finds nothing left to plan", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                standAt(100, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(state.index, 1, "still short of arriving")
+                standAt(1000, 0)
+                Dash.Tick("tick")
+                h.eq(ui.step:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
+                h.falsy(state.plan, "the trip is over, not stuck on the old plan")
             end)
         end)
     end
