@@ -71,7 +71,22 @@ SPEC = {
     "line-solid.png": (512, 64, {"tilesx"}),
     "line-dashed.png": (512, 64, {"tilesx"}),
     "line-dot.png": (64, 64, set()),
+    # Dash unit, second design. The five layers share one canvas and one
+    # origin: they are stacked corner to corner, never scaled or centred
+    # independently, so "is it centred" is the wrong question for them and
+    # `geometry` is checked instead. Their corners are transparent because
+    # the device does not fill the canvas.
+    "dash2-housing.png": (1024, 1280, {"hole"}),
+    "dash2-glass.png": (1024, 1280, set()),
+    "dash2-compass.png": (1024, 1280, set()),
+    "dash2-steps-screen.png": (1024, 1280, set()),
+    "dash2-eta-screen.png": (1024, 1280, set()),
+    "dash2-stop.png": (256, 256, set()),
+    "dash2-stop-hover.png": (256, 256, set()),
+    "dash2-stop-pressed.png": (256, 256, set()),
 }
+
+GEOMETRY = PARTS / "dash2-geometry.json"
 
 SOLID = 128  # alpha at or above this counts as part of the drawn shape
 
@@ -181,6 +196,68 @@ def check(name, want_w, want_h, flags):
     return f"{w}x{h}", problems
 
 
+def geometry_holds():
+    """Is dash2-geometry.json telling the truth about the pixels?
+
+    It is the placement authority for the whole device, so a number that
+    drifts from the art puts the compass, the text boxes and the button in
+    the wrong places at once, with nothing to catch it.
+    """
+    import json
+
+    if not GEOMETRY.is_file():
+        return ["dash2-geometry.json is missing: nothing states where anything goes"]
+
+    g = json.loads(GEOMETRY.read_text(encoding="utf-8"))
+    w, h = g["canvas"]
+    problems = []
+
+    def alpha_of(name):
+        im = Image.open(PARTS / name).convert("RGBA")
+        if im.size != (w, h):
+            problems.append(f"{name} is {im.size[0]}x{im.size[1]}, but the geometry says {w}x{h}")
+            return None
+        return np.asarray(im.getchannel("A"), dtype=np.int16)
+
+    # The glass and the compass must share a centre, and it is NOT the canvas
+    # centre: the device's dial sits high. SetRotation turns a texture about
+    # its own middle, so a compass shipped on this canvas would swing about a
+    # point far below the dial. The tool that builds the shipped textures has
+    # to re-centre it on this point.
+    cx, cy = g["glass"]["cx"] * w, g["glass"]["cy"] * h
+    for name, key in (("dash2-glass.png", "glass"), ("dash2-compass.png", "compass_ring")):
+        a = alpha_of(name)
+        if a is None:
+            continue
+        ys, xs = np.nonzero(a > 32)
+        mx, my = (xs.min() + xs.max()) / 2, (ys.min() + ys.max()) / 2
+        if abs(mx - cx) > 3 or abs(my - cy) > 3:
+            problems.append(f"{name} is drawn around ({mx:.0f}, {my:.0f}) but the geometry "
+                            f"puts {key} at ({cx:.0f}, {cy:.0f})")
+        r = g[key]["r"] * w
+        drawn = (xs.max() - xs.min()) / 2
+        if abs(drawn - r) > 6:
+            problems.append(f"{name} has radius {drawn:.0f} px, the geometry claims {r:.0f}")
+        # Turning about the dial's centre must not push art off the canvas.
+        if cx - r < 0 or cx + r > w or cy - r < 0 or cy + r > h:
+            problems.append(f"{name} would clip the canvas when turned about the dial")
+
+    # Every opening the geometry names must really be a hole in the housing.
+    a = alpha_of("dash2-housing.png")
+    if a is not None:
+        spots = {"glass": (cx, cy),
+                 "stop_button": (g["stop_button"]["cx"] * w, g["stop_button"]["cy"] * h)}
+        for key in ("steps_screen", "eta_screen"):
+            r = g[key]
+            spots[key] = ((r["left"] + r["right"]) / 2 * w, (r["top"] + r["bottom"]) / 2 * h)
+        for key, (x, y) in spots.items():
+            if a[int(y), int(x)] != 0:
+                problems.append(f"the housing is not transparent at the centre of {key}: "
+                                "the art behind it would never show")
+
+    return problems
+
+
 def main() -> int:
     if not PARTS.is_dir():
         print("no", PARTS, "- nothing delivered yet")
@@ -202,6 +279,11 @@ def main() -> int:
         print("PROBLEM ", name)
         for p in problems:
             print("         -", p)
+
+    for problem in geometry_holds():
+        print("PROBLEM  dash2-geometry.json")
+        print("         -", problem)
+        failed.append(("dash2-geometry.json", []))
 
     extra = sorted(p.name for p in PARTS.glob("*.png")
                    if p.name not in SPEC and not p.name.startswith("_"))
