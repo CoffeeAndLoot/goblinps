@@ -9,13 +9,11 @@ ns.Dash = Dash
 
 local W = ns.Widgets
 
--- Seen in game 2026-09-20: the body art is a round device on a square
--- texture, so the frame that carries it must be square too or it renders as
--- an oval. DEVICE is that square; the frame is DEVICE wide and tall enough
--- for the device plus a band of text under it, which also keeps the art off
--- the directions.
-Dash.SIZE = { 220, 348 }
-local PAD, DEVICE = 10, 200
+-- The device's rectangle on screen. The art is 1024x1280, so this keeps that
+-- shape; everything inside is placed as a fraction of it, from the geometry
+-- the art tool generates. Nothing here is a measured guess.
+Dash.SIZE = { 230, 288 }
+local PAD = 8
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 local ui              -- built on first Start
@@ -74,6 +72,21 @@ function Dash.Refresh()
     ui.eta:SetText("")
 end
 
+local function geometry()
+    return ns.Data.Art and ns.Data.ArtGeometry
+end
+
+-- Put a region where the geometry says, as a fraction of `parent`. `rect` is
+-- { left, top, right, bottom } in 0..1 with the origin at the top left, which
+-- is how the artist's file states every box. Unused until Task 3 moves the
+-- FontStrings onto the geometry's text-safe boxes with it.
+local function place(region, parent, rect) -- luacheck: ignore 211
+    local w, h = parent:GetWidth(), parent:GetHeight()
+    region:ClearAllPoints()
+    region:SetPoint("TOPLEFT", parent, "TOPLEFT", rect.left * w, -rect.top * h)
+    region:SetPoint("BOTTOMRIGHT", parent, "TOPLEFT", rect.right * w, -rect.bottom * h)
+end
+
 local function build()
     local f = W.Panel(UIParent, "body", "brass", 3)
     f:SetSize(Dash.SIZE[1], Dash.SIZE[2])
@@ -98,80 +111,77 @@ local function build()
     end)
     f:Hide()
 
-    -- A child frame draws entirely above every draw layer of its parent, and
-    -- within one frame the region created later wins a layer tie — draw
-    -- layers alone cannot stack four frames' worth of parts correctly, so
-    -- every level below is set explicitly instead of left to either rule by
-    -- accident. Bottom to top: f's own flat colours, screen (its flat
-    -- colour, screenArt, compass, arrow), bezel (bodyArt, whose transparent
-    -- hole lets the screen show through), content (the plate and every
-    -- FontString, so the body art can never cover the directions).
     local base = f:GetFrameLevel()
+    local g = geometry()
 
-    -- The square the round art lives in. Everything round anchors to this
-    -- and never to `f`, whose height carries the text band as well.
-    local device = CreateFrame("Frame", nil, f)
-    device:SetSize(DEVICE, DEVICE)
-    device:SetPoint("TOP", 0, -PAD)
-    device:SetFrameLevel(base + 1)
+    -- One rectangle for the five layers that were drawn to stack.
+    local artLayer = CreateFrame("Frame", nil, f)
+    artLayer:SetAllPoints(f)
+    artLayer:SetFrameLevel(base + 1)
 
-    -- The three 1024px layers were drawn concentric on one canvas and are
-    -- sized as fractions of it: the body's hole is 58% of its width, the
-    -- glass disc 61%, the compass ring 55%. They only line up if all three
-    -- are drawn at the SAME square. Rendering the screen smaller than the
-    -- bezel, as this did at first, shrinks the disc inside the hole and
-    -- leaves the flat fallback colour showing around it as a square.
-    local screen = CreateFrame("Frame", nil, device)
-    screen:SetAllPoints(device)
-    screen:SetFrameLevel(base + 1)
-
-    -- The flat colour is the fallback, not a backdrop: it is a square, so it
-    -- must go when the round glass loads, or it frames the device.
-    local screenFlat = W.Fill(screen, "BACKGROUND", "screen")
-    local screenArt = art(screen, "dash-screen", "BORDER")
-    if screenArt then
-        screenFlat:Hide()
+    -- The flat colour is the fallback for art that will not load. It is a
+    -- rectangle, so it goes the moment the glass arrives, or it boxes in a
+    -- round device.
+    local flat = W.Fill(artLayer, "BACKGROUND", "screen")
+    local glass = art(artLayer, "dash2-glass", "BORDER")
+    if glass then
+        flat:Hide()
     end
-    local compass = art(screen, "dash-compass", "ARTWORK")
 
-    local arrow = screen:CreateTexture(nil, "OVERLAY")
-    arrow:SetSize(DEVICE * 0.45, DEVICE * 0.45)
-    arrow:SetPoint("CENTER")
-    arrow:SetTexture("Interface\\Buttons\\WHITE8X8")
-    arrow:SetVertexColor(unpack(W.COLOR.green))
+    -- The compass and the arrow turn, so each is a square texture centred on
+    -- the dial. SetRotation turns a texture about its own middle, and Task 1
+    -- cropped the compass so that its middle IS the dial.
+    local dial = g and { x = g.glass.cx, y = g.glass.cy } or { x = 0.5, y = 0.4 }
+    local function centreOnDial(region, share)
+        local side = f:GetWidth() * share
+        region:SetSize(side, side)
+        region:ClearAllPoints()
+        region:SetPoint("CENTER", artLayer, "TOPLEFT",
+                        dial.x * artLayer:GetWidth(), -dial.y * artLayer:GetHeight())
+    end
 
+    local compass = artLayer:CreateTexture(nil, "ARTWORK")
+    local compassPart = ns.Data.Art and ns.Data.Art["dash2-compass"]
+    if compassPart and compass:SetTexture(MEDIA .. compassPart.file) then
+        compass:SetTexCoord(compassPart.l, compassPart.r, compassPart.t, compassPart.b)
+    else
+        compass:Hide()
+    end
+    centreOnDial(compass, g and g.compassCrop.share or 0.55)
+
+    local arrow = artLayer:CreateTexture(nil, "OVERLAY")
     local arrowPart = ns.Data.Art and ns.Data.Art["arrow"]
     if arrowPart and arrow:SetTexture(MEDIA .. arrowPart.file) then
         arrow:SetTexCoord(arrowPart.l, arrowPart.r, arrowPart.t, arrowPart.b)
-        arrow:SetVertexColor(1, 1, 1)
     else
-        -- The generated file is unknown or would not load: put the flat
-        -- placeholder back. Without this, a failed SetTexture above leaves
-        -- the texture object holding the path that just failed, and the
-        -- arrow -- the one part with no colour behind it -- draws nothing.
         arrow:SetTexture("Interface\\Buttons\\WHITE8X8")
+        arrow:SetVertexColor(unpack(W.COLOR.green))
     end
+    centreOnDial(arrow, g and g.arrow.share or 0.45)
 
-    -- The bezel carries only the body art, above the screen so its
-    -- transparent hole lets the screen (and the arrow on it) show through.
-    local bezel = CreateFrame("Frame", nil, f)
-    bezel:SetAllPoints(device)
-    bezel:SetFrameLevel(base + 2)
-    local bodyArt = art(bezel, "dash-body", "OVERLAY")
+    local stepsScreen = art(artLayer, "dash2-steps-screen", "BACKGROUND")
+    local etaScreen = art(artLayer, "dash2-eta-screen", "BACKGROUND")
 
-    -- The content frame carries the plate and every line of text, above the
-    -- bezel so the body art can never cover them.
+    -- The chassis, over the art, with its holes letting the art show through.
+    local housingFrame = CreateFrame("Frame", nil, f)
+    housingFrame:SetAllPoints(f)
+    housingFrame:SetFrameLevel(base + 2)
+    local housing = art(housingFrame, "dash2-housing", "ARTWORK")
+
     local content = CreateFrame("Frame", nil, f)
     content:SetAllPoints(f)
     content:SetFrameLevel(base + 3)
 
+    -- Kept only so the trip loop still has somewhere to write; Task 3 moves
+    -- these onto the glass and into the steps/ETA panel using the geometry's
+    -- text-safe boxes instead of these placeholder anchors.
     local distance = W.Text(content, "green", "GameFontNormalLarge", "CENTER")
-    distance:SetPoint("TOPLEFT", device, "BOTTOMLEFT", 0, -2)
-    distance:SetPoint("TOPRIGHT", device, "BOTTOMRIGHT", 0, -2)
+    distance:SetPoint("TOPLEFT", content, "TOPLEFT")
+    distance:SetPoint("TOPRIGHT", content, "TOPRIGHT")
 
     local eta = W.Text(content, "dim", "GameFontNormalSmall", "CENTER")
-    eta:SetPoint("TOPLEFT", distance, "BOTTOMLEFT", 0, -2)
-    eta:SetPoint("TOPRIGHT", distance, "BOTTOMRIGHT", 0, -2)
+    eta:SetPoint("TOPLEFT", distance, "BOTTOMLEFT")
+    eta:SetPoint("TOPRIGHT", distance, "BOTTOMRIGHT")
 
     -- The step is the one line worth reading, and stop names are long
     -- ("Walk to Undercity Zeppelin Tower" truncated in game at 200 wide), so
@@ -180,29 +190,24 @@ local function build()
     local step = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     step:SetWordWrap(true)
     step:SetHeight(28)
-    step:SetPoint("TOPLEFT", eta, "BOTTOMLEFT", 2, -6)
-    step:SetPoint("TOPRIGHT", eta, "BOTTOMRIGHT", -2, -6)
+    step:SetPoint("TOPLEFT", eta, "BOTTOMLEFT")
+    step:SetPoint("TOPRIGHT", eta, "BOTTOMRIGHT")
 
     local following = W.Text(content, "dim", "GameFontHighlightSmall", "CENTER")
-    following:SetPoint("TOPLEFT", step, "BOTTOMLEFT", 0, -1)
-    following:SetPoint("TOPRIGHT", step, "BOTTOMRIGHT", 0, -1)
-
-    -- The ETA plate sits behind the time-left line: a BACKGROUND texture
-    -- directly on `content`, anchored around `eta` instead of filling the
-    -- frame, drawing under the FontStrings above at OVERLAY on that same
-    -- frame — no draw-layer override needed on `eta` for that to hold.
-    local plateArt = art(content, "dash-eta-plate", "BACKGROUND", eta)
+    following:SetPoint("TOPLEFT", step, "BOTTOMLEFT")
+    following:SetPoint("TOPRIGHT", step, "BOTTOMRIGHT")
 
     -- Stop is its own frame; with no explicit level it would default to one
-    -- above `f`, level with `screen` and so under the bezel and content that
-    -- now cover the whole device, so it is pinned above all of them.
+    -- above `f`, level with `artLayer` and so under the housing and content
+    -- that now cover the whole device, so it is pinned above all of them.
     local stop = W.Button(f, "Stop", 48, 20, function() Dash.Stop() end)
     stop:SetPoint("BOTTOM", 0, PAD)
     stop:SetFrameLevel(base + 4)
 
-    ui = { frame = f, device = device, screen = screen, screenFlat = screenFlat,
-           screenArt = screenArt, compass = compass, arrow = arrow,
-           bezel = bezel, content = content, bodyArt = bodyArt, plateArt = plateArt,
+    ui = { frame = f, artLayer = artLayer, flat = flat, glass = glass,
+           compass = compass, arrow = arrow, stepsScreen = stepsScreen,
+           etaScreen = etaScreen, housingFrame = housingFrame, housing = housing,
+           content = content,
            distance = distance, eta = eta, step = step, next = following, stop = stop }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")
 
