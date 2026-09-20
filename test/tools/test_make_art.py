@@ -121,10 +121,44 @@ class TestGeometryExport(unittest.TestCase):
             self.assertIn(key, lua, f"{key} is missing; Dash.lua would have to guess it")
 
     def test_it_reports_the_crop_as_a_fraction_of_the_device(self):
+        # Dash.lua sizes the compass by multiplying the device's width by this
+        # number and nothing else, so it has to BE the crop's width against
+        # the canvas. "Somewhere between 0 and 1" would pass for any wrong
+        # answer in that range, including one that draws the ring at half
+        # size.
         lua = make_art.geometry_lua()
-        share = lua["compassCrop"]["share"]
-        self.assertGreater(share, 0.0)
-        self.assertLess(share, 1.0)
+        box = make_art.compass_crop_box()
+        canvas_w = make_art.geometry()["canvas"][0]
+        self.assertAlmostEqual(lua["compassCrop"]["share"],
+                               (box[2] - box[0]) / canvas_w, places=12)
+
+
+class TestShippedCompass(unittest.TestCase):
+    """The crop arithmetic is covered above; this measures what actually shipped.
+
+    SetRotation turns a texture about the middle of its own canvas, so the
+    compass only spins instead of orbiting if the drawn ring really is centred
+    on the shipped TGA. Every step between the artist's PNG and that file --
+    the crop box, the resize, the power-of-two padding -- can move it, and
+    nothing else looks at the result.
+    """
+
+    def test_the_shipped_compass_is_centred_on_its_own_canvas(self):
+        import numpy as np
+        from PIL import Image
+
+        tga = (Path(make_art.MEDIA) / "dash2-compass.tga")
+        self.assertTrue(tga.is_file(), "run tools/make_art.py: the compass has not been built")
+        im = Image.open(tga).convert("RGBA")
+        w, h = im.size
+        alpha = np.asarray(im.getchannel("A"))
+        ys, xs = np.nonzero(alpha > 0)
+        self.assertTrue(len(xs), "the shipped compass is blank")
+        cx, cy = (int(xs.min()) + int(xs.max())) / 2, (int(ys.min()) + int(ys.max())) / 2
+        self.assertAlmostEqual(cx, (w - 1) / 2, delta=0.5,
+                               msg="the ring is off centre left to right; it would orbit as it turns")
+        self.assertAlmostEqual(cy, (h - 1) / 2, delta=0.5,
+                               msg="the ring is off centre top to bottom; it would orbit as it turns")
 
 
 if __name__ == "__main__":

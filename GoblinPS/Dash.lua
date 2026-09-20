@@ -1,18 +1,23 @@
 local _, ns = ...
 
 -- The dash unit: a small draggable device showing the step you are on, an
--- arrow that turns to point at it, how far is left and how long. Built on flat
--- colours; task 6 lays the art over them, and a texture that does not load
--- must leave this readable.
+-- arrow that turns to point at it, how far is left and how long. The art of
+-- the second design is laid over a flat-colour fallback, and a texture that
+-- does not load must leave this readable.
 local Dash = {}
 ns.Dash = Dash
 
 local W = ns.Widgets
 
--- The device's rectangle on screen. The art is 1024x1280, so this keeps that
--- shape; everything inside is placed as a fraction of it, from the geometry
--- the art tool generates. Nothing here is a measured guess.
-Dash.SIZE = { 232, 290 }
+-- The device's rectangle on screen, and the ONE layout number not read from
+-- the geometry. 288x360 is exactly 4:5, the art's 1024:1280, so the device
+-- cannot draw stretched; everything inside is placed as a fraction of it,
+-- from the geometry the art tool generates. The size was chosen so the
+-- artist's smallest opening still clears the client's 10 px fonts (a step
+-- line comes out at 21.19 px, the ETA plate at 19.12). It has not yet been
+-- looked at in game: if a line is cramped or swims, this is the number to
+-- change, and nothing else moves with it.
+Dash.SIZE = { 288, 360 }
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 local ui              -- built on first Start
@@ -22,13 +27,10 @@ local function stepText(step)
     return step and ns.Route.StepText(step) or ""
 end
 
--- Lay a generated part over a flat colour, on `parent` at `layer`. The
--- texture fills `parent`, unless `pad` is given (a widget to anchor around
--- with a little padding instead), for a part that sits behind one small
--- widget rather than covering the whole frame. Returns the texture, or nil
--- when the part is unknown or the file will not load, leaving the colour
--- showing.
-local function art(parent, name, layer, pad)
+-- Lay a generated part over a flat colour, on `parent` at `layer`, filling
+-- `parent`. Returns the texture, or nil when the part is unknown or the file
+-- will not load, leaving the colour showing.
+local function art(parent, name, layer)
     local part = ns.Data.Art and ns.Data.Art[name]
     if not part then
         return nil
@@ -39,12 +41,7 @@ local function art(parent, name, layer, pad)
         return nil
     end
     t:SetTexCoord(part.l, part.r, part.t, part.b)
-    if pad then
-        t:SetPoint("TOPLEFT", pad, "TOPLEFT", -6, 4)
-        t:SetPoint("BOTTOMRIGHT", pad, "BOTTOMRIGHT", 6, -4)
-    else
-        t:SetAllPoints(parent)
-    end
+    t:SetAllPoints(parent)
     return t
 end
 
@@ -84,22 +81,45 @@ function Dash.Refresh()
     ui.eta:SetText("")
 end
 
+-- The placement file stands on its own: the parts table says which textures
+-- shipped, which is a different question and not a precondition. Gating one
+-- on the other would drop the whole layout to its fallback while a perfectly
+-- good geometry sat there unread.
 local function geometry()
-    return ns.Data.Art and ns.Data.ArtGeometry
+    return ns.Data.ArtGeometry
 end
 
--- Put a region where the geometry says, as a fraction of `parent`. `rect` is
--- { left, top, right, bottom } in 0..1 with the origin at the top left, which
--- is how the artist's file states every box.
-local function place(region, parent, rect)
+-- Sit a line of text on the artist's line, as a fraction of `parent`. `rect`
+-- is { left, top, right, bottom } in 0..1 with the origin at the top left,
+-- which is how the artist's file states every box.
+--
+-- Every rect handed to this is a LINE, not an area: `destination_line` and
+-- `distance_line` say so in their names, and the three step lines and the
+-- ETA are single lines cut out of their panels. A line's rect is 6 to 21 px
+-- tall on this device, far under the height the client's fonts draw at, so
+-- anchoring corner to corner would crush the text into a box it cannot fit.
+-- Instead the FontString is hung on the rect's vertical centre line and left
+-- to take whatever height its font needs. Two horizontal anchors still, so
+-- the bounding rule holds and the line truncates rather than escaping.
+-- Anything that is genuinely an area is a texture and fills its own frame;
+-- nothing in this file places one through here, and a future one must not
+-- borrow this helper -- its name says line, and it means it.
+local function placeLine(fs, parent, rect)
     local w, h = parent:GetWidth(), parent:GetHeight()
-    region:ClearAllPoints()
-    region:SetPoint("TOPLEFT", parent, "TOPLEFT", rect.left * w, -rect.top * h)
-    region:SetPoint("BOTTOMRIGHT", parent, "TOPLEFT", rect.right * w, -rect.bottom * h)
+    local y = -(rect.top + rect.bottom) / 2 * h
+    fs:ClearAllPoints()
+    fs:SetPoint("LEFT", parent, "TOPLEFT", rect.left * w, y)
+    fs:SetPoint("RIGHT", parent, "TOPLEFT", rect.right * w, y)
 end
 
 local function build()
-    local f = W.Panel(UIParent, "body", "brass", 3)
+    -- Bare on purpose. A texture created on this frame could only be taken
+    -- off screen by hiding the frame, which is the one thing that must never
+    -- happen mid-trip -- so it would be a rectangle behind a device whose art
+    -- is nearly 40% transparent, showing as brass down both edges. Every
+    -- layer, including the no-art fallback, goes on a child frame that CAN
+    -- be hidden.
+    local f = CreateFrame("Frame", nil, UIParent)
     f:SetSize(Dash.SIZE[1], Dash.SIZE[2])
     f:SetFrameStrata("HIGH")
     f:SetMovable(true)
@@ -133,8 +153,10 @@ local function build()
     -- The flat colour is the fallback for art that will not load. It is a
     -- rectangle, so it goes the moment the glass arrives, or it boxes in a
     -- round device.
-    local flat = W.Fill(artLayer, "BACKGROUND", "screen")
-    local glass = art(artLayer, "dash2-glass", "BORDER")
+    local flat = W.Panel(f, "body", "brass", 3)
+    flat:SetAllPoints(f)
+    flat:SetFrameLevel(base)
+    local glass = art(artLayer, "dash2-glass", "BACKGROUND")
     if glass then
         flat:Hide()
     end
@@ -154,7 +176,7 @@ local function build()
                         dial.x * artLayer:GetWidth(), -dial.y * artLayer:GetHeight())
     end
 
-    local compass = artLayer:CreateTexture(nil, "ARTWORK")
+    local compass = artLayer:CreateTexture(nil, "BORDER")
     local compassPart = ns.Data.Art and ns.Data.Art["dash2-compass"]
     if compassPart and compass:SetTexture(MEDIA .. compassPart.file) then
         compass:SetTexCoord(compassPart.l, compassPart.r, compassPart.t, compassPart.b)
@@ -165,7 +187,7 @@ local function build()
     -- guess at the compass's share of the device, not a measured fraction.
     centreOnDial(compass, g and g.compassCrop.share or 0.55)
 
-    local arrow = artLayer:CreateTexture(nil, "OVERLAY")
+    local arrow = artLayer:CreateTexture(nil, "ARTWORK")
     local arrowPart = ns.Data.Art and ns.Data.Art["arrow"]
     if arrowPart and arrow:SetTexture(MEDIA .. arrowPart.file) then
         arrow:SetTexCoord(arrowPart.l, arrowPart.r, arrowPart.t, arrowPart.b)
@@ -177,8 +199,13 @@ local function build()
     -- guess at the arrow's share of the device, not a measured fraction.
     centreOnDial(arrow, g and g.arrow.share or 0.45)
 
-    local stepsScreen = art(artLayer, "dash2-steps-screen", "BACKGROUND")
-    local etaScreen = art(artLayer, "dash2-eta-screen", "BACKGROUND")
+    -- images/parts/dash2-notes.md states the order: glass, compass, arrow,
+    -- steps insert, ETA insert, then housing. The five draw layers above and
+    -- below are that order, and the housing is a frame above this one. The
+    -- two inserts overlap nothing today, so nothing moves on screen -- but a
+    -- redraw that widened either one would have put it under the glass.
+    local stepsScreen = art(artLayer, "dash2-steps-screen", "OVERLAY")
+    local etaScreen = art(artLayer, "dash2-eta-screen", "OVERLAY")
 
     -- The chassis, over the art, with its holes letting the art show through.
     local housingFrame = CreateFrame("Frame", nil, f)
@@ -194,8 +221,8 @@ local function build()
     local destination = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     local distance = W.Text(content, "green", "GameFontNormalLarge", "CENTER")
     if g then
-        place(destination, content, g.destination)
-        place(distance, content, g.distance)
+        placeLine(destination, content, g.destination)
+        placeLine(distance, content, g.distance)
     else
         -- Only reached when the generated geometry is absent: a plain
         -- vertical stack down the middle of the frame, not a placed layout.
@@ -216,7 +243,7 @@ local function build()
     if g then
         local box, third = g.stepsText, (g.stepsText.bottom - g.stepsText.top) / 3
         for i = 1, 3 do
-            place(steps[i], content, {
+            placeLine(steps[i], content, {
                 left = box.left, right = box.right,
                 top = box.top + third * (i - 1), bottom = box.top + third * i,
             })
@@ -235,7 +262,7 @@ local function build()
     -- On its own plate: the time left.
     local eta = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     if g then
-        place(eta, content, g.etaText)
+        placeLine(eta, content, g.etaText)
     else
         -- Only reached when the generated geometry is absent: the last line
         -- of the same vertical stack.
@@ -263,25 +290,27 @@ local function build()
     stop:RegisterForClicks("LeftButtonUp")
     stop:SetScript("OnClick", function() Dash.Stop() end)
 
-    local function cap(name, setter)
+    -- Every cap is a shipped part on a padded canvas, so every cap needs
+    -- part.l/r/t/b to crop the padding away -- the hover one no less than the
+    -- other two. It is right today only because dash2-stop-hover happens to
+    -- land on a canvas its art fills exactly, which is an accident of its
+    -- size, not a property of the pipeline.
+    local function cap(name, layer)
         local part = ns.Data.Art and ns.Data.Art[name]
         if not part then
             return nil
         end
-        local t = stop:CreateTexture(nil, "ARTWORK")
+        local t = stop:CreateTexture(nil, layer)
         if not t:SetTexture(MEDIA .. part.file) then
             return nil
         end
         t:SetTexCoord(part.l, part.r, part.t, part.b)
         t:SetAllPoints(stop)
-        if setter then
-            setter(t)
-        end
         return t
     end
 
-    local stopNormal = cap("dash2-stop")
-    local stopPressed = cap("dash2-stop-pressed")
+    local stopNormal = cap("dash2-stop", "ARTWORK")
+    local stopPressed = cap("dash2-stop-pressed", "ARTWORK")
     if stopPressed then
         stopPressed:Hide()
         stop:SetScript("OnMouseDown", function()
@@ -293,9 +322,9 @@ local function build()
             if stopNormal then stopNormal:Show() end
         end)
     end
-    local hover = ns.Data.Art and ns.Data.Art["dash2-stop-hover"]
-    if hover then
-        stop:SetHighlightTexture(MEDIA .. hover.file, "ADD")
+    local stopHover = cap("dash2-stop-hover", "HIGHLIGHT")
+    if stopHover then
+        stop:SetHighlightTexture(stopHover, "ADD")
     end
     if not stopNormal then
         -- No art: a flat coloured square still presses and still stops.
@@ -306,7 +335,8 @@ local function build()
            compass = compass, arrow = arrow, stepsScreen = stepsScreen,
            etaScreen = etaScreen, housingFrame = housingFrame, housing = housing,
            content = content, destination = destination, distance = distance,
-           steps = steps, eta = eta, stop = stop, stopNormal = stopNormal, stopPressed = stopPressed }
+           steps = steps, eta = eta, stop = stop, stopNormal = stopNormal,
+           stopPressed = stopPressed, stopHover = stopHover }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")
 
     local since = 0
@@ -336,7 +366,10 @@ function Dash.Start(plan)
     if #steps == 0 then
         return
     end
-    state.plan, state.index, state.best = plan, 1, nil
+    -- `banner` resets with the rest: a second Start before the next tick
+    -- would otherwise open the new trip under the old one's "Recalculating...",
+    -- with all three step lines blanked behind it.
+    state.plan, state.index, state.best, state.banner = plan, 1, nil, nil
     Dash.Refresh()
     ui.frame:Show()
 end
@@ -367,13 +400,13 @@ local function aimArrow(pos, step)
     end
     ui.arrow:SetRotation(angle)
     ui.arrow:Show()
-    if ui.compass then
-        -- Through Trip.CompassAngle, the same ROTATION_SIGN the arrow uses:
-        -- flipping that constant (the checklist's in-game remedy for an
-        -- arrow that turns the wrong way) must turn the compass with it,
-        -- not leave it hard-coded to one direction.
-        ui.compass:SetRotation(ns.Trip.CompassAngle(ns.API.PlayerFacing()))
-    end
+    -- Through Trip.CompassAngle, the same ROTATION_SIGN the arrow uses:
+    -- flipping that constant (the checklist's in-game remedy for an arrow
+    -- that turns the wrong way) must turn the compass with it, not leave it
+    -- hard-coded to one direction. The texture is always there -- build()
+    -- creates it unconditionally and only hides it when the part is missing
+    -- -- so turning it needs no guard.
+    ui.compass:SetRotation(ns.Trip.CompassAngle(ns.API.PlayerFacing()))
 end
 
 local function finish()
