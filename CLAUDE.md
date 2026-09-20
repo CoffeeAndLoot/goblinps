@@ -14,10 +14,13 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: routing core, planner window and ground crossings built (plans 1
-to 3).** `/gps` opens the planner; `/gps to <place>` prints a route in chat,
-with ground travel going zone by zone through named crossings and
-walk-or-ride by level. Next: plan 4, the dash unit (arrow, arrival,
+**Status: plans 1 to 3 are merged to `main` and confirmed in the client**
+(2026-09-20: routing core, planner window, ground crossings). `/gps` opens
+the planner; `/gps to <place>` prints a route in chat, with ground travel
+going zone by zone through named crossings and walk-or-ride by level.
+What is still estimated is **data, not code**: crossing coordinates, the two
+mount speeds, `cross` times and some zone level ranges. The addon says so in
+amber where it matters; `docs/manual-test-checklist.md` lists what to walk. Next: plan 4, the dash unit (arrow, arrival,
 recalculating); plan 5, the route strip. A schematic world map was dropped on
 2026-09-20 in favour of the strip; the spike that proved it feasible is kept
 at `docs/research/schematic-spike/`. The product is a GPS: point to point with
