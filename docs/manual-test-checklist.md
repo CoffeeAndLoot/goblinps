@@ -52,8 +52,11 @@ These decide the design. Record the result beside each one.
 - [x] Open the same flight map again: no "Learned" message (nothing new)
       (2026-09-19: reopened Crossroads, chat stayed quiet)
 - [ ] `/reload`, then `/gps to orgrimmar`: the flights are still known
-- [ ] Visit a flight master on the other continent: its paths are added and
+- [x] Visit a flight master on the other continent: its paths are added and
       the first continent's are kept
+      (2026-09-19 at Undercity: "Learned 3 flight paths here (8 known)" =
+      5 Kalimdor + 3 Eastern Kingdoms. Note: it learns when the flight MAP
+      opens, not when you only talk to the flight master.)
 - [ ] `/gps to <a city you can reach>` prints numbered steps, a total time
       and a fare; the steps are the route you would actually take
       (2026-09-19, Horde near Thunder Bluff, `/gps to undercity`: ride to
