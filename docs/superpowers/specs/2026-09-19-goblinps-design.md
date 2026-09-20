@@ -101,8 +101,11 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     master; add a row whenever "unknown inn" is seen in game.
 11. **Boats, zeppelins and the tram carry a fixed average wait.** Each link's
     `minutes` is ride time plus about half its loop, so the router compares
-    them fairly against flights. The step shows it plainly:
-    "Zeppelin to Tirisfal (~5 min incl. wait)".
+    them fairly against flights. The step reads "Zeppelin to Tirisfal" with
+    "includes the average wait" on its detail line; the minutes themselves go
+    in the planner's own column and beside the step in chat. The step text
+    carried them too until 2026-09-20, which printed the figure twice and ran
+    the longest names past the right edge, where the client truncated them.
 12. **"Discover X to save ~N min" is in v1.** `Route` runs a second time with
     every faction-legal flight node treated as known. If that route is at
     least 2 minutes faster, one line under the step list names the first two

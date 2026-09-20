@@ -245,8 +245,11 @@ return function(h, loaded)
             text, warn = ns.Route.StepDetail(data, r.steps[8], 60)
             h.eq(text, "into Mount Hyjal · crossing not confirmed")
             h.eq(warn, true)
+            -- The zeppelin step. Its figure is padded by the average wait, and
+            -- saying so is the only detail a link step carries; the minutes
+            -- themselves belong in the planner's own column, not in the text.
             text, warn = ns.Route.StepDetail(data, r.steps[2], 1)
-            h.eq(text, "")
+            h.eq(text, "includes the average wait")
             h.eq(warn, false)
         end)
         h.it("keeps every crossing's detail line short enough not to be cut off", function()

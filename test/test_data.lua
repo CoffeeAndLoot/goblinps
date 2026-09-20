@@ -127,7 +127,7 @@ return function(h, loaded)
             local r = ns.Route.Plan(data, { faction = "A", known = allKnown(),
                                             from = placeOf(sw), to = placeOf(ironforge) })
             h.truthy(r, "no route")
-            h.eq(ns.Route.StepText(r.steps[2]), "Tram to Ironforge Tram Station (~2 min incl. wait)")
+            h.eq(ns.Route.StepText(r.steps[2]), "Tram to Ironforge Tram Station")
         end)
         h.it("takes an Alliance character across water to Teldrassil, not a ride", function()
             local darkshore = ns.Search.Find(data, "Darkshore", "A", 1)[1]

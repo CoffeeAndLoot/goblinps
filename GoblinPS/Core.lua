@@ -130,7 +130,7 @@ local function routeTo(text)
         say("To " .. dest.name .. ": " .. Route.FormatTime(plan.result.seconds) .. ", "
             .. Route.FormatMoney(plan.result.copper))
         for i, step in ipairs(steps) do
-            say(i .. ". " .. Route.StepText(step))
+            say(i .. ". " .. Route.StepText(step) .. "  " .. Route.FormatTime(step.seconds))
             local detail, warn = Route.StepDetail(ns.Data, step, plan.level)
             if detail ~= "" then
                 say("     " .. ns.Widgets.ChatColor(warn and "amber" or "dim") .. detail .. "|r")

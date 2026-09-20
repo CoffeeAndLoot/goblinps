@@ -161,11 +161,11 @@ function Route.StepText(step)
         end
         return verb .. " to " .. ns.Search.ShortName(step.to.name)
     end
-    local text = VERB[step.kind] .. " " .. ns.Search.ShortName(step.to.name)
-    if WAITS[step.kind] then
-        text = text .. " (" .. Route.FormatTime(step.seconds) .. " incl. wait)"
-    end
-    return text
+    -- No time here: the planner prints it in its own column and chat prints it
+    -- beside the step, so repeating it pushed the longest step names past the
+    -- right edge and the client truncated them ("Zeppelin to Orgrimmar Zeppel...").
+    -- That a boat or zeppelin's figure includes the wait is said on the detail line.
+    return VERB[step.kind] .. " " .. ns.Search.ShortName(step.to.name)
 end
 
 local function levels(range)
@@ -182,6 +182,9 @@ end
 -- unconfirmed note replaces the level range on the line (never both: the
 -- line does not wrap, and the hazard is the part that must not be cut off).
 function Route.StepDetail(data, step, level)
+    if WAITS[step.kind] then
+        return "includes the average wait", false
+    end
     if step.kind ~= "ride" or not step.zone then
         return "", false
     end

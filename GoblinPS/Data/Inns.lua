@@ -1,7 +1,9 @@
 -- HAND-WRITTEN. Hearthstone bind names that Search cannot find by itself.
--- GetBindLocation() returns the inn's area name. Most match a flight stop or
--- a zone once a leading "The" is ignored ("The Crossroads" -> Crossroads).
--- These do not:
+-- GetBindLocation() returns the SUBZONE you bound in, not the town. Sometimes
+-- that is the town ("The Crossroads"), but inside a town it is usually the
+-- inn building itself: binding in Brill reports "Gallows' End Tavern"
+-- (seen in game 2026-09-20). Most names match a flight stop or a zone once a
+-- leading "The" is ignored. These do not:
 --   stop = "<short flight stop name>"  the inn stands beside that flight stop
 --   map, mx, my                        a town with an inn and no flight master;
 --                                      map coords (0..1), APPROXIMATE until
@@ -22,3 +24,10 @@ ns.Data.Inns = {
     ["Kharanos"]          = { map = 1426, mx = 0.474, my = 0.525 }, -- Dun Morogh
     ["Dolanaar"]          = { map = 1438, mx = 0.556, my = 0.598 }, -- Teldrassil
 }
+
+-- Inn buildings, whose own name is what GetBindLocation reports. Each shares
+-- the row of the town it stands in rather than repeating its coordinates, so
+-- correcting the town in game corrects the tavern with it. Add a line here
+-- whenever the addon prints "Hearth: unknown inn (...)" for a name that is a
+-- building inside a town already listed above.
+ns.Data.Inns["Gallows' End Tavern"] = ns.Data.Inns["Brill"]
