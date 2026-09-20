@@ -14,7 +14,7 @@ Fake.missingTextures = {}
 -- misspelt or invented call, and the fake raises instead of quietly doing
 -- nothing, so a bad widget call fails on the desktop instead of only in game.
 local ALLOWED_NOOP = {
-    SetAllPoints = true, SetColorTexture = true, SetTexCoord = true, SetAlpha = true,
+    SetAllPoints = true, SetColorTexture = true, SetAlpha = true,
     SetJustifyH = true, SetWordWrap = true, SetFontObject = true,
     SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
@@ -112,6 +112,10 @@ function Region:SetTexture(path)
     return path ~= nil and not Fake.missingTextures[path]
 end
 function Region:GetTexture() return self.texture end
+function Region:SetTexCoord(l, r, t, b) self.texCoord = { l, r, t, b } end
+function Region:SetRotation(radians) self.rotation = radians end
+function Region:SetVertexColor(r, g, b, a) self.vertexColor = { r, g, b, a } end
+function Region:SetDrawLayer(layer) self.drawLayer = layer end
 function Region:GetCenter() return 100, 100 end
 function Region:GetEffectiveScale() return 1 end
 function Region:ClearFocus()

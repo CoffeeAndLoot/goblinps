@@ -27,6 +27,21 @@ function API.Level()
     return UnitLevel and UnitLevel("player") or nil
 end
 
+-- Which way the player faces, in radians: 0 north, growing counter-clockwise.
+-- Documented Nilable, and it has no answer in some places, so callers must
+-- cope with nil by hiding the arrow rather than pointing it somewhere wrong.
+function API.PlayerFacing()
+    if not GetPlayerFacing then
+        return nil
+    end
+    return GetPlayerFacing()
+end
+
+-- On a flight path, where the player steers nothing and straying is meaningless.
+function API.OnTaxi()
+    return UnitOnTaxi and UnitOnTaxi("player") and true or false
+end
+
 -- The level range the client itself draws on the world map ("Ashenvale
 -- (18-30)"), for one UiMap. Blizzard's own AreaLabelDataProvider reads it the
 -- same way and treats a zero as "no range", and the documentation marks the
@@ -112,6 +127,21 @@ function API.OnTaxiMapOpened(callback)
     frame:SetScript("OnEvent", callback)
 end
 
+-- The moments worth re-checking an active trip, beyond the dash's own ticking:
+-- crossing into a new zone, and a flight ending. Calls back with "zone" or
+-- "landed". All four events are confirmed present on this build; do not add
+-- others without checking the forever branch first.
+function API.OnTripEvent(callback)
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("ZONE_CHANGED")
+    f:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    f:RegisterEvent("PLAYER_CONTROL_LOST")
+    f:RegisterEvent("PLAYER_CONTROL_GAINED")
+    f:SetScript("OnEvent", function(_, event)
+        callback(event == "PLAYER_CONTROL_GAINED" and "landed" or "zone")
+    end)
+end
+
 -- The player's position on the nearest map we have data for: uiMapID, x, y
 -- (0..1). Nil inside instances, on a map we do not know, or when the client
 -- reports the origin (an unset position, not a real spot on the map).
@@ -175,6 +205,8 @@ function API.SelfCheck()
         { "GetBindLocation", GetBindLocation },
         { "UnitFactionGroup", UnitFactionGroup },
         { "UnitLevel", UnitLevel },
+        { "GetPlayerFacing", GetPlayerFacing },
+        { "UnitOnTaxi", UnitOnTaxi },
     }
     local out = {}
     for i, check in ipairs(checks) do

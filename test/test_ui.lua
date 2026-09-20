@@ -15,6 +15,7 @@ return function(h)
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
     local pins, loginCallbacks = {}, {}
     local level = 60 -- mounted, so ground steps say Ride
+    local facing, onTaxi, tripCallbacks = 0, false, {}
     -- What the client claims each zone's level range is, for /gps probe zones.
     -- All four cases the command has to tell apart: Westland (1) matches
     -- Data.Zones, Northland (4) disagrees with it, Isle (3) and Eastland (2)
@@ -39,6 +40,9 @@ return function(h)
         OpenTaxiNodes = function() return {} end,
         OnTaxiMapOpened = function() end,
         OnLogin = function(callback) loginCallbacks[#loginCallbacks + 1] = callback end,
+        PlayerFacing = function() return facing end,
+        OnTaxi = function() return onTaxi end,
+        OnTripEvent = function(callback) tripCallbacks[#tripCallbacks + 1] = callback end,
         SetWaypoint = function(map, x, y)
             pins[#pins + 1] = { map, x, y }
             return true
@@ -480,6 +484,26 @@ return function(h)
             SlashCmdList.GOBLINPS("to delta")
             h.truthy(printed[from + 1]:find("To Delta: ~10 min, 1s", 1, true))
             h.truthy(printed[from + 2]:find("1. Ride to Alpha", 1, true))
+        end)
+    end)
+
+    h.describe("the fake frames model what the dash needs", function()
+        h.it("a texture can be rotated", function()
+            local f = CreateFrame("Frame")
+            local t = f:CreateTexture(nil, "ARTWORK")
+            t:SetRotation(1.25)
+            h.eq(t.rotation, 1.25, "the fake must record the angle so tests can read it")
+        end)
+        h.it("a texture records its coordinates, tint and layer", function()
+            local f = CreateFrame("Frame")
+            local t = f:CreateTexture(nil, "ARTWORK")
+            t:SetTexCoord(0, 0.75, 0, 0.5)
+            h.eq(t.texCoord[2], 0.75, "SetTexCoord must record, not be swallowed")
+            h.eq(t.texCoord[4], 0.5)
+            t:SetVertexColor(1, 0, 0, 1)
+            h.eq(t.vertexColor[1], 1)
+            t:SetDrawLayer("OVERLAY")
+            h.eq(t.drawLayer, "OVERLAY")
         end)
     end)
 

@@ -58,6 +58,10 @@ local function here()
     return { name = "You", c = c, x = x, y = y, map = map, mx = mx, my = my }
 end
 
+-- Where the player stands, as a place the router understands. Nil inside an
+-- instance, where the client gives no useful position.
+function Core.Here() return here() end
+
 -- Plans a route to a place (from Search), from another place or, when from is
 -- nil, from where the player stands. Always returns a table:
 --   result  Route.Plan's answer, or nil

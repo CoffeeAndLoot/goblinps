@@ -9,6 +9,7 @@ globals = {
 read_globals = {
     "print",
     "UnitFactionGroup", "GetBindLocation", "UnitLevel",
+    "GetPlayerFacing", "UnitOnTaxi",
     "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint",
     "CreateFrame", "Enum",
     "UIParent", "Minimap", "GameTooltip", "GetCursorPosition",
