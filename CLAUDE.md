@@ -59,6 +59,7 @@ tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_c
 tools/catalog.lock           # pinned client build
 test/run.lua                 # desktop Lua test runner
 docs/                        # specs, research, manual test checklist
+docs/build-log/              # why plans 2 and 3 went the way they did: rulings and review findings
 ```
 
 Each module opens with `local addonName, ns = ...` and publishes itself on the
