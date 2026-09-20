@@ -14,9 +14,12 @@ SelfTest.FONTS = {
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 -- The parts tools/make_art.py builds, sorted for a stable report; never typed
--- by hand so this list cannot drift from what the tool produced. Data.Art
--- also carries a non-part "geometry" table (placement fractions for
--- Dash.lua), so only entries with a `.file` are textures to probe.
+-- by hand so this list cannot drift from what the tool produced. Data.Art is
+-- generated and machine-written, so a future entry could take a shape this
+-- code does not expect (as ns.Data.ArtGeometry briefly did, nested here,
+-- before it moved to its own sibling table alongside Data.Art); guarding on
+-- `.file` keeps a shape surprise in generated data from crashing the self
+-- test instead of just being reported as a part with no texture.
 local function shippedArt()
     local names = {}
     for name, part in pairs(ns.Data.Art or {}) do

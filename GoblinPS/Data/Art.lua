@@ -21,7 +21,7 @@ ns.Data.Art = {
     ["dash2-stop-pressed"] = { file = "dash2-stop-pressed", l = 0, r = 1, t = 0, b = 1 },  -- 64x64 art on 64x64
 }
 
-ns.Data.Art.geometry = {
+ns.Data.ArtGeometry = {
     ["arrow"] = {
         ["share"] = 0.450195
     },

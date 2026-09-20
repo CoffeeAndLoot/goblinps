@@ -187,7 +187,7 @@ def main():
         print("{0}: {1}x{2} on {3}x{4}, {5:.0f} KB".format(
             part.name, part.width, part.height, cw, ch, size / 1024))
     text = HEADER + "\n".join(rows) + "\n}\n"
-    text += "\nns.Data.Art.geometry = {0}\n".format(lua_value(geometry_lua(), 0))
+    text += "\nns.Data.ArtGeometry = {0}\n".format(lua_value(geometry_lua(), 0))
     TABLE.write_text(text, encoding="utf-8")
     print("wrote {0}".format(TABLE))
     print("{0} textures, {1:.2f} MB total".format(len(PARTS), total / 1024 / 1024))
