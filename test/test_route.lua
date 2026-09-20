@@ -188,6 +188,21 @@ return function(h, loaded)
             h.eq(text, "")
             h.eq(warn, false)
         end)
+        -- No row in Data/Crossings.lua carries both today, so the real-data test
+        -- cannot reach this ordering. Level 60 keeps the zone itself calm, so
+        -- the amber can only be coming from the crossing.
+        h.it("puts the hazard before the unconfirmed note when a crossing has both", function()
+            local gate = { name = "the test gate", zones = { 1, 2 }, warn = "trolls on the bridge", unverified = true }
+            local text, warn = Route.StepDetail(world, { kind = "ride", zone = 1, to = gate }, 60)
+            h.eq(text, "into Eastland · trolls on the bridge · crossing not confirmed")
+            h.eq(warn, true)
+        end)
+        h.it("says only the crossing is unconfirmed when it carries no hazard", function()
+            local gate = { name = "the test gate", zones = { 1, 2 }, unverified = true }
+            local text, warn = Route.StepDetail(world, { kind = "ride", zone = 1, to = gate }, 60)
+            h.eq(text, "into Eastland · crossing not confirmed")
+            h.eq(warn, true)
+        end)
     end)
 
     h.describe("Route.Hint", function()
