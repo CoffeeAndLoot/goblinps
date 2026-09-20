@@ -627,6 +627,22 @@ return function(h)
                 facing = 0
             end)
 
+            h.it("turns the compass by our own facing, not by the arrow's bearing", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                -- The target sits at a bearing of pi/2 from here while we
+                -- face 0, so the arrow (bearing - facing) and the compass
+                -- (-facing) land on different values. If the two
+                -- SetRotation calls in aimArrow were ever swapped, this
+                -- test would catch it; the earlier "due north, facing
+                -- north" case could not, since both formulas agree there.
+                standAt(0, -100); facing = 0
+                Dash.Tick("tick")
+                h.eq(ui.arrow.rotation, math.pi / 2, "the arrow points at the bearing to the target")
+                h.eq(ui.compass.rotation, 0, "the compass turns opposite our own facing")
+                facing = 0
+            end)
+
             h.it("does not advance or stray while on a zeppelin", function()
                 Dash.Start(plan)
                 local _, state = Dash.Debug()
@@ -704,6 +720,22 @@ return function(h)
                 h.truthy(ui.step:GetText() ~= "", "the directions must still be readable")
                 h.falsy(ui.bodyArt, "a texture that would not load must not be laid over the colour")
                 Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash-body"] = nil
+            end)
+            h.it("the directions are never hidden behind the device", function()
+                -- A child frame draws entirely above every draw layer of its
+                -- parent, so the body's frame must sit strictly below the
+                -- content that carries the text, which must sit strictly
+                -- above the screen, which must sit above the body's own
+                -- frame -- pinned by level, not by hoping draw layers and
+                -- creation order line up on their own.
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                h.truthy(ui.screen:GetFrameLevel() > ui.frame:GetFrameLevel(),
+                          "the screen must draw above the device's own flat colours")
+                h.truthy(ui.bezel:GetFrameLevel() > ui.screen:GetFrameLevel(),
+                          "the body art must draw above the screen so its hole lines up with it")
+                h.truthy(ui.content:GetFrameLevel() > ui.bezel:GetFrameLevel(),
+                          "the text must draw above the body art or the body would hide it")
             end)
         end)
     end

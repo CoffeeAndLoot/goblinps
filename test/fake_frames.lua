@@ -18,7 +18,7 @@ local ALLOWED_NOOP = {
     SetJustifyH = true, SetWordWrap = true, SetFontObject = true,
     SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
-    StartMoving = true, StopMovingOrSizing = true, SetFrameStrata = true, SetFrameLevel = true,
+    StartMoving = true, StopMovingOrSizing = true, SetFrameStrata = true,
     SetHighlightTexture = true, RegisterEvent = true, SetOwner = true, AddLine = true,
 }
 
@@ -105,6 +105,17 @@ function Region:GetPoint()
 end
 
 function Region:SetEnabled(enabled) self.enabled = enabled end
+
+function Region:SetFrameLevel(level) self.frameLevel = level end
+-- A frame with no explicit level sits one above its parent, the same
+-- default the real client uses, so a test can compare levels meaningfully
+-- even when a frame never calls SetFrameLevel itself.
+function Region:GetFrameLevel()
+    if self.frameLevel then
+        return self.frameLevel
+    end
+    return self.parent and (self.parent:GetFrameLevel() + 1) or 0
+end
 
 -- The real SetTexture returns a documented success bool.
 function Region:SetTexture(path)

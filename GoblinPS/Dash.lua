@@ -20,9 +20,13 @@ local function stepText(step)
     return step and ns.Route.StepText(step) or ""
 end
 
--- Lay a generated part over a flat colour. Returns the texture, or nil when
--- the part is unknown or the file will not load, leaving the colour showing.
-local function art(parent, name, layer)
+-- Lay a generated part over a flat colour, on `parent` at `layer`. The
+-- texture fills `parent`, unless `pad` is given (a widget to anchor around
+-- with a little padding instead), for a part that sits behind one small
+-- widget rather than covering the whole frame. Returns the texture, or nil
+-- when the part is unknown or the file will not load, leaving the colour
+-- showing.
+local function art(parent, name, layer, pad)
     local part = ns.Data.Art and ns.Data.Art[name]
     if not part then
         return nil
@@ -33,7 +37,12 @@ local function art(parent, name, layer)
         return nil
     end
     t:SetTexCoord(part.l, part.r, part.t, part.b)
-    t:SetAllPoints(parent)
+    if pad then
+        t:SetPoint("TOPLEFT", pad, "TOPLEFT", -6, 4)
+        t:SetPoint("BOTTOMRIGHT", pad, "BOTTOMRIGHT", 6, -4)
+    else
+        t:SetAllPoints(parent)
+    end
     return t
 end
 
@@ -68,9 +77,20 @@ local function build()
     end)
     f:Hide()
 
+    -- A child frame draws entirely above every draw layer of its parent, and
+    -- within one frame the region created later wins a layer tie — draw
+    -- layers alone cannot stack four frames' worth of parts correctly, so
+    -- every level below is set explicitly instead of left to either rule by
+    -- accident. Bottom to top: f's own flat colours, screen (its flat
+    -- colour, screenArt, compass, arrow), bezel (bodyArt, whose transparent
+    -- hole lets the screen show through), content (the plate and every
+    -- FontString, so the body art can never cover the directions).
+    local base = f:GetFrameLevel()
+
     local screen = W.Panel(f, "screen", "steel", 2)
     screen:SetSize(SCREEN, SCREEN)
     screen:SetPoint("TOP", 0, -PAD)
+    screen:SetFrameLevel(base + 1)
 
     local screenArt = art(screen, "dash-screen", "BACKGROUND")
     local compass = art(screen, "dash-compass", "BORDER")
@@ -87,40 +107,51 @@ local function build()
         arrow:SetVertexColor(1, 1, 1)
     end
 
-    local distance = W.Text(f, "green", "GameFontNormalLarge", "CENTER")
+    -- The bezel carries only the body art, above the screen so its
+    -- transparent hole lets the screen (and the arrow on it) show through.
+    local bezel = CreateFrame("Frame", nil, f)
+    bezel:SetAllPoints(f)
+    bezel:SetFrameLevel(base + 2)
+    local bodyArt = art(bezel, "dash-body", "OVERLAY")
+
+    -- The content frame carries the plate and every line of text, above the
+    -- bezel so the body art can never cover them.
+    local content = CreateFrame("Frame", nil, f)
+    content:SetAllPoints(f)
+    content:SetFrameLevel(base + 3)
+
+    local distance = W.Text(content, "green", "GameFontNormalLarge", "CENTER")
     distance:SetPoint("TOPLEFT", screen, "BOTTOMLEFT", 0, -4)
     distance:SetPoint("TOPRIGHT", screen, "BOTTOMRIGHT", 0, -4)
 
-    local eta = W.Text(f, "dim", "GameFontNormalSmall", "CENTER")
+    local eta = W.Text(content, "dim", "GameFontNormalSmall", "CENTER")
     eta:SetPoint("TOPLEFT", distance, "BOTTOMLEFT", 0, -2)
     eta:SetPoint("TOPRIGHT", distance, "BOTTOMRIGHT", 0, -2)
 
-    local step = W.Text(f, "green", "GameFontNormalSmall", "CENTER")
+    local step = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     step:SetPoint("TOPLEFT", eta, "BOTTOMLEFT", 0, -6)
     step:SetPoint("TOPRIGHT", eta, "BOTTOMRIGHT", 0, -6)
 
-    local following = W.Text(f, "dim", "GameFontHighlightSmall", "CENTER")
+    local following = W.Text(content, "dim", "GameFontHighlightSmall", "CENTER")
     following:SetPoint("TOPLEFT", step, "BOTTOMLEFT", 0, -2)
     following:SetPoint("TOPRIGHT", step, "BOTTOMRIGHT", 0, -2)
 
+    -- The ETA plate sits behind the time-left line: a BACKGROUND texture
+    -- directly on `content`, anchored around `eta` instead of filling the
+    -- frame, drawing under the FontStrings above at OVERLAY on that same
+    -- frame — no draw-layer override needed on `eta` for that to hold.
+    local plateArt = art(content, "dash-eta-plate", "BACKGROUND", eta)
+
+    -- Stop is its own frame; with no explicit level it would default to one
+    -- above `f`, level with `screen` and so under the bezel and content that
+    -- now cover the whole device, so it is pinned above all of them.
     local stop = W.Button(f, "Stop", 48, 20, function() Dash.Stop() end)
     stop:SetPoint("BOTTOMRIGHT", -PAD, PAD)
-
-    -- The ETA plate sits behind the time-left line, not over the whole
-    -- device, so it is its own small frame rather than a part of `f`.
-    local plate = CreateFrame("Frame", nil, f)
-    plate:SetPoint("TOPLEFT", eta, "TOPLEFT", -6, 4)
-    plate:SetPoint("BOTTOMRIGHT", eta, "BOTTOMRIGHT", 6, -4)
-    local plateArt = art(plate, "dash-eta-plate", "BACKGROUND")
-    eta:SetDrawLayer("OVERLAY")
-
-    -- The body is drawn last and on top: it has a transparent hole the
-    -- screen shows through.
-    local bodyArt = art(f, "dash-body", "OVERLAY")
+    stop:SetFrameLevel(base + 4)
 
     ui = { frame = f, screen = screen, screenArt = screenArt, compass = compass, arrow = arrow,
-           bodyArt = bodyArt, plateArt = plateArt, distance = distance,
-           eta = eta, step = step, next = following, stop = stop }
+           bezel = bezel, content = content, bodyArt = bodyArt, plateArt = plateArt,
+           distance = distance, eta = eta, step = step, next = following, stop = stop }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")
 
     local since = 0
