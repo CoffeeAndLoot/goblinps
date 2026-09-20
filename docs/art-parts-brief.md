@@ -40,6 +40,10 @@ style**, following these rules.
 8. **One file per part, named exactly as listed**, saved under
    `images/parts/`. Do not change or delete any other file. If you commit,
    stage only files under `images/`.
+9. **PNG only. Do not export TGA, BLP or any game format.** The addon's own
+   tool converts these, because the size a texture ships at is smaller than
+   the size it is drawn at and depends on the window layout. Your PNGs are
+   the source artwork and stay that way.
 
 ## The parts
 
@@ -110,3 +114,19 @@ set.
 - Make one extra image, `images/parts/_contact-sheet.png`: every part laid out
   on a mid-grey background with its file name under it, so a person can review
   the whole set at a glance.
+
+---
+
+## For the repository owner, not the generator
+
+After each batch lands, run:
+
+```bash
+python tools/check_art.py
+```
+
+It measures every delivered part against the table above: exact canvas, a real
+alpha channel, transparent corners, an enclosed hole where the art frames a
+gap, and for `arrow.png` and `dash-compass.png` that they are centred,
+symmetric and small enough to turn inside the canvas without clipping. Tiling
+parts are checked for a seam. Parts not yet drawn are listed as pending.
