@@ -15,7 +15,7 @@ Fake.missingTextures = {}
 -- nothing, so a bad widget call fails on the desktop instead of only in game.
 local ALLOWED_NOOP = {
     SetAllPoints = true, SetColorTexture = true, SetAlpha = true,
-    SetJustifyH = true, SetWordWrap = true, SetFontObject = true,
+    SetJustifyH = true, SetFontObject = true,
     SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
     StartMoving = true, StopMovingOrSizing = true, SetFrameStrata = true,
@@ -103,6 +103,10 @@ function Region:GetPoint()
     local p = self.lastPoint or { "CENTER", nil, "CENTER", 0, 0 }
     return p[1], p[2], p[3], p[4], p[5]
 end
+
+-- Recorded, not swallowed: whether a line wraps or truncates is a decision
+-- this project requires every FontString to make, so a test has to see it.
+function Region:SetWordWrap(wrap) self.wordWrap = wrap and true or false end
 
 function Region:SetEnabled(enabled) self.enabled = enabled end
 

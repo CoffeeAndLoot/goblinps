@@ -9,8 +9,14 @@ ns.Dash = Dash
 
 local W = ns.Widgets
 
-Dash.SIZE = { 200, 250 }
-local PAD, SCREEN = 10, 180
+-- Seen in game 2026-09-20: the body art is a round device on a square
+-- texture, so the frame that carries it must be square too or it renders as
+-- an oval. DEVICE is that square; the frame is DEVICE wide and tall enough
+-- for the device plus a band of text under it, which also keeps the art off
+-- the directions.
+Dash.SIZE = { 220, 348 }
+local PAD, DEVICE = 10, 200
+local SCREEN = DEVICE - 20
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 local ui              -- built on first Start
@@ -103,9 +109,16 @@ local function build()
     -- FontString, so the body art can never cover the directions).
     local base = f:GetFrameLevel()
 
-    local screen = W.Panel(f, "screen", "steel", 2)
+    -- The square the round art lives in. Everything round anchors to this
+    -- and never to `f`, whose height carries the text band as well.
+    local device = CreateFrame("Frame", nil, f)
+    device:SetSize(DEVICE, DEVICE)
+    device:SetPoint("TOP", 0, -PAD)
+    device:SetFrameLevel(base + 1)
+
+    local screen = W.Panel(device, "screen", "steel", 2)
     screen:SetSize(SCREEN, SCREEN)
-    screen:SetPoint("TOP", 0, -PAD)
+    screen:SetPoint("CENTER")
     screen:SetFrameLevel(base + 1)
 
     local screenArt = art(screen, "dash-screen", "BACKGROUND")
@@ -132,7 +145,7 @@ local function build()
     -- The bezel carries only the body art, above the screen so its
     -- transparent hole lets the screen (and the arrow on it) show through.
     local bezel = CreateFrame("Frame", nil, f)
-    bezel:SetAllPoints(f)
+    bezel:SetAllPoints(device)
     bezel:SetFrameLevel(base + 2)
     local bodyArt = art(bezel, "dash-body", "OVERLAY")
 
@@ -143,20 +156,26 @@ local function build()
     content:SetFrameLevel(base + 3)
 
     local distance = W.Text(content, "green", "GameFontNormalLarge", "CENTER")
-    distance:SetPoint("TOPLEFT", screen, "BOTTOMLEFT", 0, -4)
-    distance:SetPoint("TOPRIGHT", screen, "BOTTOMRIGHT", 0, -4)
+    distance:SetPoint("TOPLEFT", device, "BOTTOMLEFT", 0, -2)
+    distance:SetPoint("TOPRIGHT", device, "BOTTOMRIGHT", 0, -2)
 
     local eta = W.Text(content, "dim", "GameFontNormalSmall", "CENTER")
     eta:SetPoint("TOPLEFT", distance, "BOTTOMLEFT", 0, -2)
     eta:SetPoint("TOPRIGHT", distance, "BOTTOMRIGHT", 0, -2)
 
+    -- The step is the one line worth reading, and stop names are long
+    -- ("Walk to Undercity Zeppelin Tower" truncated in game at 200 wide), so
+    -- this line wraps instead of truncating. An explicit height keeps the
+    -- rest of the band still whether it takes one line or two.
     local step = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
-    step:SetPoint("TOPLEFT", eta, "BOTTOMLEFT", 0, -6)
-    step:SetPoint("TOPRIGHT", eta, "BOTTOMRIGHT", 0, -6)
+    step:SetWordWrap(true)
+    step:SetHeight(28)
+    step:SetPoint("TOPLEFT", eta, "BOTTOMLEFT", 2, -6)
+    step:SetPoint("TOPRIGHT", eta, "BOTTOMRIGHT", -2, -6)
 
     local following = W.Text(content, "dim", "GameFontHighlightSmall", "CENTER")
-    following:SetPoint("TOPLEFT", step, "BOTTOMLEFT", 0, -2)
-    following:SetPoint("TOPRIGHT", step, "BOTTOMRIGHT", 0, -2)
+    following:SetPoint("TOPLEFT", step, "BOTTOMLEFT", 0, -1)
+    following:SetPoint("TOPRIGHT", step, "BOTTOMRIGHT", 0, -1)
 
     -- The ETA plate sits behind the time-left line: a BACKGROUND texture
     -- directly on `content`, anchored around `eta` instead of filling the
@@ -168,10 +187,11 @@ local function build()
     -- above `f`, level with `screen` and so under the bezel and content that
     -- now cover the whole device, so it is pinned above all of them.
     local stop = W.Button(f, "Stop", 48, 20, function() Dash.Stop() end)
-    stop:SetPoint("BOTTOMRIGHT", -PAD, PAD)
+    stop:SetPoint("BOTTOM", 0, PAD)
     stop:SetFrameLevel(base + 4)
 
-    ui = { frame = f, screen = screen, screenArt = screenArt, compass = compass, arrow = arrow,
+    ui = { frame = f, device = device, screen = screen, screenArt = screenArt,
+           compass = compass, arrow = arrow,
            bezel = bezel, content = content, bodyArt = bodyArt, plateArt = plateArt,
            distance = distance, eta = eta, step = step, next = following, stop = stop }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")

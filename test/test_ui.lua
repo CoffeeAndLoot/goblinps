@@ -537,7 +537,29 @@ return function(h)
                 state.index = 1
                 Dash.Refresh()
             end)
-            h.it("every line of text is bounded", function()
+            h.it("keeps the round art on a square frame so it cannot render as an oval", function()
+            Dash.Start(plan)
+            local ui = Dash.Debug()
+            -- Seen in game 2026-09-20: the body art is round on a square
+            -- texture, and the bezel filled the whole 200x250 frame, so the
+            -- device drew as an oval. Whatever carries it must be square.
+            h.eq(ui.device:GetWidth(), ui.device:GetHeight(), "the device frame must be square")
+            local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
+            h.truthy(h2 > w, "the frame is taller than the device: it carries a text band too")
+            h.truthy(h2 - ui.device:GetHeight() >= 100,
+                     "the text band needs real room under the device, not the leftovers")
+        end)
+
+        h.it("gives the step line room to wrap instead of cutting a stop name in half", function()
+            Dash.Start(plan)
+            local ui = Dash.Debug()
+            -- "Walk to Undercity Zeppelin Tower" was truncated in game.
+            h.eq(ui.step.wordWrap, true, "the step line wraps; every other line truncates")
+            h.truthy(ui.step:GetHeight() >= 24, "and has the height for a second line")
+            h.eq(ui.next.wordWrap, false, "the following step stays one line")
+        end)
+
+        h.it("every line of text is bounded", function()
                 local ui = Dash.Debug()
                 for _, name in ipairs({ "step", "next", "distance", "eta" }) do
                     local fs = ui[name]
