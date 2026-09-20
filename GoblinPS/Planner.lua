@@ -29,7 +29,9 @@ local function stepLine(i, step)
     return i .. ". " .. ns.Route.StepText(step), cost
 end
 
--- Paint whatever state.plan holds.
+-- Paint whatever state.plan holds. A route longer than MAX_ROWS shows its
+-- first MAX_ROWS-2 steps, then an overflow row, then the FINAL step (with
+-- its own detail) in the last row: the arrival must always be visible.
 function Planner.Refresh()
     if not ui then
         return
@@ -37,13 +39,21 @@ function Planner.Refresh()
     local plan = state.plan
     local level = plan and plan.level or nil
     local steps = plan and plan.result and plan.result.steps or {}
+    local overflow = #steps > Planner.MAX_ROWS
+    local headCount = overflow and (Planner.MAX_ROWS - 2) or Planner.MAX_ROWS
     for i = 1, Planner.MAX_ROWS do
-        local row, step = ui.rows[i], steps[i]
+        local row = ui.rows[i]
         local left, right, detail, warn = "", "", "", false
-        if step and i == Planner.MAX_ROWS and #steps > Planner.MAX_ROWS then
-            left = "... and " .. (#steps - i + 1) .. " more steps"
-        elseif step then
-            left, right = stepLine(i, step)
+        local step, number
+        if overflow and i == Planner.MAX_ROWS - 1 then
+            left = "... and " .. (#steps - headCount - 1) .. " more steps"
+        elseif overflow and i == Planner.MAX_ROWS then
+            step, number = steps[#steps], #steps
+        elseif i <= headCount and steps[i] then
+            step, number = steps[i], i
+        end
+        if step then
+            left, right = stepLine(number, step)
             detail, warn = ns.Route.StepDetail(ns.Data, step, level)
         end
         row.left:SetText(left)

@@ -181,11 +181,27 @@ return function(h, loaded)
             h.eq(text, "into Ashenvale · level 18-30")
             h.eq(warn, true)
             text, warn = ns.Route.StepDetail(data, r.steps[7], 60)
-            h.eq(text, "into Winterspring · level 53-60 · Timbermaw furbolgs attack without reputation")
+            h.eq(text, "into Winterspring · Timbermaw furbolgs attack without reputation")
+            h.eq(warn, true)
+            text, warn = ns.Route.StepDetail(data, r.steps[8], 60)
+            h.eq(text, "into Mount Hyjal · crossing not confirmed")
             h.eq(warn, true)
             text, warn = ns.Route.StepDetail(data, r.steps[2], 1)
             h.eq(text, "")
             h.eq(warn, false)
+        end)
+        h.it("keeps every crossing's detail line short enough not to be cut off", function()
+            for _, x in ipairs(data.Crossings) do
+                for _, from in ipairs({ x.a, x.b }) do
+                    local to = (from == x.a) and x.b or x.a
+                    local step = { kind = "ride", zone = from,
+                                   to = { zones = { x.a, x.b }, warn = x.warn, unverified = x.unverified,
+                                          name = x.name } }
+                    local text = ns.Route.StepDetail(data, step, nil)
+                    h.truthy(#text <= 66, x.name .. " into " .. data.Places[to].name
+                              .. ": detail is " .. #text .. " bytes: " .. text)
+                end
+            end
         end)
         h.it("is slower on foot than on a mount", function()
             local from, to = place("Durotar", "H"), place("Ashenvale", "H")

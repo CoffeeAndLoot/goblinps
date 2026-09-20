@@ -202,7 +202,7 @@ return function(h)
             h.eq(ui.notes:GetText(), "")
         end)
 
-        h.it("shows an overflow row for a route longer than MAX_ROWS", function()
+        h.it("shows an overflow row for a route longer than MAX_ROWS, with the last step always visible", function()
             local ui, state = Planner.Debug()
             local savedMax, savedPlan = Planner.MAX_ROWS, state.plan
             Planner.MAX_ROWS = 3
@@ -212,7 +212,9 @@ return function(h)
             end
             state.plan = { to = { name = "Stop 5" }, notes = {}, result = { steps = steps, seconds = 300, copper = 0 } }
             Planner.Refresh()
-            h.eq(ui.rows[3].left:GetText(), "... and 3 more steps")
+            h.eq(ui.rows[1].left:GetText(), "1. Ride to Stop 1")
+            h.eq(ui.rows[2].left:GetText(), "... and 3 more steps")
+            h.eq(ui.rows[3].left:GetText(), "5. Ride to Stop 5")
             Planner.MAX_ROWS = savedMax
             state.plan = savedPlan
             Planner.Refresh()
@@ -277,7 +279,7 @@ return function(h)
         h.it("shows each ground step's zone and levels on a second line", function()
             local ui = pickTo("hotel")
             h.eq(ui.rows[1].left:GetText(), "1. Ride to the North Gate")
-            h.eq(ui.rows[1].detail:GetText(), "into Northland · level 30-40 · trolls on the bridge")
+            h.eq(ui.rows[1].detail:GetText(), "into Northland · trolls on the bridge")
             h.eq(ui.rows[2].left:GetText(), "2. Ride to Hotel")
             h.eq(ui.rows[2].detail:GetText(), "in Northland · level 30-40")
             h.eq(ui.rows[3].detail:GetText(), "")

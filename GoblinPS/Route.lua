@@ -177,8 +177,10 @@ end
 
 -- The small line under a ground step: where it takes you and what to expect.
 -- Returns text, warn. warn is true when the zone starts well above the
--- character's level or the crossing carries a hazard note. Other step kinds
--- have no detail ("", false).
+-- character's level, the crossing carries a hazard note, or it is
+-- unconfirmed. Other step kinds have no detail ("", false). A hazard or an
+-- unconfirmed note replaces the level range on the line (never both: the
+-- line does not wrap, and the hazard is the part that must not be cut off).
 function Route.StepDetail(data, step, level)
     if step.kind ~= "ride" or not step.zone then
         return "", false
@@ -192,14 +194,22 @@ function Route.StepDetail(data, step, level)
         text = "into " .. (places[zone] and places[zone].name or "the next zone")
     else
         text = "in " .. (places[zone] and places[zone].name or "this zone")
+        -- Do not say the obvious: "Walk to Orgrimmar" already says where you land.
+        if places[zone] and ns.Search.ShortName(step.to.name) == places[zone].name then
+            return "", false
+        end
     end
-    text = text .. levels(zones[zone])
     local warn = ns.Travel.Dangerous(zones[zone], level)
+    if step.to.warn or step.to.unverified then
+        warn = true
+    else
+        text = text .. levels(zones[zone])
+    end
     if step.to.warn then
-        text, warn = text .. " · " .. step.to.warn, true
+        text = text .. " · " .. step.to.warn
     end
     if step.to.unverified then
-        text, warn = text .. " · crossing not confirmed", true
+        text = text .. " · crossing not confirmed"
     end
     return text, warn
 end

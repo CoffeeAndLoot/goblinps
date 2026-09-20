@@ -151,7 +151,8 @@ return function(h, loaded)
     h.describe("Route.StepDetail", function()
         local hotel = loaded.ns.Search.Find(world, "hotel", "H", 1)[1]
         local r = Route.Plan(world, { faction = "H", known = { [1] = true, [2] = true }, from = nearAlpha, to = hotel })
-        h.it("says which zone a crossing leads into, its levels and its hazard", function()
+        h.it("says which zone a crossing leads into and its hazard: not its levels, so the hazard is never cut off",
+             function()
             local gateStep
             for _, s in ipairs(r.steps) do
                 if s.to.zones then
@@ -159,7 +160,7 @@ return function(h, loaded)
                 end
             end
             local text, warn = Route.StepDetail(world, gateStep, 35)
-            h.eq(text, "into Northland · level 30-40 · trolls on the bridge")
+            h.eq(text, "into Northland · trolls on the bridge")
             h.eq(warn, true)
         end)
         h.it("warns about a zone well above the character", function()
@@ -180,6 +181,11 @@ return function(h, loaded)
         h.it("copes with a zone that has no level range", function()
             local text, warn = Route.StepDetail(world, { kind = "ride", zone = 3, to = { name = "Foxtrot" } }, 5)
             h.eq(text, "in Isle")
+            h.eq(warn, false)
+        end)
+        h.it("does not say the obvious when the step arrives at the zone itself", function()
+            local text, warn = Route.StepDetail(world, { kind = "ride", zone = 1, to = { name = "Westland" } }, 60)
+            h.eq(text, "")
             h.eq(warn, false)
         end)
     end)
