@@ -309,7 +309,20 @@ python -c "import lupa.lua51 as L; L.LuaRuntime().execute(open('tools/survey_cro
 
 `test/test_crossings.lua` pins the count at six, so correcting a row in game
 turns that test red. That is the prompt to update this table, not a bug.
-- [ ] **Run `/gps probe zones` instead of reading sixty tooltips.** The client
+- [x] ~~Run `/gps probe zones` instead of reading sixty tooltips.~~
+      **2026-09-20: it is dead.** The command reported "C_Map.GetMapLevels
+      answered for no zone at all: it is dead on this build, like
+      isUndiscovered." The guard did its job — silence was reported as
+      silence rather than read as "nothing disagrees" — but the shortcut is
+      gone. Keep running it after a client patch; it will start working by
+      itself if the function is ever fixed
+- [ ] **Read the zone level ranges off the world map's tooltips** and correct
+      `GoblinPS/Data/Zones.lua`, since the probe cannot. Hover a zone on the
+      world map: the name carries its range in brackets. Forever may have
+      moved some. Do this a few zones at a time rather than in one sitting;
+      nothing else depends on it, and a wrong range only costs a misplaced
+      amber warning
+- [ ] ~~Run `/gps probe zones` instead of reading sixty tooltips.~~ The client
       draws its own level range on the world map, and
       `C_Map.GetMapLevels(uiMapID)` is where that comes from. The command asks
       it for every zone, names the ones that disagree with

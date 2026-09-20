@@ -19,6 +19,18 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
   folders; not confirmed by the client).
 - No flying. Ground mounts and the built-in transport network only. Blizzard
   intends to grow the game "horizontally" rather than by expansions.
+- **`C_Map.GetMapLevels` is DEAD on this build** (verified in game
+  2026-09-20). `/gps probe zones` asked it for all 60 zones and it answered
+  for **none**. It is present — `/gps selftest` reports it `ok` — and it is
+  documented, and it returns nothing useful, which is the second API on this
+  client to behave that way. **`Data/Zones.lua` stays hand-written**, and the
+  level ranges must be read off the world map's zone tooltips after all.
+  Keep the probe: it costs nothing, and it will start working by itself if a
+  later build fixes the function.
+  This is now a pattern worth stating plainly: on this beta, *present* and
+  *documented* say nothing about *answers*. Two for two. Any future API this
+  project leans on gets a probe that counts its answers and says so when there
+  are none, rather than letting silence read as agreement.
 - **`C_Map.GetMapLevels(uiMapID)` exists in this build's source** and is what
   draws the level range on Blizzard's own world map. It returns
   `playerMinLevel, playerMaxLevel, petMinLevel, petMaxLevel`;
@@ -27,8 +39,10 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
   `MapDocumentation.lua:346`, with `Name = "GetMapLevels"` on 347 and
   `MayReturnNothing = true` on 349. **Unverified in game**: `isUndiscovered` is
   proof that a function can exist and answer uselessly, so `/gps probe zones`
-  asks it for every zone and says plainly when it answers for none. If it
-  works, `Data/Zones.lua` stops being a hand-written guess.
+  asks it for every zone and says plainly when it answers for none.
+  **It did answer for none: see the entry above.** The design held — the
+  probe reported the silence instead of reading it as agreement — but the
+  hoped-for outcome did not arrive.
   The DB2 route is a dead end on this build and was tried first, by fetching
   the tables from wago.tools for build 1.60.1.69913 on 2026-09-20 (the same
   URL pattern `tools/build_graph.py` uses; the cache is gitignored, so re-run

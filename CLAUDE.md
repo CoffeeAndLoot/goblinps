@@ -51,7 +51,8 @@ GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences
 GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
 GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber warnings
-                              # (/gps probe zones checks it against C_Map.GetMapLevels; not yet run in game)
+                              # HAND-WRITTEN and staying that way: C_Map.GetMapLevels is dead on this
+                              # build (answers for no zone), so /gps probe zones can only report that
 GoblinPS/Travel.lua          # pure: walk or ride by level; the ONLY place mount levels and speeds live
                               # (levels 40/60 confirmed in game 2026-09-20; the two speeds are still assumed)
 GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates
@@ -143,6 +144,17 @@ commit; re-read files before editing.
   flyable ones to `GoblinPSCharDB.known` (per character). That store only
   ever grows and is never edited by hand or by any other code path. If a
   later build fixes `isUndiscovered`, switch back to the live read.
+- **On this build, an API being present says nothing about whether it
+  answers.** Two so far return nothing useful for every input:
+  `isUndiscovered` (false for every node) and `C_Map.GetMapLevels` (no range
+  for any of the 60 zones). Both are present, both are documented, and
+  `/gps selftest` reports both `ok` — because `ok` there means the function
+  exists, not that it works. So: any probe that reads an API across many
+  inputs must **count its answers and say plainly when there are none**,
+  never let silence read as "nothing disagrees", and never promote a source
+  check to a verified fact without running it in the client. `/gps probe
+  zones` is the worked example; keep probes after they fail, since a later
+  build may fix the function and the probe will notice by itself.
 - The window uses **no Blizzard frame templates**: plain frames and colour
   textures, so a template renamed by a beta patch cannot break it. Art is
   laid over the colours (`docs/art-specs.md`); a missing texture must leave a
