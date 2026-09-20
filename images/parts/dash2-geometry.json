@@ -1,0 +1,115 @@
+{
+  "canvas": [
+    1024,
+    1280
+  ],
+  "glass": {
+    "cx": 0.50390625,
+    "cy": 0.36640625,
+    "r": 0.283203125
+  },
+  "compass_ring": {
+    "cx": 0.50390625,
+    "cy": 0.36640625,
+    "r": 0.255859375
+  },
+  "steps_screen": {
+    "left": 0.251953125,
+    "top": 0.69296875,
+    "right": 0.7607421875,
+    "bottom": 0.86953125
+  },
+  "eta_screen": {
+    "left": 0.384765625,
+    "top": 0.884375,
+    "right": 0.6279296875,
+    "bottom": 0.9375
+  },
+  "stop_button": {
+    "cx": 0.8369140625,
+    "cy": 0.1703125,
+    "r": 0.0478515625
+  },
+  "destination_line": {
+    "left": 0.3515625,
+    "top": 0.4640625,
+    "right": 0.65625,
+    "bottom": 0.4875
+  },
+  "distance_line": {
+    "left": 0.390625,
+    "top": 0.490625,
+    "right": 0.6171875,
+    "bottom": 0.5109375
+  },
+  "_units": {
+    "origin": "top-left",
+    "x": "fraction of canvas width",
+    "y": "fraction of canvas height",
+    "r": "fraction of canvas WIDTH; radius_pixels = r * 1024 for BOTH axes",
+    "rectangles": "right and bottom are exclusive; screen rectangles are insert extents including overlap beneath housing"
+  },
+  "_assembly": {
+    "shared_layer_origin_pixels": [
+      0,
+      0
+    ],
+    "glass_aperture": {
+      "cx": 0.50390625,
+      "cy": 0.36640625,
+      "r": 0.27734375
+    },
+    "arrow": {
+      "file": "arrow.png",
+      "sha256": "8370624f28db9903d483a89d174ae680b918b8d1c3ff3f350ec709999e341ee2",
+      "cx": 0.50390625,
+      "cy": 0.36640625,
+      "display_size_pixels": [
+        461,
+        461
+      ],
+      "rotation_pivot": "centre of glass; do not rotate about centre of 1024x1280 canvas"
+    },
+    "stop_button": {
+      "sprite_canvas": [
+        256,
+        256
+      ],
+      "sprite_art_box_pixels": [
+        16,
+        16,
+        240,
+        240
+      ],
+      "display_box": {
+        "left": 0.7822265625,
+        "top": 0.1265625,
+        "right": 0.8916015625,
+        "bottom": 0.2140625
+      },
+      "draw_after": "housing"
+    },
+    "steps_text_safe_box": {
+      "left": 0.279296875,
+      "top": 0.7203125,
+      "right": 0.7314453125,
+      "bottom": 0.8453125
+    },
+    "eta_text_safe_box": {
+      "left": 0.4140625,
+      "top": 0.89453125,
+      "right": 0.5986328125,
+      "bottom": 0.928125
+    },
+    "source_generation_ids": {
+      "housing": "f8656496-21a0-4509-bf2b-b81932a22eec",
+      "glass": "fd77cf65-2495-4a1f-afb2-35159540272f",
+      "steps": "717d5462-d473-49b4-bf54-01c8bb5fc2df",
+      "eta": "388c31eb-0d41-425a-9c1e-baceb61225b5",
+      "stop": "c31dc3d4-aea8-45b0-b680-bf2b1df5b218"
+    },
+    "in_game_verified": false,
+    "compass_letter_center_radius_pixels": 241,
+    "compass_font": "Georgia, 24 source pixels; antialiased at 4x"
+  }
+}

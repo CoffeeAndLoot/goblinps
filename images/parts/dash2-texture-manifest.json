@@ -1,0 +1,148 @@
+{
+  "authoring_exports_only": true,
+  "in_game_verified": false,
+  "tex_coords_order": [
+    "left",
+    "right",
+    "top",
+    "bottom"
+  ],
+  "textures": {
+    "glass": {
+      "file": "dash2-glass.tga",
+      "art_size": [
+        1024,
+        1280
+      ],
+      "texture_size": [
+        1024,
+        2048
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        0.625
+      ]
+    },
+    "compass": {
+      "file": "dash2-compass.tga",
+      "art_size": [
+        1024,
+        1280
+      ],
+      "texture_size": [
+        1024,
+        2048
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        0.625
+      ]
+    },
+    "steps-screen": {
+      "file": "dash2-steps-screen.tga",
+      "art_size": [
+        1024,
+        1280
+      ],
+      "texture_size": [
+        1024,
+        2048
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        0.625
+      ]
+    },
+    "eta-screen": {
+      "file": "dash2-eta-screen.tga",
+      "art_size": [
+        1024,
+        1280
+      ],
+      "texture_size": [
+        1024,
+        2048
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        0.625
+      ]
+    },
+    "housing": {
+      "file": "dash2-housing.tga",
+      "art_size": [
+        1024,
+        1280
+      ],
+      "texture_size": [
+        1024,
+        2048
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        0.625
+      ]
+    },
+    "stop": {
+      "file": "dash2-stop.tga",
+      "art_size": [
+        256,
+        256
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "stop-hover": {
+      "file": "dash2-stop-hover.tga",
+      "art_size": [
+        256,
+        256
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    },
+    "stop-pressed": {
+      "file": "dash2-stop-pressed.tga",
+      "art_size": [
+        256,
+        256
+      ],
+      "texture_size": [
+        256,
+        256
+      ],
+      "tex_coords": [
+        0,
+        1.0,
+        0,
+        1.0
+      ]
+    }
+  }
+}
