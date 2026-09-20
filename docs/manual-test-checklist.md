@@ -358,7 +358,7 @@ turns that test red. That is the prompt to update this table, not a bug.
 - [ ] Teldrassil still needs the boat; a Darnassus character leaves by "the
       Darnassus gate"
 
-## Dash unit (plan 4)
+## Dash unit (plans 4 and 5)
 
 - [ ] GO closes the planner and opens the dash; /gps reopens the planner and
       the trip keeps running
@@ -382,5 +382,16 @@ turns that test red. That is the prompt to update this table, not a bug.
       trip, by design
 - [ ] The five dash textures load: /gps selftest names them. If one FAILS,
       the device must still be readable on its flat colours
-- [ ] At a UI scale of 0.64 and of 1.0 the device is legible and nothing
-      overlaps
+- [ ] The device is round, not oval, and the compass ring turns with you while
+      the arrow turns toward the step. If the arrow is right and the ring is
+      wrong, that is Trip.CompassAngle, not Trip.ROTATION_SIGN
+- [ ] The glass names the step you are walking to and counts the yards down
+- [ ] The panel shows the step you are on and the next two; near the end it
+      shows fewer, not blanks with stale text
+- [ ] The ETA plate shows the time left for the whole journey
+- [ ] The red button lights on hover, pushes in on click, and ends the trip
+- [ ] Every line sits inside its own opening in the chassis; no text is cut
+      off and none draws on the brass
+- [ ] At UI scale 0.64 and 1.0 the device is legible and nothing overlaps
+- [ ] /gps selftest names the eight new textures; if one FAILS the device
+      must still be readable on its flat colours

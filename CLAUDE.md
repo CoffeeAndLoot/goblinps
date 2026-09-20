@@ -14,17 +14,24 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 4 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 5 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
-crossings). Plan 4, the dash unit, is built and tested on the desktop only —
-**unverified in game**. `/gps` opens the planner; `/gps to <place>` prints a
-route in chat, with ground travel going zone by zone through named crossings
-and walk-or-ride by level. GO closes the planner and opens the dash unit: an
-arrow pointing at the current step, showing distance and time left, advancing
-when you arrive and replanning when you stray. What is still estimated is
-**data, not code**: crossing coordinates, the two mount speeds, `cross` times
-and some zone level ranges. The addon says so in amber where it matters;
-`docs/manual-test-checklist.md` lists what to walk. Next: plan 5, the route
+crossings). Plan 4, the dash unit's first design, is built; its texture
+loading was confirmed in game (`/gps selftest`, 2026-09-20), but the
+assembled device was never run as a whole in the WoW client. Plan 5 rebuilds
+that device around a second art set, after review found the first design's
+layering broke Blizzard's texture compositing: the current step's name and
+distance on the glass, three step lines in a lit panel, the ETA on its own
+plate, a stop button with hover and pressed states, every position read from
+a generated geometry file. Plan 5 is **also unverified in game**. `/gps`
+opens the planner; `/gps to <place>` prints a route in chat, with ground
+travel going zone by zone through named crossings and walk-or-ride by level.
+GO closes the planner and opens the dash unit: an arrow pointing at the
+current step, showing distance and time left, advancing when you arrive and
+replanning when you stray. What is still estimated is **data, not code**:
+crossing coordinates, the two mount speeds, `cross` times and some zone level
+ranges. The addon says so in amber where it matters;
+`docs/manual-test-checklist.md` lists what to walk. Next: plan 6, the route
 strip. A schematic world map was dropped on 2026-09-20 in favour of the strip;
 the spike that proved it feasible is kept at `docs/research/schematic-spike/`.
 The product is a GPS: point to point with an arrow, in game. The design is
@@ -58,7 +65,9 @@ GoblinPS/Travel.lua          # pure: walk or ride by level; the ONLY place mount
 GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates
 GoblinPS/Planner.lua         # the window; one set of widgets, ApplyLayout moves them
 GoblinPS/Dash.lua            # the small draggable device shown when GO closes the planner; arrow, distance, ETA
-GoblinPS/Data/Art.lua        # GENERATED: texture coordinates for shipped art parts, built by tools/make_art.py
+GoblinPS/Data/Art.lua        # GENERATED: texture coordinates AND placement geometry (ns.Data.ArtGeometry) for
+                              # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json;
+                              # no coordinate is hand-typed in Dash.lua
 GoblinPS/MinimapButton.lua, SelfTest.lua, Core.lua
 test/fake_frames.lua         # fake frame API: smoke-tests OUR window code, not Blizzard's
 tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
