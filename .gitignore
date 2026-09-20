@@ -4,3 +4,9 @@ __pycache__/
 .remember/
 .superpowers/
 docs/research/schematic-spike/out/
+
+# Build output, not source: 50 MB of TGA at authoring resolution, roughly ten
+# times the size anything renders at. The PNGs beside them are the source art,
+# and images/parts/export_tga.py rebuilds these from them at any time. The
+# addon's own shipped textures are made by tools/ and land in GoblinPS/Media/.
+images/parts/*.tga

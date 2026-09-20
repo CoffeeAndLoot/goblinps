@@ -5,9 +5,18 @@ route markers and connecting lines. All artwork lives here under `images/parts/`
 
 ## Deliverables
 
+- **`.png`**: RGBA source artwork at the exact dimensions in the brief. **These
+  are the source of truth.** Everything else here is derived from them.
 - **`.tga`**: runtime-format exports, uncompressed type 2, 32-bit BGRA with
-  8-bit straight alpha. These are the files to use when integrating the addon.
-- **`.png`**: RGBA source artwork at the exact dimensions in the brief.
+  8-bit straight alpha, padded to power-of-two canvases.
+  **These are not the files the addon ships.** They are at authoring
+  resolution, about ten times the size anything renders at: a route icon is
+  256x256 and draws at roughly 24 pixels, and the set totals 50 MB against the
+  megabyte a WoW addon usually weighs. They are untracked by git (see
+  `.gitignore`) and `export_tga.py` rebuilds them whenever they are wanted.
+  The addon's shipped textures are made separately by a tool under `tools/`,
+  downscaled per part to the size it actually draws at, and written to
+  `GoblinPS/Media/`. Do not copy these files there.
 - `texture-manifest.json`: all 39 names, art dimensions, TGA dimensions and UVs.
 - `export_tga.py`: repeatable export and byte-for-byte round-trip verification.
   Run `python images/parts/export_tga.py` from the repository root (Pillow required).
