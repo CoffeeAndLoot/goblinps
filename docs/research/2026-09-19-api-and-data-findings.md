@@ -37,6 +37,25 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
   only `LfgMinLevel`, `LfgMaxLevel` and `MinLevelSquish`/`MaxLevelSquish`.
   `WorldMapArea` returns 404 for this build. So zone level ranges cannot be
   generated from wago.tools; they come from the client or from hand.
+- **The client loads the TGAs our tools write** (verified in game 2026-09-20).
+  `/gps selftest` reported `ok` for all five dash textures under
+  `Interface\AddOns\GoblinPS\Media\`, and `SetTexture` returns whether the
+  file actually loaded, so this is a real load and not a path check. They are
+  256-square and 128x32 power-of-two uncompressed 32-bit TGAs written by
+  Pillow in `tools/make_art.py` from Codex's PNGs. **This retires the open
+  question about the art pipeline**: the remaining 34 parts can ship the same
+  way, and no BLP conversion is needed.
+- **Base movement is exactly 7 yards a second** (verified in game 2026-09-20).
+  `GetUnitSpeed("player")` unmounted returned `0, 7, 7, 4.7222218513489`:
+  current, run, flight, swim. `Travel.WALK_YARDS_PER_SECOND = 7` is therefore
+  measured, not assumed, and every walking time the addon prints rests on it.
+  Swimming at 4.72 is not modelled. The two **mount** speeds are still
+  unverified; they need the same call from a mounted character.
+- **`GetPlayerFacing` and `UnitOnTaxi` are present** (`/gps selftest`,
+  2026-09-20). Presence only: neither has been seen to return a useful value
+  yet, and the arrow's rotation direction remains underived from anything the
+  client has told us. `C_Map.GetMapLevels` is present too, which is not the
+  same as answering — `/gps probe zones` is still the test that settles it.
 - **Riding is learned at the Classic levels** (verified in game 2026-09-20,
   from the riding trainer's list): Apprentice Riding requires level 40 and
   costs 95 gold; Journeyman Riding requires level 60 and Apprentice, and

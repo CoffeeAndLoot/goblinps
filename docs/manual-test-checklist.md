@@ -143,7 +143,12 @@ Restart the game first: the TOC changed.
       first thing to check: an EditBox we build without a template)
 - [ ] Drag the window by its body: it follows the mouse from where you
       grabbed it, no jump, no Lua error
-- [ ] `/gps selftest` ends "Self-test passed."; record any FAIL line here.
+- [x] `/gps selftest` ends "Self-test passed."; record any FAIL line here.
+      **2026-09-20: passed, and it answered the question plan 5 was waiting
+      on.** All five dash textures reported `ok`, so this client loads the
+      power-of-two TGAs `tools/make_art.py` writes from the PNG sources. The
+      remaining 34 art parts can ship the same way; no BLP conversion needed.
+      `GetPlayerFacing` and `UnitOnTaxi` are present.
       **This quietly answers a question plan 4 depends on.** One of the
       textures it checks is `Interface\AddOns\GoblinPS\Media\icon`, a TGA
       written by Pillow in `tools/make_icon.py`, and `SetTexture` returns
@@ -260,6 +265,10 @@ Restart the game first: the TOC changed.
       `GoblinPS/Travel.lua` already held both; they are now evidence, not a guess
 - [ ] On a level 40+ character the steps say "Ride to ..." and the times are
       shorter
+- [x] ~~Confirm the base walking speed.~~ 2026-09-20:
+      `GetUnitSpeed("player")` unmounted returned `0, 7, 7, 4.7222218513489`
+      (current, run, flight, swim). Run speed is exactly 7, so
+      `Travel.WALK_YARDS_PER_SECOND` is measured rather than assumed
 - [ ] **Measure the two mount speeds.** `Travel.lua` assumes +60% and +100%
       of 7 yards a second (11.2 and 14) from the skill names alone. While
       mounted, run `/run print(GetUnitSpeed("player"))`: it reports yards per
