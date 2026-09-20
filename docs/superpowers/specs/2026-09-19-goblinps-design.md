@@ -120,7 +120,12 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
     transfer rule both go away.
 16. **A crossing step reads as the turn, with the zone as detail:**
     "Walk to the Mor'shan Rampart" over a smaller line "into Ashenvale ·
-    level 18-30". Every planner step becomes two lines (step, detail).
+    level 18-30". Every planner step becomes two lines (step, detail). A
+    crossing's name reads the same whichever way you are going ("the
+    Ashenvale-Felwood road", not "the road into Felwood"); the detail line
+    gives the direction. When the crossing has a hazard or is unconfirmed,
+    the hazard replaces the level range on the detail line, never both, so
+    it is never the part that gets cut off.
 17. **Walk or ride by level, as settings.** Below the first mount level the
     step says "Walk to" and uses walking speed; at or above it, "Ride to" and
     the mount's speed. The levels and speeds are named settings in one
@@ -170,15 +175,20 @@ once confirmed in game.
 
 **Hand-written for ground travel (plan 3):**
 
-- `Data/Crossings.lua`: 56 rows plus Forever's new zones. Each row: the
-  two zone UiMaps, the crossing's name, one map point, an optional hazard
-  note, an optional faction. Which zones border which, the place names and
-  the level ranges are facts about Blizzard's game; the Forever Atlas fan
-  site's table served as a checklist of those facts and supplied four
-  crossings the first draft missed. The rows, the wording and every
-  coordinate are our own; the atlas's prose, drawn zone shapes and code are
-  its author's and are not used. Coordinates start as estimates and are
-  corrected in game, like the dock positions.
+- `Data/Crossings.lua`: 56 rows, six of them for Forever's new zones. Each
+  row: the two zone UiMaps, the crossing's name, one map point, an optional
+  hazard note, an optional `cross` seconds (a tunnel, a lift or a mountain
+  pass takes time to walk even though the point is one for both zones, so
+  the passage time is paid once per traversal), an optional faction. Which
+  zones border which, the place names and the level ranges are facts about
+  Blizzard's game; the Forever Atlas fan site's table served as a checklist
+  of those facts and supplied four crossings the first draft missed. The
+  rows, the wording and every coordinate are our own; the atlas's prose,
+  drawn zone shapes and code are its author's and are not used. Coordinates
+  start as estimates and are corrected in game, like the dock positions.
+  Unverified rows (the new zones and Orgrimmar's west gate, whose crossing
+  is a guess or unwalked) say "crossing not confirmed" in amber on the
+  step's detail line until walked and cleared.
 - `Data/Zones.lua`: level range per zone (about 45 rows), for the warnings.
 - Travel settings (speeds and mount levels) as named constants in one place.
 

@@ -173,12 +173,14 @@ Restart the game first: the TOC changed.
 
 Restart the game first: the TOC changed.
 
+- [ ] FIRST: every Horde route north depends on it. Orgrimmar's west gate:
+      confirm it opens into the Barrens and where
 - [ ] On a character below level 40 with no flight paths, plan to a zone two
       or more zones away: every ground step says "Walk to ..." and names a
       crossing; none says "(no mapped path)"
 - [ ] The undead start: `/gps to mount hyjal` from Tirisfal gives the zeppelin,
       Orgrimmar's front gate, Orgrimmar's west gate, the Mor'shan Rampart, the
-      road into Felwood, the Timbermaw Hold tunnels, Darkwhisper Gorge
+      Ashenvale-Felwood road, the Timbermaw Hold tunnels, Darkwhisper Gorge
 - [ ] In the planner each ground step has a second, smaller line ("into
       Ashenvale · level 18-30"); it is amber when the zone is well above the
       character's level or the crossing has a hazard, dim otherwise
@@ -195,7 +197,16 @@ Restart the game first: the TOC changed.
       `/run print(C_Map.GetBestMapForUnit("player"), C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"),"player"):GetXY())`
       and compare with the row in `GoblinPS/Data/Crossings.lua`; correct the
       row if it is off by more than 0.03. Record the ones checked here
-- [ ] Orgrimmar's west gate: confirm it opens into the Barrens and where
+- [ ] Check the level ranges in GoblinPS/Data/Zones.lua against the in-game
+      map's zone tooltips; Forever may have moved some
+- [ ] Time the passages that carry a cross time in Data/Crossings.lua
+      (Blackrock Mountain, the Timbermaw tunnels, Dun Algaz, Darkwhisper
+      Gorge, the Great Lift, the Thunder Bluff lifts, the Talondeep Path)
+      and correct the seconds
+- [ ] Orgrimmar's west gate and the six new-zone crossings show "crossing not
+      confirmed" in amber until their rows lose unverified = true
+- [ ] A route with more than 8 steps shows the first six, "... and N more
+      steps", and the final step
 - [ ] The ramp in Un'Goro Crater's north-west corner: confirm it is the way
       into Silithus (a reviewer doubted it; the classic world and the atlas
       both say yes)

@@ -37,7 +37,7 @@ GoblinPS/API.lua             # the ONLY file that calls Blizzard game APIs and r
                               # events (LooseEnds pattern); UI files may register UI layout events
                               # (UI_SCALE_CHANGED, DISPLAY_SIZE_CHANGED) for their own frames
 GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
-GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram (and later ground crossings)
+GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences
@@ -147,4 +147,5 @@ commit; re-read files before editing.
   handed to the router needs its `map`. A missing crossing shows up as a step
   labelled "(no mapped path)"; add the row to `Data/Crossings.lua`, do not
   loosen the rule. `test/test_crossings.lua` checks every row and that each
-  continent's zones all connect.
+  continent's zones all connect. A crossing's name must read correctly
+  whichever way you are going; the detail line gives the direction.
