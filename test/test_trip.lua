@@ -70,6 +70,28 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("Trip.CompassAngle", function()
+        h.it("turns opposite our own facing", function()
+            h.eq(Trip.CompassAngle(0.4), Trip.ROTATION_SIGN * -0.4)
+        end)
+        h.it("defaults to north when facing is unknown", function()
+            h.eq(Trip.CompassAngle(nil), 0)
+        end)
+        h.it("flips together with ROTATION_SIGN instead of a sign hard-coded against it", function()
+            -- The whole reason ROTATION_SIGN exists: the checklist tells a
+            -- tester who sees the arrow turn the wrong way to flip this
+            -- constant and nothing else. If the compass ever stopped
+            -- consulting it, this would still pass while the in-game remedy
+            -- quietly broke the compass -- which is exactly what shipped
+            -- before this fix, since the old code read
+            -- `-(facing or 0)` and never looked at ROTATION_SIGN at all.
+            local saved = Trip.ROTATION_SIGN
+            Trip.ROTATION_SIGN = -1
+            h.eq(Trip.CompassAngle(0.4), 0.4)
+            Trip.ROTATION_SIGN = saved
+        end)
+    end)
+
     h.describe("Trip.DistanceTo", function()
         local step = { kind = "ride", seconds = 100, to = { c = 1, x = 100, y = 50 } }
         h.it("returns the distance for a valid position and step", function()

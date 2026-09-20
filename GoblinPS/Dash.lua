@@ -46,7 +46,13 @@ local function art(parent, name, layer, pad)
     return t
 end
 
--- Draws whatever is in `state`. Safe to call at any time.
+-- Draws whatever is in `state`. Safe to call at any time. `state.banner`,
+-- when set, takes the "then ..." line for exactly the tick it was set on
+-- (Dash.Tick clears it and redraws before checking the next verdict), so
+-- "Recalculating..." is seen without being able to stick around forever.
+-- Distance and ETA are cleared here too: whatever they showed belonged to
+-- the step or trip this call is replacing, and the very next tick recomputes
+-- them fresh.
 function Dash.Refresh()
     if not ui or not state.plan then
         return
@@ -58,7 +64,9 @@ function Dash.Refresh()
     end
     ui.step:SetText(stepText(step))
     local following = steps[state.index + 1]
-    ui.next:SetText(following and ("then " .. stepText(following)) or "")
+    ui.next:SetText(state.banner or (following and ("then " .. stepText(following)) or ""))
+    ui.distance:SetText("")
+    ui.eta:SetText("")
 end
 
 local function build()
@@ -74,6 +82,14 @@ local function build()
         self:StopMovingOrSizing()
         local point, _, relativePoint, x, y = self:GetPoint(1)
         ns.Core.SavePosition("dash", point, relativePoint, x, y)
+    end)
+    -- Escape hides this frame (it is in UISpecialFrames) without calling
+    -- Dash.Stop, and there is no other way to reopen it: without this, the
+    -- trip would keep ticking, replanning and even finishing behind a
+    -- window nobody can see. OnHide is the one place both Escape and the
+    -- Stop button end up, so ending the trip here covers both.
+    f:SetScript("OnHide", function()
+        state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
     end)
     f:Hide()
 
@@ -105,6 +121,12 @@ local function build()
     if arrowPart and arrow:SetTexture(MEDIA .. arrowPart.file) then
         arrow:SetTexCoord(arrowPart.l, arrowPart.r, arrowPart.t, arrowPart.b)
         arrow:SetVertexColor(1, 1, 1)
+    else
+        -- The generated file is unknown or would not load: put the flat
+        -- placeholder back. Without this, a failed SetTexture above leaves
+        -- the texture object holding the path that just failed, and the
+        -- arrow -- the one part with no colour behind it -- draws nothing.
+        arrow:SetTexture("Interface\\Buttons\\WHITE8X8")
     end
 
     -- The bezel carries only the body art, above the screen so its
@@ -186,8 +208,10 @@ function Dash.Start(plan)
     ui.frame:Show()
 end
 
+-- Hide is the one action that ends a trip: the OnHide script above clears
+-- state, so Stop and Escape (which only hides the frame, via UISpecialFrames)
+-- both end up ending the trip the same way.
 function Dash.Stop()
-    state.plan, state.index, state.best = nil, nil, nil
     if ui then
         ui.frame:Hide()
     end
@@ -211,7 +235,11 @@ local function aimArrow(pos, step)
     ui.arrow:SetRotation(angle)
     ui.arrow:Show()
     if ui.compass then
-        ui.compass:SetRotation(-(ns.API.PlayerFacing() or 0))
+        -- Through Trip.CompassAngle, the same ROTATION_SIGN the arrow uses:
+        -- flipping that constant (the checklist's in-game remedy for an
+        -- arrow that turns the wrong way) must turn the compass with it,
+        -- not leave it hard-coded to one direction.
+        ui.compass:SetRotation(ns.Trip.CompassAngle(ns.API.PlayerFacing()))
     end
 end
 
@@ -221,7 +249,7 @@ local function finish()
     ui.distance:SetText("")
     ui.eta:SetText("")
     ui.arrow:Hide()
-    state.plan, state.index, state.best = nil, nil, nil
+    state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
 end
 
 -- One look at where the player is against the step they are on. `event` is
@@ -229,6 +257,14 @@ end
 function Dash.Tick(event)
     if not ui or not state.plan then
         return
+    end
+    if state.banner then
+        -- The banner (e.g. "Recalculating...") has had its one tick on
+        -- screen; clear it and redraw the ordinary text before deciding
+        -- what this tick does, so it cannot stick around past the change
+        -- it announced.
+        state.banner = nil
+        Dash.Refresh()
     end
     local steps = state.plan.result.steps
     local step = steps[state.index]
@@ -260,14 +296,23 @@ function Dash.Tick(event)
         local replanned = ns.Core.PlanRoute(state.plan.to, pos)
         if replanned.result and #replanned.result.steps > 0 then
             state.plan, state.index, state.best = replanned, 1, nil
-            ui.next:SetText("Recalculating...")
+            state.banner = "Recalculating..."
             Dash.Refresh()
+            ns.Core.PinStep(replanned.result.steps[1])   -- the pin follows the replanned route too
         elseif replanned.result then
             -- The replan found nothing left to do: the player was already at
             -- the destination. That is arrival, not a plan to sit on quietly;
             -- finish() is the same path an advance past the last step takes,
             -- so the text never goes stale on an old, now-pointless step.
             finish()
+        else
+            -- No route at all: straying again next tick would call
+            -- PlanRoute again, and again every 0.5s for as long as the
+            -- player stands somewhere unroutable. Treat the current spot as
+            -- the new baseline, the same way a successful recalculation
+            -- resets `best`, so another full STRAY_YARDS of wandering is
+            -- needed before this is retried.
+            state.best = ns.Trip.DistanceTo(pos, step)
         end
         return
     end

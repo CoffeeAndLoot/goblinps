@@ -17,7 +17,7 @@ local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 -- typed by hand so this list cannot drift from what the tool produced.
 local function shippedArt()
     local names = {}
-    for name in pairs(ns.Data.Art) do
+    for name in pairs(ns.Data.Art or {}) do
         names[#names + 1] = name
     end
     table.sort(names)

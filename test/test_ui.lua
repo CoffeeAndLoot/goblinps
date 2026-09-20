@@ -643,6 +643,26 @@ return function(h)
                 facing = 0
             end)
 
+            h.it("turns the compass by Trip.ROTATION_SIGN too, so flipping it moves both together", function()
+                -- The checklist tells a tester whose arrow turns the wrong
+                -- way to "flip Trip.ROTATION_SIGN and nothing else". Facing
+                -- 0 above cannot prove the compass honours that constant
+                -- (both signs give -0), so this uses a facing the two signs
+                -- actually disagree on.
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(0, -100); facing = 0.4
+                Dash.Tick("tick")
+                h.eq(ui.compass.rotation, -0.4, "default sign turns opposite facing")
+                local saved = ns.Trip.ROTATION_SIGN
+                ns.Trip.ROTATION_SIGN = -1
+                Dash.Tick("tick")
+                h.eq(ui.compass.rotation, 0.4,
+                     "flipping ROTATION_SIGN, the checklist's own remedy for the arrow, must flip the compass with it")
+                ns.Trip.ROTATION_SIGN = saved
+                facing = 0
+            end)
+
             h.it("does not advance or stray while on a zeppelin", function()
                 Dash.Start(plan)
                 local _, state = Dash.Debug()
@@ -687,6 +707,113 @@ return function(h)
                 h.eq(ui.step:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
                 h.falsy(state.plan, "the trip is over, not stuck on the old plan")
             end)
+
+            h.it("clears the previous trip's distance and ETA when a new one starts", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(700, 0); facing = 0
+                Dash.Tick("tick")
+                h.truthy(ui.distance:GetText() ~= "", "sanity: a distance is showing")
+                Dash.Stop()
+                Dash.Start(plan)
+                h.eq(ui.distance:GetText(), "", "a fresh trip must not show the last trip's distance")
+                h.eq(ui.eta:GetText(), "", "nor its ETA")
+            end)
+
+            h.it("clears distance and ETA for the tick after an advance, not the old step's numbers", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                standAt(700, 0); facing = 0
+                Dash.Tick("tick")
+                h.truthy(ui.distance:GetText() ~= "", "sanity: a distance is showing")
+                standAt(10, 0)
+                Dash.Tick("tick") -- arrives and advances
+                h.eq(state.index, 2)
+                h.eq(ui.distance:GetText(), "", "the old step's distance must not sit under the new step's name")
+                h.eq(ui.eta:GetText(), "", "nor its ETA")
+            end)
+
+            h.it("backs off after a replan finds no route, instead of retrying every tick", function()
+                Dash.Start(plan)
+                local calls = 0
+                local original = ns.Core.PlanRoute
+                ns.Core.PlanRoute = function(to, from)
+                    calls = calls + 1
+                    return { to = to or plan.to, from = from, notes = {} } -- no .result: no route found
+                end
+                -- The stub must be restored even if an assertion below
+                -- fails, or a regression here would take down every dash
+                -- test that plans a route after this one.
+                local ok, err = pcall(function()
+                    standAt(700, 0); facing = 0
+                    Dash.Tick("tick") -- establishes state.best
+                    standAt(100000, 0)
+                    Dash.Tick("tick") -- strays: one failed replan attempt
+                    h.eq(calls, 1)
+                    Dash.Tick("tick") -- still exactly as far away: must not retry yet
+                    h.eq(calls, 1, "a failed replan must back off, not re-run Dijkstra every tick")
+                end)
+                ns.Core.PlanRoute = original
+                h.truthy(ok, err)
+            end)
+
+            h.it("shows Recalculating for the tick a stray is caught, and lets it go on the next one", function()
+                -- A real reroute, driven through the real Core.PlanRoute over
+                -- the fake world, the same way the final review measured it:
+                -- straying on the ride to the North Gate crossing forces a
+                -- second plan with a genuinely new `state.plan` table.
+                local hotel = ns.Search.Find(ns.Data, "hotel", "H", 1)[1]
+                where.map, where.mx, where.my = 1, 0.89, 0.9 -- near Alpha
+                local hotelPlan = ns.Core.PlanRoute(hotel)
+                h.eq(hotelPlan.result.steps[1].to.name, "the North Gate", "sanity: a real, ride-first route")
+
+                Dash.Start(hotelPlan)
+                local ui, state = Dash.Debug()
+                standAt(9700, 5000); facing = 0 -- close to the North Gate: sets a small state.best
+                Dash.Tick("tick")
+                h.eq(state.index, 1, "not yet at the arrival radius")
+
+                standAt(0, 0) -- far enough that d > best + STRAY_YARDS
+                local before = state.plan
+                Dash.Tick("tick")
+                h.truthy(state.plan ~= before, "sanity: the plan really was replaced")
+                h.truthy(ui.next:GetText():find("Recalculating", 1, true),
+                          "the player must see the banner on the tick the stray is caught")
+
+                Dash.Tick("tick") -- the very next tick, position unchanged
+                h.falsy(ui.next:GetText():find("Recalculating", 1, true),
+                         "it must not persist once the new route is under way")
+
+                where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
+            end)
+
+            h.it("re-pins the replanned route's first step, not just the trip's very first one", function()
+                local hotel = ns.Search.Find(ns.Data, "hotel", "H", 1)[1]
+                where.map, where.mx, where.my = 1, 0.89, 0.9
+                local hotelPlan = ns.Core.PlanRoute(hotel)
+                Dash.Start(hotelPlan)
+                standAt(9700, 5000); facing = 0
+                Dash.Tick("tick")
+                local before = #pins
+                standAt(0, 0)
+                Dash.Tick("tick")
+                h.truthy(#pins > before, "a replan must re-pin its new first step, per spec decision 3")
+                where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
+            end)
+        end)
+
+        h.describe("the dash unit and Escape", function()
+            h.it("ends the trip like Stop does, so no hidden trip keeps ticking or replanning unseen", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                h.truthy(state.plan, "sanity: a trip is running")
+                ui.frame:Hide() -- what UISpecialFrames does on Escape; Dash never sees the key itself
+                h.falsy(state.plan, "the trip must not outlive the window it belongs to")
+                standAt(10, 0)
+                Dash.Tick("tick") -- must do nothing: no error, no resurrected trip
+                h.falsy(state.plan)
+                h.falsy(ui.frame:IsShown())
+            end)
         end)
 
         h.describe("the dash art", function()
@@ -720,6 +847,21 @@ return function(h)
                 h.truthy(ui.step:GetText() ~= "", "the directions must still be readable")
                 h.falsy(ui.bodyArt, "a texture that would not load must not be laid over the colour")
                 Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash-body"] = nil
+            end)
+            h.it("keeps the flat placeholder when the arrow's own texture will not load", function()
+                -- The arrow is the one part with no colour behind it -- it
+                -- IS the content -- so unlike dash-body (which just leaves
+                -- ui.bodyArt nil and the colour showing), a failed arrow
+                -- texture must leave WHITE8X8 in place, not the failed path
+                -- SetTexture leaves behind on its own.
+                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\arrow"] = true
+                local FreshDash = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+                FreshDash.Start(plan)
+                local ui = FreshDash.Debug()
+                h.truthy(ui.frame:IsShown(), "a missing arrow texture must not take the window with it")
+                h.eq(ui.arrow:GetTexture(), "Interface\\Buttons\\WHITE8X8",
+                     "a failed arrow texture must fall back to the flat placeholder")
+                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\arrow"] = nil
             end)
             h.it("the directions are never hidden behind the device", function()
                 -- A child frame draws entirely above every draw layer of its
@@ -757,6 +899,22 @@ return function(h)
             h.eq(t.vertexColor[1], 1)
             t:SetDrawLayer("OVERLAY")
             h.eq(t.drawLayer, "OVERLAY")
+        end)
+    end)
+
+    h.describe("SelfTest.lua without generated art", function()
+        h.it("loads without hard-erroring when Data/Art.lua has not been generated yet", function()
+            -- Dash.lua guards the same table with `ns.Data.Art and ...`
+            -- (see the "keeps a working device" test above); SelfTest.lua
+            -- must not be the one file that takes the whole addon load down
+            -- because tools/build_graph.py has not run yet.
+            local bareNs = { Data = {} }
+            local ok, err = pcall(function()
+                return assert(loadfile("GoblinPS/SelfTest.lua"))("GoblinPS", bareNs)
+            end)
+            h.truthy(ok, tostring(err))
+            h.eq(type(bareNs.SelfTest and bareNs.SelfTest.Run), "function",
+                 "the module must still publish Run even with no shipped art")
         end)
     end)
 

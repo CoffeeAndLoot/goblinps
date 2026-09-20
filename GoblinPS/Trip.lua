@@ -61,6 +61,15 @@ function Trip.ArrowAngle(bearing, facing)
     return Trip.ROTATION_SIGN * (bearing - facing)
 end
 
+-- What to hand the compass ring's SetRotation. It has no bearing to point
+-- at, only our own facing, but it must turn with the same ROTATION_SIGN as
+-- ArrowAngle -- otherwise flipping the constant to fix the arrow (the
+-- checklist's in-game remedy) would silently break the compass instead. A
+-- nil facing is north, the same default aimArrow already assumed.
+function Trip.CompassAngle(facing)
+    return Trip.ROTATION_SIGN * -(facing or 0)
+end
+
 -- Yards from a world position to a step's target, or nil.
 function Trip.DistanceTo(pos, step)
     if not pos or not step or not step.to then
