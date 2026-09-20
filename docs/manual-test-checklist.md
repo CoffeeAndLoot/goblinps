@@ -3,11 +3,13 @@
 Frames and live game data cannot run outside the client. Add an entry for
 every UI change.
 
-## Start here: the next session, in order
+## Start here: a suggested order for the next session
 
-Plans 2 and 3 are built, reviewed and unmerged, waiting only on this. The
-list below is everything blocking the merge, cheapest and most decisive
-first. The sections further down are the full detail for each.
+Plans 2 and 3 are built and reviewed, and neither has been run in the client.
+**This is a recommendation, not a gate.** Whether it is enough to merge is the
+repository owner's call; what follows is only the order that gets the most
+answered per minute in game, cheapest and most decisive first. The sections
+below hold the full detail, and nothing here replaces them.
 
 **This needs a full game restart, not `/reload`: the TOC changed after plan 3.**
 
@@ -30,7 +32,7 @@ first. The sections further down are the full detail for each.
    directly. Every ground time the addon prints scales off this number, and
    it is currently assumed rather than measured.
 
-Everything after that is worth doing but does not block the merge.
+Everything after that is worth doing, but none of it changes an answer above.
 
 ## Probes to run before any code (WoW Forever beta, 1.60.1.69913)
 

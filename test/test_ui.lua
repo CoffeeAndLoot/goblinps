@@ -16,9 +16,13 @@ return function(h)
     local pins, loginCallbacks = {}, {}
     local level = 60 -- mounted, so ground steps say Ride
     -- What the client claims each zone's level range is, for /gps probe zones.
-    -- Westland matches Data.Zones, Northland disagrees, Isle has a range we do
-    -- not list, and Lostland answers nothing though we do list it.
-    local clientLevels = { [1] = { 1, 10 }, [4] = { 25, 35 }, [3] = { 15, 20 } }
+    -- All four cases the command has to tell apart: Westland (1) matches
+    -- Data.Zones, Northland (4) disagrees with it, Isle (3) and Eastland (2)
+    -- have ranges we do not list, and Lostland (5) is one we list that the
+    -- client says nothing about. Two zones are unlisted and only one is lost
+    -- on purpose: with both at one, swapping the two counters in the summary
+    -- would print the same sentence and no test would notice.
+    local clientLevels = { [1] = { 1, 10 }, [4] = { 25, 35 }, [3] = { 15, 20 }, [2] = { 5, 9 } }
     ns.API = {
         Faction = function() return "H" end,
         Level = function() return level end,
@@ -351,17 +355,23 @@ return function(h)
             h.eq(by[4].clientLow, 25); h.eq(by[4].clientHigh, 35)
             -- the client has a range we never listed
             h.eq(by[3].ourLow, nil); h.eq(by[3].clientLow, 15)
-            -- neither has one
-            h.eq(by[2].ourLow, nil); h.eq(by[2].clientLow, nil)
+            -- we have a row and the client says nothing: ours must survive the
+            -- dump, so a silent client never reads as "delete our range"
+            h.eq(by[5].ourLow, 20); h.eq(by[5].ourHigh, 25)
+            h.eq(by[5].clientLow, nil); h.eq(by[5].clientHigh, nil)
+            -- a second zone the client knows and we do not, so the two counts differ
+            h.eq(by[2].ourLow, nil); h.eq(by[2].clientLow, 5)
         end)
         h.it("names the zones that differ and counts the rest", function()
             local from = #printed
             SlashCmdList.GOBLINPS("probe zones")
             local said = table.concat(printed, "\n", from + 1, #printed)
             h.truthy(said:find("Northland: ours 30-40, client 25-35", 1, true), "should name the disagreement")
-            h.truthy(said:find("3 of 5 zones", 1, true), "should count the answers")
+            h.truthy(said:find("4 of 5 zones", 1, true), "should count the answers")
             h.truthy(said:find("1 differ", 1, true))
-            h.truthy(said:find("1 we do not list", 1, true))
+            h.truthy(said:find("2 we do not list", 1, true))
+            h.truthy(said:find("1 we list and it does not", 1, true),
+                     "the fourth case must be counted, and not swapped with the third")
         end)
         h.it("says so plainly when the client answers for no zone at all", function()
             local saved = clientLevels

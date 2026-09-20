@@ -19,15 +19,16 @@ return function(h, loaded)
         return p.c == c and x >= p.x0 - dx and x <= p.x1 + dx and y >= p.y0 - dy and y <= p.y1 + dy
     end
 
-    -- A border can only lie where the two zones' rectangles overlap, which is
-    -- the same as saying the point is inside both. `near` above tests that
-    -- with a tenth of each rectangle as slack; this tests it in yards, and
-    -- says how many when it fails. Yards matter because the slack is
-    -- proportional: a tenth of the Barrens is over a thousand yards, so a row
-    -- can be far wrong and still pass. The worst row today is 250 (the
-    -- Timbermaw tunnels, on the Felwood side) and a digit typed wrong in a map
-    -- coordinate moves a point by thousands, so 300 catches typos while
-    -- tolerating estimates nobody has walked yet.
+    -- A border can only lie where the two zones' rectangles overlap, so a
+    -- crossing has to sit on that overlap. `near` above asks a similar
+    -- question but pads each rectangle by a tenth of its own size first, and a
+    -- tenth of the Barrens is over a thousand yards. The two are
+    -- complementary, not redundant, and the proof is that all 56 rows pass
+    -- `near` today while six fail this: measuring against the unpadded overlap
+    -- in yards catches what a share of a huge rectangle cannot. The worst row
+    -- today is 250 (the Timbermaw tunnels, on the Felwood side), and a digit
+    -- typed wrong in a map coordinate moves a point by thousands, so 300
+    -- catches typos while tolerating estimates nobody has walked yet.
     local EDGE_YARDS = 300
 
     local function distToRect(x0, x1, y0, y1, x, y)
@@ -147,8 +148,10 @@ return function(h, loaded)
             -- Pinned so that correcting a point in game shows up as a failure
             -- here, which is the prompt to update these numbers and the list in
             -- docs/manual-test-checklist.md.
-            h.eq(offenders, 6, "rows off the shared edge; worst is "
-                 .. tostring(worstName) .. " at " .. math.floor(worst) .. " yards")
+            h.eq(offenders, 6, "rows sit off the shared edge (worst: " .. tostring(worstName)
+                 .. " at " .. math.floor(worst) .. " yards). If you have just corrected a crossing"
+                 .. " in game then this number is MEANT to change: update it here and the table"
+                 .. " under 'Which crossings to check first' in docs/manual-test-checklist.md")
         end)
         h.it("lists each pair of zones once", function()
             local seen = {}

@@ -15,8 +15,10 @@ local function world()
         Crossings = {
             { a = 1, b = 4, name = "the North Gate", map = 1, mx = 0.5, my = 0.02, warn = "trolls on the bridge" },
         },
-        -- { low, high } level range per zone
-        Zones = { [1] = { 1, 10 }, [4] = { 30, 40 } },
+        -- { low, high } level range per zone. Lostland (5) is listed here but
+        -- the scripted client has no range for it, which is the fourth case
+        -- /gps probe zones has to handle: we have a row and the client does not.
+        Zones = { [1] = { 1, 10 }, [4] = { 30, 40 }, [5] = { 20, 25 } },
         Nodes = {
             [1] = { name = "Alpha, Westland", f = "H", c = 1, x = 1000, y = 1000, map = 1, mx = 0.9, my = 0.9 },
             [2] = { name = "Bravo, Westland", f = "H", c = 1, x = 1000, y = 9000, map = 1, mx = 0.1, my = 0.9 },

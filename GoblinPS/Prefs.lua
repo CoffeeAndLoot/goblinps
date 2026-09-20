@@ -3,6 +3,13 @@ local _, ns = ...
 -- Pure: the account-wide preferences table (GoblinPSDB). Preferences, recent
 -- destinations and window positions only. Known flight paths live per
 -- character in GoblinPSCharDB and are owned by Known.lua.
+--
+-- One other key shares the table without belonging to this file: `probe`, the
+-- dump from `/gps probe zones`, written and overwritten by Core.lua. It rides
+-- here because SavedVariables is the only way to get a table too long for chat
+-- onto the desktop, and a second saved variable would mean a TOC change and a
+-- full client restart. It is diagnostic, never read back, and safe to delete.
+-- Prefs.Init deliberately does not create or validate it.
 local Prefs = {}
 ns.Prefs = Prefs
 
