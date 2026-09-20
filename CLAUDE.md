@@ -14,11 +14,11 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: routing core and planner window built (plans 1 and 2).** `/gps`
-opens the planner; `/gps to <place>` prints a route in chat. Next: plan 3,
-ground crossings between zones (real turns instead of a straight line to a
-zone's centre) with walk-or-ride by level; plan 4, the dash unit (arrow,
-arrival, recalculating); plan 5, the schematic map (approach proven in
+**Status: routing core, planner window and ground crossings built (plans 1
+to 3).** `/gps` opens the planner; `/gps to <place>` prints a route in chat,
+with ground travel going zone by zone through named crossings and
+walk-or-ride by level. Next: plan 4, the dash unit (arrow, arrival,
+recalculating); plan 5, the schematic map (approach proven in
 `docs/research/schematic-spike/`). The product is a GPS: point to point with
 an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`. Write each plan after
@@ -42,6 +42,9 @@ GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the charact
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences
 GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
+GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
+GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber warnings
+GoblinPS/Travel.lua          # pure: walk or ride by level; the ONLY place mount levels and speeds live (unconfirmed)
 GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates
 GoblinPS/Planner.lua         # the window; one set of widgets, ApplyLayout moves them
 GoblinPS/MinimapButton.lua, SelfTest.lua, Core.lua
@@ -139,3 +142,9 @@ commit; re-read files before editing.
 - Text in the window must be bounded: give every FontString two horizontal
   anchors (or a width) and decide wrap or truncate. A one-anchor FontString
   fed a sentence draws over its neighbours and past the frame.
+- Ground travel is per zone: a ride edge joins two points only when they
+  share a UiMap, and a crossing belongs to both of its zones. Every place
+  handed to the router needs its `map`. A missing crossing shows up as a step
+  labelled "(no mapped path)"; add the row to `Data/Crossings.lua`, do not
+  loosen the rule. `test/test_crossings.lua` checks every row and that each
+  continent's zones all connect.

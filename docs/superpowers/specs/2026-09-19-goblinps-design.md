@@ -2,7 +2,7 @@
 
 Status: **approved by the user on 2026-09-19.** Implemented in five plans
 under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window
-(built), 3 ground crossings with walk-or-ride by level, 4 dash unit,
+(built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit,
 5 schematic map. Each is written after the one before it has been used in
 game. Update this file whenever behaviour changes.
 
@@ -170,11 +170,14 @@ once confirmed in game.
 
 **Hand-written for ground travel (plan 3):**
 
-- `Data/Crossings.lua`: about 55 rows plus Forever's new zones. Each row: the
+- `Data/Crossings.lua`: 56 rows plus Forever's new zones. Each row: the
   two zone UiMaps, the crossing's name, one map point, an optional hazard
-  note, an optional faction. The atlas fan site has a similar table but no
-  license; which zones border which is plain geography, so these rows and
-  their coordinates are our own. Coordinates start as estimates and are
+  note, an optional faction. Which zones border which, the place names and
+  the level ranges are facts about Blizzard's game; the Forever Atlas fan
+  site's table served as a checklist of those facts and supplied four
+  crossings the first draft missed. The rows, the wording and every
+  coordinate are our own; the atlas's prose, drawn zone shapes and code are
+  its author's and are not used. Coordinates start as estimates and are
   corrected in game, like the dock positions.
 - `Data/Zones.lua`: level range per zone (about 45 rows), for the warnings.
 - Travel settings (speeds and mount levels) as named constants in one place.
@@ -201,9 +204,11 @@ Each opens with `local addonName, ns = ...` and publishes itself on `ns`.
   mainland and its ferry deferred. **From plan 3:** a ride edge joins two
   points only when they are in the same zone; a crossing is a point that
   belongs to both of its zones, so Dijkstra chains zones through crossings.
-  The `Islands` table and the 800-yard transfer rule are deleted, the
-  Feathermoon ferry returns as an ordinary link, and the travel speed comes
-  in with the options (walk or mount, by level). If no route exists with
+  The `Islands` table and the 800-yard transfer rule are deleted, and the
+  travel speed comes in with the options (walk or mount, by level). Sardor
+  Isle shares Feralas's map, and ground travel is per map, so the isle still
+  counts as part of Feralas and its ferry stays out (a ride inside the zone
+  would always undercut it). If no route exists with
   crossings alone, the graph is rebuilt with the old continent-wide straight
   lines and those steps are flagged rough. A zone destination is reached at
   any place on the
@@ -311,4 +316,7 @@ These do not block the plan; each has a designed fallback.
   press coverage). Record them when a character first gets a mount.
 - Every crossing point's coordinates, and which crossings Forever added or
   closed (Mount Hyjal by Darkwhisper Gorge, Riverglades, Shen'dralas).
+  Shen'dralas is entered from Desolace by the Valley of Bones (stated by
+  Blizzard); Riverglades also borders the Burning Steppes, the Swamp of
+  Sorrows and the Badlands (stated by Blizzard, crossing points unknown).
 - The rest of the probes in `docs/manual-test-checklist.md`.

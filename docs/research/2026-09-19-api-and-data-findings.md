@@ -136,10 +136,13 @@ Snapshots are in `docs/research/data/`. URL form:
 ## Forever Atlas (fan web map), read 2026-09-19
 
 `https://benjamh681.github.io/wow-forever-atlas/` (repo
-`benjamh681/wow-forever-atlas`, a single `index.html`). **No license**, so
-all rights reserved: do not ship its art or copy its tables. Use it as a
-cross-check and a style reference only; facts it cites are public. It has its
-own browser route planner, which cannot know a character's flight paths.
+`benjamh681/wow-forever-atlas`, a single `index.html`). The site has **no
+license**, which covers its author's own work: the prose, the hand-drawn zone
+shapes and the code. None of that is used. The facts it records (which zones
+border which, place names, level ranges, which routes Blizzard has
+announced) are facts about Blizzard's game and are used freely, as a
+checklist against our own tables. It has its own browser route planner,
+which cannot know a character's flight paths.
 
 Its `ROUTES` table carries a confidence mark per route. Marked "stated by
 Blizzard" and new in Forever (all **unverified in game**):

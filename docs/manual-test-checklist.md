@@ -168,3 +168,42 @@ Restart the game first: the TOC changed.
       with the row in `GoblinPS/Data/Inns.lua`
 - [ ] Any other "Hearth: unknown inn (...)" line seen: add the name to
       `GoblinPS/Data/Inns.lua`
+
+## Ground crossings (plan 3)
+
+Restart the game first: the TOC changed.
+
+- [ ] On a character below level 40 with no flight paths, plan to a zone two
+      or more zones away: every ground step says "Walk to ..." and names a
+      crossing; none says "(no mapped path)"
+- [ ] The undead start: `/gps to mount hyjal` from Tirisfal gives the zeppelin,
+      Orgrimmar's front gate, Orgrimmar's west gate, the Mor'shan Rampart, the
+      road into Felwood, the Timbermaw Hold tunnels, Darkwhisper Gorge
+- [ ] In the planner each ground step has a second, smaller line ("into
+      Ashenvale · level 18-30"); it is amber when the zone is well above the
+      character's level or the crossing has a hazard, dim otherwise
+- [ ] `/gps to` prints the same detail line under each ground step in chat
+- [ ] Both layouts: the two-line rows fit, nothing overlaps the hint, the
+      total or GO; a route longer than 8 steps ends "... and N more steps"
+- [ ] On a level 40+ character the steps say "Ride to ..." and the times are
+      shorter. **Record the level at which this character got its first mount
+      and its speed**, and the same for the fast mount: `GoblinPS/Travel.lua`
+      holds guesses (40 and 60) until then
+- [ ] GO on a crossing step puts Blizzard's pin on the crossing
+- [ ] **Walk each crossing you pass and check its point.** Stand in the
+      gateway, run
+      `/run print(C_Map.GetBestMapForUnit("player"), C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"),"player"):GetXY())`
+      and compare with the row in `GoblinPS/Data/Crossings.lua`; correct the
+      row if it is off by more than 0.03. Record the ones checked here
+- [ ] Orgrimmar's west gate: confirm it opens into the Barrens and where
+- [ ] The ramp in Un'Goro Crater's north-west corner: confirm it is the way
+      into Silithus (a reviewer doubted it; the classic world and the atlas
+      both say yes)
+- [ ] New zones, all `unverified = true` in the table: Darkwhisper Gorge into
+      Mount Hyjal, the Valley of Bones into Shen'dralas, the Riverglades
+      turnoff from Redridge and its borders with the Burning Steppes, the
+      Swamp of Sorrows and the Badlands. Record the real crossings
+- [ ] Any step that says "(no mapped path)": record from where to where; a
+      crossing row is missing
+- [ ] Teldrassil still needs the boat; a Darnassus character leaves by "the
+      Darnassus gate"
