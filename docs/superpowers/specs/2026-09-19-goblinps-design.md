@@ -41,14 +41,16 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    change it to any stop or zone.
 3. **Two frames (Garmin model).**
    - *Planner*: the big device. Search box, the route strip, step list.
-   - *Dash unit*: a small draggable round brass device shown after "Go",
-     drawn from the mockup. A green arrow that turns to point at the current
-     step, with the distance and an ETA on the plate beneath it; the current
-     step plus the next in text ("Fly to Orgrimmar · then Zeppelin to
-     Tirisfal"); advances on arrival; shows "Recalculating…" when the player
-     strays; sets Blizzard's map waypoint on the current step. The arrow is
-     its own texture, pointing up and centred on its pivot, so it can be
-     rotated in code.
+   - *Dash unit*: a small draggable round brass device opened when GO closes
+     the planner. A green arrow that turns to point at the current step, with
+     the distance and an ETA on the plate beneath it; the current step plus the
+     next in text ("Fly to Orgrimmar · then Zeppelin to Tirisfal"); advances
+     on arrival; shows "Recalculating…" when the player strays; sets Blizzard's
+     map waypoint on each new step as the trip advances, not only on the first
+     one. The arrow is its own texture, pointing up and centred on its pivot,
+     so it can be rotated in code. An active trip is **not saved**: `/reload`
+     ends it. The planner's recents make restarting one click. Reopening the
+     planner with `/gps` carries the trip on without ending it.
 4. **Destination input, two ways:** type-ahead search over cities, zones and
    flight masters with recents on top; Ctrl-click on Blizzard's world map for
    an exact spot (react to `USER_WAYPOINT_UPDATED`). A third way, clicking a
@@ -66,7 +68,11 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    glowing green route is the only bright thing; amber is for warnings only.
    The art is separate transparent parts specified in
    `docs/art-parts-brief.md`, laid over plain colour, so a missing texture
-   still leaves a working window.
+   still leaves a working window. Authoring sources in `images/parts/` (TGAs,
+   49 MiB, gitignored) are scaled and padded by `tools/make_art.py` into
+   shipped TGAs in `GoblinPS/Media/`, and their texture coordinates are
+   generated into `GoblinPS/Data/Art.lua`; the authoring manifest in
+   `images/parts/` is not the shipped one.
    The schematic world map is **not being built.** The spike that proved it
    feasible is kept at `docs/research/schematic-spike/` in case a later
    version wants an overview panel; until then the generator's schematic

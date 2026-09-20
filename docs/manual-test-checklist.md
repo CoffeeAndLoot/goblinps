@@ -329,3 +329,29 @@ turns that test red. That is the prompt to update this table, not a bug.
       crossing row is missing
 - [ ] Teldrassil still needs the boat; a Darnassus character leaves by "the
       Darnassus gate"
+
+## Dash unit (plan 4)
+
+- [ ] GO closes the planner and opens the dash; /gps reopens the planner and
+      the trip keeps running
+- [ ] The arrow points at the current step. Turn on the spot: it should stay
+      pointing at the same place in the world. **If it turns the wrong way,
+      flip Trip.ROTATION_SIGN and nothing else**
+- [ ] The compass ring's N stays north as you turn
+- [ ] Blizzard's map pin moves to each new step as the dash advances, not
+      only to the first one when GO is pressed
+- [ ] Walk to the first step's target: the dash advances to the next step
+- [ ] Walk away from the target for 400 yards: it says Recalculating and
+      replans from where you stand
+- [ ] Take a zeppelin: nothing advances or recalculates while aboard
+- [ ] Land from a flight: it recalculates rather than sitting on a step you
+      have already finished
+- [ ] Enter an instance: the dash says Waiting and keeps the trip; leave the
+      instance and it carries on
+- [ ] Reach the last step: it says Arrived and the device closes
+- [ ] Drag the dash; its position survives /reload. /reload mid-trip ends the
+      trip, by design
+- [ ] The five dash textures load: /gps selftest names them. If one FAILS,
+      the device must still be readable on its flat colours
+- [ ] At a UI scale of 0.64 and of 1.0 the device is legible and nothing
+      overlaps

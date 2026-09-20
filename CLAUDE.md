@@ -14,17 +14,19 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 3 are merged to `main` and confirmed in the client**
-(2026-09-20: routing core, planner window, ground crossings). `/gps` opens
-the planner; `/gps to <place>` prints a route in chat, with ground travel
-going zone by zone through named crossings and walk-or-ride by level.
-What is still estimated is **data, not code**: crossing coordinates, the two
-mount speeds, `cross` times and some zone level ranges. The addon says so in
-amber where it matters; `docs/manual-test-checklist.md` lists what to walk. Next: plan 4, the dash unit (arrow, arrival,
-recalculating); plan 5, the route strip. A schematic world map was dropped on
-2026-09-20 in favour of the strip; the spike that proved it feasible is kept
-at `docs/research/schematic-spike/`. The product is a GPS: point to point with
-an arrow, in game. The design is
+**Status: plans 1 to 4 are built. Plans 1 to 3 are merged to `main` and
+confirmed in the client** (2026-09-20: routing core, planner window, ground
+crossings, dash unit). `/gps` opens the planner; `/gps to <place>` prints a
+route in chat, with ground travel going zone by zone through named crossings
+and walk-or-ride by level. GO closes the planner and opens the dash unit: an
+arrow pointing at the current step, showing distance and time left, advancing
+when you arrive and replanning when you stray. What is still estimated is
+**data, not code**: crossing coordinates, the two mount speeds, `cross` times
+and some zone level ranges. The addon says so in amber where it matters;
+`docs/manual-test-checklist.md` lists what to walk. Next: plan 5, the route
+strip. A schematic world map was dropped on 2026-09-20 in favour of the strip;
+the spike that proved it feasible is kept at `docs/research/schematic-spike/`.
+The product is a GPS: point to point with an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`. Write each plan after
 the one before it has been used in game.
 
@@ -53,9 +55,12 @@ GoblinPS/Travel.lua          # pure: walk or ride by level; the ONLY place mount
                               # (levels 40/60 confirmed in game 2026-09-20; the two speeds are still assumed)
 GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates
 GoblinPS/Planner.lua         # the window; one set of widgets, ApplyLayout moves them
+GoblinPS/Dash.lua            # the small draggable device shown when GO closes the planner; arrow, distance, ETA
+GoblinPS/Data/Art.lua        # GENERATED: texture coordinates for shipped art parts, built by tools/make_art.py
 GoblinPS/MinimapButton.lua, SelfTest.lua, Core.lua
 test/fake_frames.lua         # fake frame API: smoke-tests OUR window code, not Blizzard's
 tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
+tools/make_art.py            # builds shipped textures from images/parts/*.png, scales and pads them, generates Data/Art.lua
 tools/catalog.lock           # pinned client build
 test/run.lua                 # desktop Lua test runner
 docs/                        # specs, research, manual test checklist
