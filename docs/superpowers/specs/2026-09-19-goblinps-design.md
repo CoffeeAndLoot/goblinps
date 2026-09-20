@@ -139,9 +139,11 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
 17. **Walk or ride by level, as settings.** Below the first mount level the
     step says "Walk to" and uses walking speed; at or above it, "Ride to" and
     the mount's speed. The levels and speeds are named settings in one
-    place. Defaults, from press coverage and **not confirmed**: 7 yards a
-    second on foot, a 60% mount (11.2) at level 40, a 100% mount (14) at
-    level 60. Level is a deliberate approximation of "has a mount"; the
+    place. The **levels are confirmed** in game (2026-09-20, the riding
+    trainer: Apprentice Riding requires level 40, Journeyman requires 60).
+    The **speeds are not**: 11.2 and 14 yards a second are the Classic values
+    the two skill names imply (+60% and +100% of 7 on foot), not yet
+    measured. Level is a deliberate approximation of "has a mount"; the
     riding-skill and mount-list APIs are unverified on this client.
 18. **Warn, never reroute.** The route is always the fastest. A step's detail
     line turns amber when its zone's level range starts well above the
@@ -333,8 +335,10 @@ These do not block the plan; each has a designed fallback.
 - `TaxiNodes.Flags` faction bits (1 = Alliance, 2 = Horde).
 - How the new zones are reached (Mount Hyjal, Zephras Isle, Darkspear
   Islands, Riverglades, Shen'dralas) and the three new boat routes.
-- Mount levels and speeds on Forever (defaults 40/60% and 60/100% are from
-  press coverage). Record them when a character first gets a mount.
+- ~~Mount levels on Forever.~~ Settled 2026-09-20 at the riding trainer:
+  Apprentice Riding requires level 40, Journeyman requires 60, exactly as
+  Classic. The **speeds** are still assumed from the skill names (+60% and
+  +100%): measure them with `GetUnitSpeed("player")` while mounted.
 - Every crossing point's coordinates, and which crossings Forever added or
   closed (Mount Hyjal by Darkwhisper Gorge, Riverglades, Shen'dralas).
   Shen'dralas is entered from Desolace by the Valley of Bones (stated by

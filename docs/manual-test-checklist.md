@@ -187,10 +187,15 @@ Restart the game first: the TOC changed.
 - [ ] `/gps to` prints the same detail line under each ground step in chat
 - [ ] Both layouts: the two-line rows fit, nothing overlaps the hint, the
       total or GO; a route longer than 8 steps ends "... and N more steps"
+- [x] ~~The levels at which riding is learned.~~ 2026-09-20, from the riding
+      trainer: Apprentice Riding requires level 40, Journeyman requires 60.
+      `GoblinPS/Travel.lua` already held both; they are now evidence, not a guess
 - [ ] On a level 40+ character the steps say "Ride to ..." and the times are
-      shorter. **Record the level at which this character got its first mount
-      and its speed**, and the same for the fast mount: `GoblinPS/Travel.lua`
-      holds guesses (40 and 60) until then
+      shorter
+- [ ] **Measure the two mount speeds.** `Travel.lua` assumes +60% and +100%
+      of 7 yards a second (11.2 and 14) from the skill names alone. While
+      mounted, run `/run print(GetUnitSpeed("player"))`: it reports yards per
+      second directly. Do it on each mount and correct `Travel.MOUNTS`
 - [ ] GO on a crossing step puts Blizzard's pin on the crossing
 - [ ] **Walk each crossing you pass and check its point.** Stand in the
       gateway, run

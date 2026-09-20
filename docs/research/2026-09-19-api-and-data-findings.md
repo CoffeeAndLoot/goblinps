@@ -19,6 +19,13 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
   folders; not confirmed by the client).
 - No flying. Ground mounts and the built-in transport network only. Blizzard
   intends to grow the game "horizontally" rather than by expansions.
+- **Riding is learned at the Classic levels** (verified in game 2026-09-20,
+  from the riding trainer's list): Apprentice Riding requires level 40 and
+  costs 95 gold; Journeyman Riding requires level 60 and Apprentice, and
+  costs 950 gold. The trainer names no speed, so `Travel.MOUNTS` still
+  assumes the Classic +60% and +100% (11.2 and 14 yards a second against 7
+  on foot). To settle it, ride and run `/run print(GetUnitSpeed("player"))`,
+  which reports yards per second directly.
 - **Known Blizzard bug on this build:** `Blizzard_EnvironmentCleanup.toc`'s
   dependency on `Blizzard_RestrictedAddOnEnvironment` omits `camelot`, so it
   loads first and nils `loadstring_untainted`; every secure snippet then fails

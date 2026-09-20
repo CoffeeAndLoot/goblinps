@@ -1,17 +1,20 @@
 local _, ns = ...
 
 -- Pure: how fast this character covers ground, and the settings behind it.
--- THE NUMBERS ARE NOT CONFIRMED for WoW Forever: the mount levels come from
--- press coverage. They live here, in one place, so the definitive answer is a
--- two-line change. Level stands in for "has a mount" on purpose: the riding
--- skill and mount list APIs are unverified on this client.
+-- The mount LEVELS are confirmed on Forever (2026-09-20, from the riding
+-- trainer: Apprentice Riding requires level 40, Journeyman requires 60).
+-- The SPEEDS are not: they are the Classic values the two skill names imply
+-- (+60% and +100% of 7 yards a second), not yet measured in game. They live
+-- here, in one place, so a measurement is a one-line change. Level stands in
+-- for "has a mount" on purpose: the riding skill and mount list APIs are
+-- unverified on this client.
 local Travel = {}
 ns.Travel = Travel
 
 Travel.WALK_YARDS_PER_SECOND = 7
 Travel.MOUNTS = {               -- lowest level first
-    { level = 40, yardsPerSecond = 11.2 }, -- a 60% mount
-    { level = 60, yardsPerSecond = 14 },   -- a 100% mount
+    { level = 40, yardsPerSecond = 11.2 }, -- Apprentice Riding; +60% is assumed
+    { level = 60, yardsPerSecond = 14 },   -- Journeyman Riding; +100% is assumed
 }
 Travel.WARN_LEVELS_ABOVE = 5    -- a zone that starts this far above you gets an amber warning
 
