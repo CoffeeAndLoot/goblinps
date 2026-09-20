@@ -15,7 +15,7 @@ screen. Slightly battered, hand-built, not sleek.
 
 | Piece | Drop the source at | Spec | Then run |
 |---|---|---|---|
-| Addon icon (TOC, minimap button) | `images/icon-source.png` | Square PNG, 1024x1024 or larger, subject centred with a margin: it is cropped to a circle. A brass gadget face or dial with a green screen and an amber route reads well at 20 pixels. No text. | `python tools/make_icon.py` |
+| Addon icon (TOC, minimap button) | `images/goblinps-icon.png` | RGBA PNG, 1024x1024 or larger, with a real transparent background. The tool crops to the drawn part, centres it and scales it to 256x256, keeping the art's own alpha, so a round icon with bolts or lugs poking past the circle survives. A brass gadget face with a green screen reads well at 20 pixels. No text. | `python tools/make_icon.py` |
 
 ## Wanted next (not wired yet; plan 3 and later hook them up)
 
