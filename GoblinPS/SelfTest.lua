@@ -11,10 +11,30 @@ SelfTest.FONTS = {
     "GameFontNormal", "GameFontNormalSmall", "GameFontNormalLarge", "GameFontNormalHuge",
     "GameFontHighlightSmall", "GameFontDisableSmall",
 }
+local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
+
+-- The five parts tools/make_art.py builds, sorted for a stable report; never
+-- typed by hand so this list cannot drift from what the tool produced.
+local function shippedArt()
+    local names = {}
+    for name in pairs(ns.Data.Art) do
+        names[#names + 1] = name
+    end
+    table.sort(names)
+    local paths = {}
+    for _, name in ipairs(names) do
+        paths[#paths + 1] = MEDIA .. ns.Data.Art[name].file
+    end
+    return paths
+end
+
 SelfTest.TEXTURES = {
     "Interface\\AddOns\\GoblinPS\\Media\\icon",
     "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight",
 }
+for _, path in ipairs(shippedArt()) do
+    SelfTest.TEXTURES[#SelfTest.TEXTURES + 1] = path
+end
 local COLOUR = { pass = "|cff6fe08aok|r  ", fail = "|cffe0501cFAIL|r" }
 
 -- SetTexture returns whether the file was found and loaded.

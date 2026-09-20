@@ -12,6 +12,10 @@ return function(h)
 
     -- A private addon namespace over the fake world, with a scripted API.
     local ns = { Data = dofile("test/fake_world.lua")() }
+    -- Data/Art.lua is generated, real game data (like Places or Nodes), not a
+    -- fixture to fake; load it the same way the client does, before the UI
+    -- files that draw it.
+    assert(loadfile("GoblinPS/Data/Art.lua"))("GoblinPS", ns)
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
     local pins, loginCallbacks = {}, {}
     local level = 60 -- mounted, so ground steps say Ride
@@ -666,6 +670,40 @@ return function(h)
                 Dash.Tick("tick")
                 h.eq(ui.step:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
                 h.falsy(state.plan, "the trip is over, not stuck on the old plan")
+            end)
+        end)
+
+        h.describe("the dash art", function()
+            h.it("lays every part on with the coordinates the tool generated", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                for _, pair in ipairs({ { ui.bodyArt, "dash-body" }, { ui.screenArt, "dash-screen" },
+                                        { ui.compass, "dash-compass" }, { ui.arrow, "arrow" },
+                                        { ui.plateArt, "dash-eta-plate" } }) do
+                    local texture, name = pair[1], pair[2]
+                    local art = ns.Data.Art[name]
+                    h.truthy(art, name .. " is missing from the generated table")
+                    h.eq(texture:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. art.file)
+                    h.eq(texture.texCoord[1], art.l)
+                    h.eq(texture.texCoord[2], art.r)
+                end
+            end)
+            h.it("keeps a working device when a texture will not load", function()
+                -- build() runs at most once per Dash module instance (guarded by
+                -- `if not ui then build() end`), and the very first Dash.Start
+                -- above already built the shared window while every texture
+                -- loaded fine. Stop/Start again would rebuild nothing and
+                -- exercise nothing new, so this loads a second, independent
+                -- copy of the module to genuinely drive a fresh build with a
+                -- texture that fails.
+                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash-body"] = true
+                local FreshDash = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+                FreshDash.Start(plan)
+                local ui = FreshDash.Debug()
+                h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
+                h.truthy(ui.step:GetText() ~= "", "the directions must still be readable")
+                h.falsy(ui.bodyArt, "a texture that would not load must not be laid over the colour")
+                Fake.missingTextures["Interface\\AddOns\\GoblinPS\\Media\\dash-body"] = nil
             end)
         end)
     end

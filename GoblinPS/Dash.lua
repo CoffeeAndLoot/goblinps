@@ -11,12 +11,30 @@ local W = ns.Widgets
 
 Dash.SIZE = { 200, 250 }
 local PAD, SCREEN = 10, 180
+local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 local ui              -- built on first Start
 local state = {}      -- plan, index, best (closest yet to the current target)
 
 local function stepText(step)
     return step and ns.Route.StepText(step) or ""
+end
+
+-- Lay a generated part over a flat colour. Returns the texture, or nil when
+-- the part is unknown or the file will not load, leaving the colour showing.
+local function art(parent, name, layer)
+    local part = ns.Data.Art and ns.Data.Art[name]
+    if not part then
+        return nil
+    end
+    local t = parent:CreateTexture(nil, layer)
+    if not t:SetTexture(MEDIA .. part.file) then
+        t:Hide()
+        return nil
+    end
+    t:SetTexCoord(part.l, part.r, part.t, part.b)
+    t:SetAllPoints(parent)
+    return t
 end
 
 -- Draws whatever is in `state`. Safe to call at any time.
@@ -54,11 +72,20 @@ local function build()
     screen:SetSize(SCREEN, SCREEN)
     screen:SetPoint("TOP", 0, -PAD)
 
+    local screenArt = art(screen, "dash-screen", "BACKGROUND")
+    local compass = art(screen, "dash-compass", "BORDER")
+
     local arrow = screen:CreateTexture(nil, "ARTWORK")
     arrow:SetSize(90, 90)
     arrow:SetPoint("CENTER")
     arrow:SetTexture("Interface\\Buttons\\WHITE8X8")
     arrow:SetVertexColor(unpack(W.COLOR.green))
+
+    local arrowPart = ns.Data.Art and ns.Data.Art["arrow"]
+    if arrowPart and arrow:SetTexture(MEDIA .. arrowPart.file) then
+        arrow:SetTexCoord(arrowPart.l, arrowPart.r, arrowPart.t, arrowPart.b)
+        arrow:SetVertexColor(1, 1, 1)
+    end
 
     local distance = W.Text(f, "green", "GameFontNormalLarge", "CENTER")
     distance:SetPoint("TOPLEFT", screen, "BOTTOMLEFT", 0, -4)
@@ -79,7 +106,20 @@ local function build()
     local stop = W.Button(f, "Stop", 48, 20, function() Dash.Stop() end)
     stop:SetPoint("BOTTOMRIGHT", -PAD, PAD)
 
-    ui = { frame = f, screen = screen, arrow = arrow, distance = distance,
+    -- The ETA plate sits behind the time-left line, not over the whole
+    -- device, so it is its own small frame rather than a part of `f`.
+    local plate = CreateFrame("Frame", nil, f)
+    plate:SetPoint("TOPLEFT", eta, "TOPLEFT", -6, 4)
+    plate:SetPoint("BOTTOMRIGHT", eta, "BOTTOMRIGHT", 6, -4)
+    local plateArt = art(plate, "dash-eta-plate", "BACKGROUND")
+    eta:SetDrawLayer("OVERLAY")
+
+    -- The body is drawn last and on top: it has a transparent hole the
+    -- screen shows through.
+    local bodyArt = art(f, "dash-body", "OVERLAY")
+
+    ui = { frame = f, screen = screen, screenArt = screenArt, compass = compass, arrow = arrow,
+           bodyArt = bodyArt, plateArt = plateArt, distance = distance,
            eta = eta, step = step, next = following, stop = stop }
     ns.Core.CloseOnEscape(f, "GoblinPSDash")
 
@@ -139,6 +179,9 @@ local function aimArrow(pos, step)
     end
     ui.arrow:SetRotation(angle)
     ui.arrow:Show()
+    if ui.compass then
+        ui.compass:SetRotation(-(ns.API.PlayerFacing() or 0))
+    end
 end
 
 local function finish()
