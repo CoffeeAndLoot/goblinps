@@ -3,7 +3,7 @@
   "workspace.ignoreDir": [".remember", ".superpowers", "tools", "docs"],
   "diagnostics.globals": [
     "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB", "GoblinPSCharDB",
-    "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames", "GoblinPSMinimapButton", "GoblinPSPlanner",
+    "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames", "GoblinPSMinimapButton", "GoblinPSPlanner", "GoblinPSDash",
     "UnitFactionGroup", "GetBindLocation", "UnitLevel",
     "GetPlayerFacing", "UnitOnTaxi",
     "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint",

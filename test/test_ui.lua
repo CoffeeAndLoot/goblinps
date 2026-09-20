@@ -50,7 +50,7 @@ return function(h)
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
     }
     for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Trip", "Known", "Prefs",
-                            "Widgets", "Planner", "MinimapButton", "SelfTest", "Core" }) do
+                            "Widgets", "Planner", "Dash", "MinimapButton", "SelfTest", "Core" }) do
         assert(loadfile("GoblinPS/" .. file .. ".lua"))("GoblinPS", ns)
     end
     GoblinPSDB, GoblinPSCharDB = nil, { known = { [1] = true, [2] = true, [4] = true } }
@@ -486,6 +486,73 @@ return function(h)
             h.truthy(printed[from + 2]:find("1. Ride to Alpha", 1, true))
         end)
     end)
+
+    -- Smoke test of the dash unit against test/fake_frames.lua. It catches our own
+    -- mistakes: nil calls, text in the wrong widget, a FontString with one anchor.
+    -- Real frame behaviour is checked in game from docs/manual-test-checklist.md.
+    do
+        local Dash = ns.Dash
+
+        local plan = {
+            level = 60,
+            result = {
+                seconds = 600,
+                steps = {
+                    { kind = "ride", seconds = 200, to = { name = "the North Gate", c = 1, x = 0, y = 0 } },
+                    { kind = "zeppelin", seconds = 240, to = { name = "East Dock", c = 1, x = 0, y = 0 } },
+                    { kind = "ride", seconds = 160, to = { name = "Delta", c = 1, x = 0, y = 0 } },
+                },
+            },
+        }
+
+        h.describe("the dash unit", function()
+            h.it("opens on Start and shows the first step and the one after", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                h.truthy(ui.frame:IsShown())
+                h.eq(state.index, 1)
+                h.eq(ui.step:GetText(), "Ride to the North Gate")
+                h.eq(ui.next:GetText(), "then Zeppelin to East Dock")
+            end)
+            h.it("says nothing follows the last step", function()
+                local ui, state = Dash.Debug()
+                state.index = 3
+                Dash.Refresh()
+                h.eq(ui.step:GetText(), "Ride to Delta")
+                h.eq(ui.next:GetText(), "")
+                state.index = 1
+                Dash.Refresh()
+            end)
+            h.it("every line of text is bounded", function()
+                local ui = Dash.Debug()
+                for _, name in ipairs({ "step", "next", "distance", "eta" }) do
+                    local fs = ui[name]
+                    h.truthy(fs.points and #fs.points >= 2,
+                             name .. " needs two horizontal anchors or it will draw past the frame")
+                end
+            end)
+            h.it("dragging saves the position", function()
+                local ui = Dash.Debug()
+                ui.frame:SetPoint("TOP", UIParent, "BOTTOM", 7, -11)
+                ui.frame.scripts.OnDragStart(ui.frame)
+                ui.frame.scripts.OnDragStop(ui.frame)
+                local p = GoblinPSDB.positions.dash
+                h.eq(p.point, "TOP")
+                h.eq(p.relativePoint, "BOTTOM")
+                h.eq(p.x, 7)
+                h.eq(p.y, -11)
+            end)
+            h.it("Stop closes it", function()
+                local ui = Dash.Debug()
+                Dash.Stop()
+                h.falsy(ui.frame:IsShown())
+            end)
+            h.it("Start with no steps does not open", function()
+                Dash.Start({ result = { steps = {} } })
+                h.falsy(Dash.Debug().frame:IsShown())
+            end)
+        end)
+    end
 
     h.describe("the fake frames model what the dash needs", function()
         h.it("a texture can be rotated", function()
