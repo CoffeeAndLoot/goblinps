@@ -1,6 +1,6 @@
 # Build log
 
-How plans 2 and 3 were actually built, kept because the commits say *what*
+How plans 2, 3 and 4 were actually built, kept because the commits say *what*
 changed and these say *why*. Nothing here is current documentation: the design
 is `docs/superpowers/specs/2026-09-19-goblinps-design.md` and the plans are in
 `docs/superpowers/plans/`. Read those first; read this when you want to know
@@ -28,6 +28,11 @@ is reused by later plans; this copy is the permanent one.
 - `2026-09-20-overnight-review.md` — an adversarial review of work done
   unattended overnight. Approved with minors; both Important findings were
   real and were fixed in `1903f13`.
+- `2026-09-20-dash-unit/final-review.md` — plan 4's whole-branch review, and
+  `final-fix-report.md` beside it. Six defects in that plan were caught by
+  review rather than by tests, every one because a reviewer ran the code
+  instead of reading it. `progress.md` holds the eleven rulings made while
+  it executed, including why the compass had to read `Trip.ROTATION_SIGN`.
 
 ## The diffs are not here
 
