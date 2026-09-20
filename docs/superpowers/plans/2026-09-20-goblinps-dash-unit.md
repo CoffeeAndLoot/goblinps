@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** After GO, a small draggable device shows the step you are on, an arrow that turns to point at it, the distance and the time left; it advances when you arrive, says "Recalculating..." when you wander off, and closes when you get there.
+**Goal:** After GO, a small draggable device shows the step you are on, an arrow that turns to point at it, the distance and the time left; it advances when you arrive, says "Recalculating..." when you wander off, and says "Arrived." and stays open until Stop is pressed when you get there.
 
 **Architecture:** `Trip.lua` already holds the pure arrival rules and is tested; this plan adds the bearing and time-left maths beside them, the client facts `API.lua` must supply (facing, taxi state, the three arrival events), and `Dash.lua`, which owns the frame and the tick loop. The dash is built on flat colours first, exactly as the planner was, so a texture that does not load leaves a working device; `tools/make_art.py` then produces shipped-size textures from the PNG sources and a generated `Data/Art.lua` of texture coordinates, and task 6 lays them over the colours. An active trip is deliberately not saved: `/reload` ends it.
 
@@ -1363,7 +1363,8 @@ Add a `## Dash unit (plan 4)` section, with these items:
       have already finished
 - [ ] Enter an instance: the dash says Waiting and keeps the trip; leave the
       instance and it carries on
-- [ ] Reach the last step: it says Arrived and the device closes
+- [ ] Reach the last step: the device says Arrived, clears the distance and
+      time, hides the arrow, and stays open until Stop is pressed
 - [ ] Drag the dash; its position survives /reload. /reload mid-trip ends the
       trip, by design
 - [ ] The five dash textures load: /gps selftest names them. If one FAILS,

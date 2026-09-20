@@ -14,9 +14,10 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 4 are built. Plans 1 to 3 are merged to `main` and
-confirmed in the client** (2026-09-20: routing core, planner window, ground
-crossings, dash unit). `/gps` opens the planner; `/gps to <place>` prints a
+**Status: plans 1 to 4 are built.** Plans 1 to 3 are merged to `main` and
+confirmed in the client (2026-09-20: routing core, planner window, ground
+crossings). Plan 4, the dash unit, is built and tested on the desktop only —
+**unverified in game**. `/gps` opens the planner; `/gps to <place>` prints a
 route in chat, with ground travel going zone by zone through named crossings
 and walk-or-ride by level. GO closes the planner and opens the dash unit: an
 arrow pointing at the current step, showing distance and time left, advancing
