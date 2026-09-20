@@ -27,6 +27,7 @@ PARTS = ROOT / "images" / "parts"
 #           but it is not expected to be symmetric
 #   tilesx  it repeats left to right, so its two side edges must meet cleanly
 #   tiles   it repeats both ways, so all four edges must meet cleanly
+#   solid   it fills its canvas on purpose, so opaque corners are right
 SPEC = {
     # Dash unit
     "dash-body.png": (1024, 1024, {"hole"}),
@@ -50,7 +51,7 @@ SPEC = {
     "gear-hover.png": (192, 192, set()),
     "close.png": (192, 192, set()),
     "close-hover.png": (192, 192, set()),
-    "screen-backdrop.png": (1600, 640, set()),
+    "screen-backdrop.png": (1600, 640, {"solid"}),
     # Route strip
     "node-ring.png": (192, 192, set()),
     "node-current.png": (192, 192, set()),
@@ -130,9 +131,12 @@ def check(name, want_w, want_h, flags):
 
     a = np.asarray(im.getchannel("A"), dtype=np.int16)
     corners = [a[0, 0], a[0, -1], a[-1, 0], a[-1, -1]]
-    if max(corners) > 0 and not flags & {"tiles", "tilesx"}:
+    if max(corners) > 0 and not flags & {"tiles", "tilesx", "solid"}:
         problems.append(f"corners are not transparent (alpha {max(corners)}): "
                         "the old background was keyed out, not removed")
+    if "solid" in flags and min(corners) < 255:
+        problems.append(f"corners are not opaque (alpha {min(corners)}): "
+                        "this part fills its canvas, so it must not fade at the edge")
 
     if "hole" in flags:
         gap = enclosed_gap(a)
