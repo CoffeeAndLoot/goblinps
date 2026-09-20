@@ -348,7 +348,8 @@ turns that test red. That is the prompt to update this table, not a bug.
       have already finished
 - [ ] Enter an instance: the dash says Waiting and keeps the trip; leave the
       instance and it carries on
-- [ ] Reach the last step: it says Arrived and the device closes
+- [ ] Reach the last step: the device says Arrived, clears the distance and
+      time, hides the arrow, and stays open until Stop is pressed
 - [ ] Drag the dash; its position survives /reload. /reload mid-trip ends the
       trip, by design
 - [ ] The five dash textures load: /gps selftest names them. If one FAILS,

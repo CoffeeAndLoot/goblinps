@@ -2,8 +2,8 @@
 
 Status: **approved by the user on 2026-09-19.** Implemented in five plans
 under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window
-(built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit,
-5 route strip. Each is written after the one before it has been used in
+(built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit
+(built), 5 route strip. Each is written after the one before it has been used in
 game. Update this file whenever behaviour changes.
 
 **What the product is** (the user, 2026-09-19, after trying a level-1
@@ -68,11 +68,13 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    glowing green route is the only bright thing; amber is for warnings only.
    The art is separate transparent parts specified in
    `docs/art-parts-brief.md`, laid over plain colour, so a missing texture
-   still leaves a working window. Authoring sources in `images/parts/` (TGAs,
-   49 MiB, gitignored) are scaled and padded by `tools/make_art.py` into
-   shipped TGAs in `GoblinPS/Media/`, and their texture coordinates are
-   generated into `GoblinPS/Data/Art.lua`; the authoring manifest in
-   `images/parts/` is not the shipped one.
+   still leaves a working window. PNGs in `images/parts/` are the source of
+   truth and tracked in git. `tools/make_art.py` reads the PNGs, scales each
+   to the size it draws at, pads to a power-of-two canvas, and writes shipped
+   TGAs into `GoblinPS/Media/`, generating `GoblinPS/Data/Art.lua` with their
+   texture coordinates. A separate `images/parts/export_tga.py` creates
+   uncompressed TGAs at authoring resolution (~49 MiB, gitignored) for review;
+   those are regenerable and are not inputs to anything.
    The schematic world map is **not being built.** The spike that proved it
    feasible is kept at `docs/research/schematic-spike/` in case a later
    version wants an overview panel; until then the generator's schematic
