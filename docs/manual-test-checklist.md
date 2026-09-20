@@ -70,8 +70,14 @@ These decide the design. Record the result beside each one.
 - [ ] Stand on each dock and compare `/dump C_Map.GetPlayerMapPosition(C_Map.GetBestMapForUnit("player"), "player"):GetXY()`
       with its row in `GoblinPS/Data/Links.lua`; correct the row if it is off
       by more than 0.02
+      (2026-09-19 measured: Orgrimmar tower 1411 0.5089, 0.1399; Tirisfal
+      tower 1420 0.6077, 0.5873. Both guesses were within 35 yards; rows
+      updated. Still to measure: Grom'gol, Menethil, Auberdine, Theramore,
+      Rut'theran, Booty Bay, Ratchet, both tram stations.)
 - [ ] Time one full zeppelin and one boat loop; correct `minutes` (ride plus
       half the loop)
+      (2026-09-19, one sample: Orgrimmar platform to Tirisfal platform in
+      2 min 24 s with a short wait. `minutes = 4` kept until more samples.)
 - [ ] `/gps probe`'s node count N is about 71: this proves
       `C_TaxiMap.GetTaxiNodesForMap(continent map)` returns every node on the
       continent, not only the displayed zone's. If N is far lower, record it:

@@ -23,7 +23,7 @@ ns.Data.Islands = { [1438] = "teldrassil", [1457] = "teldrassil" }
 
 ns.Data.Docks = {
     org_zep      = { name = "Orgrimmar Zeppelin Tower", map = 1411, mx = 0.509, my = 0.140 }, -- measured in game
-    uc_zep       = { name = "Undercity Zeppelin Tower", map = 1420, mx = 0.610, my = 0.590 },
+    uc_zep       = { name = "Undercity Zeppelin Tower", map = 1420, mx = 0.608, my = 0.587 }, -- measured in game
     gromgol_zep  = { name = "Grom'gol Zeppelin Tower",  map = 1434, mx = 0.315, my = 0.295 },
     menethil     = { name = "Menethil Harbor Docks",    map = 1437, mx = 0.050, my = 0.600 },
     auberdine    = { name = "Auberdine Docks",          map = 1439, mx = 0.328, my = 0.420 },
