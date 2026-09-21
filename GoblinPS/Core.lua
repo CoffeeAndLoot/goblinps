@@ -43,8 +43,6 @@ function Core.KnownCount() return Known.Count(knownStore()) end
 function Core.Faction() return API.Faction() end
 function Core.Recents() return prefs().recents end
 function Core.Remember(name) Prefs.Remember(prefs(), name) end
-function Core.Layout() return prefs().layout end
-function Core.ToggleLayout() return Prefs.ToggleLayout(prefs()) end
 function Core.Position(window) return Prefs.Position(prefs(), window) end
 function Core.SavePosition(window, point, relativePoint, x, y)
     Prefs.SavePosition(prefs(), window, point, relativePoint, x, y)
@@ -124,7 +122,8 @@ local lastPin
 
 -- Blizzard's map pin and on-screen arrow for one step. Spec decision 3 puts
 -- the pin on the step you are ON, so the dash calls this again each time it
--- advances, not only when GO is pressed. Quiet: only GO explains itself.
+-- advances, not only when Start Route is pressed. Quiet: only Start Route
+-- explains itself.
 function Core.PinStep(step)
     if not step or step.kind == "hearth" or not step.to.map then
         return false
@@ -201,7 +200,7 @@ function Core.Go(plan)
         return
     end
     if step.kind == "hearth" then
-        say("Use your hearthstone, then press GO again.")
+        say("Use your hearthstone, then press Start Route again.")
     elseif Core.PinStep(step) then
         say("Pin set: " .. Route.StepText(step) .. ".")
     else

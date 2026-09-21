@@ -71,10 +71,8 @@ PARTS += [
 # out-of-focus scenery behind text and ships small on purpose. Every width and
 # height here keeps its source PNG's aspect ratio: a frame stretched by a few
 # percent is what made the dash's first design render as an oval.
-# The strip's nodes, lines and icons are plan 7 and are not shipped yet.
 PARTS += [
     Part("planner-frame-wide", 650, 416),
-    Part("planner-frame-tall", 384, 600),
     Part("planner-panel", 256, 256),
     Part("screen-backdrop", 512, 205),   # 1600/640 is 2.5; 512/205 is 2.4976
     Part("title-plate", 256, 64),
@@ -89,6 +87,23 @@ PARTS += [
     Part("close-hover", 32, 32),
     Part("gear", 32, 32),
     Part("gear-hover", 32, 32),
+]
+
+# The route strip. Badges are 192 px sources (a 128 px visible ring) and draw
+# at about 58 px, the full sprite being 1.5 times the geometry's ring. The
+# lines are 512x64 sources, 8:1, and draw 13 px tall at 650 px wide; they
+# TILE along each leg, so they ship unpadded -- a padded part would repeat its
+# padding. Every one of these is a power of two already, so none is padded.
+# node-current, icon-gate and icon-warning stay unshipped: nothing draws them.
+PARTS += [Part(name, 64, 64) for name in (
+    "node-ring", "node-destination",
+    "icon-flight", "icon-boat", "icon-zeppelin", "icon-tram", "icon-hearth", "icon-walk", "icon-ride",
+    "icon-horde", "icon-alliance", "icon-neutral",
+)]
+PARTS += [
+    Part("line-solid", 128, 16),
+    Part("line-dashed", 128, 16),
+    Part("line-dot", 16, 16),
 ]
 
 
@@ -275,25 +290,24 @@ def frame_interior(layout, screen):
 
 
 def planner_geometry_lua():
-    """The planner's placement numbers, as plain fractions.
+    """The planner's placement numbers, as plain fractions, for its one wide layout.
 
     Everything Planner.lua positions comes from here. The addon never
     hand-types a coordinate, so a change in the art reaches the layout by
-    regenerating this file rather than by editing Lua.
+    regenerating this file rather than by editing Lua. The file's `tall`
+    section is kept on disk as a record and read by nothing.
     """
     g = planner_geometry()
-    out = {}
-    for layout in ("wide", "tall"):
-        source = g[layout]
-        # canvas is source pixels, the one exception to the 0..1 rule.
-        box = {"canvas": {"w": source["canvas"][0], "h": source["canvas"][1]}}
-        for key, rect in source.items():
-            if key == "canvas" or key in PLANNER_DROP:
-                continue
-            box[_camel(key)] = dict(rect)
-        # Measured from the frame art, not read from the geometry file.
-        box["interior"] = frame_interior(layout, source["screen"])
-        out[layout] = box
+    source = g["wide"]
+    # canvas is source pixels, the one exception to the 0..1 rule.
+    box = {"canvas": {"w": source["canvas"][0], "h": source["canvas"][1]}}
+    for key, rect in source.items():
+        if key == "canvas" or key in PLANNER_DROP:
+            continue
+        box[_camel(key)] = dict(rect)
+    # Measured from the frame art, not read from the geometry file.
+    box["interior"] = frame_interior("wide", source["screen"])
+    out = {"wide": box}
     strip = g["strip"]
     out["strip"] = {
         "nodeDiameter": strip["node_diameter"],

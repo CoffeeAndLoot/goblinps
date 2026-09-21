@@ -137,6 +137,8 @@ These decide the design. Record the result beside each one.
 
 ## Planner window (plan 2): check every line in BOTH layouts
 
+Superseded by plan 8: the window has one box, one layout and no step list.
+
 Restart the game first: the TOC changed.
 
 - [ ] Click into the To box: a text cursor appears and typing works (the
@@ -259,6 +261,9 @@ Restart the game first: the TOC changed.
       Ashenvale · level 18-30"); it is amber when the zone is well above the
       character's level or the crossing has a hazard, dim otherwise
 - [ ] `/gps to` prints the same detail line under each ground step in chat
+
+Superseded by plan 8: the window has one box, one layout and no step list.
+
 - [ ] Both layouts: the two-line rows fit, nothing overlaps the hint, the
       total or GO; a route longer than 8 steps ends "... and N more steps"
 - [x] ~~The levels at which riding is learned.~~ 2026-09-20, from the riding
@@ -386,6 +391,38 @@ killed the route, and a reload or logout always lost it.
 - [ ] Open `/gps` mid-trip: the search box shows the trip's destination
 - [ ] Log in a second character: no trip comes back for it
 
+## The planner as designed (plan 8)
+
+Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
+
+- [ ] `/gps` opens one wide window: one search box, the screen, Start Route.
+      No From, no Here, no Wide/Tall button, no step list
+- [ ] With nothing picked, the screen shows the two status lines and no strip
+- [ ] Brill to Orgrimmar reads crest, boot or horseshoe, zeppelin, signpost;
+      the first leg solid, the rest dashed, a glowing dot mid-leg; the badges
+      sit on the line, not above or below it
+- [ ] Hover each badge: the step, its time, and its detail line where it has
+      one; a zeppelin says it includes the wait
+- [ ] A long route (try a far city on the other continent) shows every stop;
+      when they crowd, the names go and the tooltips still say everything
+- [ ] A leg into a zone above your level: its tooltip detail is amber and the
+      amber line under the strip names that stop; the line itself is not
+      coloured and no badge changes (the skull is day 2)
+- [ ] The total under the strip reads like "~15 min · free"
+- [ ] Type in the box: the results list drops over the screen and the amber
+      line stays visible under it
+- [ ] Start Route closes the planner and opens the dash; `/gps` mid-trip
+      shows the trip's destination in the box
+- [ ] `/gps selftest` lists the fifteen strip textures, all `ok`
+- [ ] Nothing reads past the brass or overlaps: names under the end badges
+      stay on the glass
+- [ ] A long note (e.g. an unknown inn plus no flight paths) on the one-line
+      status or warning line: it truncates cleanly rather than overflowing
+- [ ] The names under the two end badges read in full (they get about 65 px);
+      note any that truncate, e.g. "You are here" or a long destination
+- [ ] A 13-stop route: rings may touch and each badge's hover area overlaps
+      its neighbour's; note whether the right tooltip comes up
+
 ## Flight paths survive a reload
 
 **Blocked by the client** (2026-09-21): build 1.60.1.69913 writes every
@@ -407,6 +444,8 @@ way.
 - [ ] Log back into the first: its paths are still there
 
 ## Planner window art (plan 6)
+
+Superseded by plan 8: the window has one box, one layout and no step list.
 
 First run in the client 2026-09-21, in front of a plain sky set up so any gap
 in the art shows. It found three faults, fixed in the commit after: the world

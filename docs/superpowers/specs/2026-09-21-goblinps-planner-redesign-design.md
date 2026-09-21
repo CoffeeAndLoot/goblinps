@@ -156,6 +156,8 @@ comes off that list.
 
 ## Plan 8 — the planner rebuilt to the mockup
 
+Built 2026-09-21 -- not yet run in the client.
+
 ### The window
 
 One wide shape, 650x416, exactly the art's 25:16. Top to bottom:
@@ -322,10 +324,9 @@ facts from Codex's handoff (`images/parts/QUESTIONS.md`) bind the drawing:
    searching, and the idle status lines replace the strip rather than drawing
    over it.
 
-Until plan 8 adapts it, the desk art tooling reports the new layout as
-mismatched: 8 Python tests and 6 `check_art.py` geometry checks fail, by
-design, naming the dropped keys. The addon is unaffected -- `Data/Art.lua` has
-not been regenerated from the new geometry.
+Plan 8 has adapted the desk art tooling to the new layout: the 8 Python tests
+and 6 `check_art.py` geometry checks that named the dropped keys are green
+again, and `Data/Art.lua` has been regenerated from the new geometry.
 
 ---
 

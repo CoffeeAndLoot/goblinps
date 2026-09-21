@@ -108,9 +108,10 @@ end
 
 -- Draw one part as three textures so its decorative ends keep their shape at
 -- any width: a left cap and a right cap at their natural size, and a middle
--- stretched between them. One button part draws at 65 pixels for "Here" and
--- 135 for "GO"; stretching the whole texture squashes the caps at one width
--- and stretches them at the other.
+-- stretched between them. One "button" part is drawn at whatever width the
+-- geometry gives its control -- Start Route today; stretching the whole
+-- texture would squash its caps at a narrow width and stretch them at a wide
+-- one.
 --
 -- `capFraction` is how much of the part's width each cap takes, and
 -- `capAspect` is that cap region's width over its height in the source art.
@@ -332,6 +333,23 @@ end
 -- Show the grey hint only while the box is empty.
 function Widgets.UpdatePlaceholder(editBox)
     editBox.placeholder:SetShown(editBox:GetText() == "")
+end
+
+-- One tooltip for a thing on screen, from plain { text, amber } lines. The
+-- first line is the tooltip's title and keeps the client's own colour; every
+-- line after is dim, or amber for a warning. Blizzard's shared GameTooltip,
+-- not a template: SetOwner, AddLine and Show are on build 1.60.1.69913 and
+-- Blizzard's own UI calls them throughout. The minimap button keeps its own.
+function Widgets.ShowTooltip(owner, lines)
+    GameTooltip:SetOwner(owner, "ANCHOR_TOP")
+    for i, line in ipairs(lines) do
+        if i == 1 then
+            GameTooltip:AddLine(line.text)
+        else
+            GameTooltip:AddLine(line.text, rgb(line.amber and "amber" or "dim"))
+        end
+    end
+    GameTooltip:Show()
 end
 
 return Widgets

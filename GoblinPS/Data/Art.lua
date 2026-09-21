@@ -23,7 +23,6 @@ ns.Data.Art = {
     ["dash2-stop-hover"] = { file = "dash2-stop-hover", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
     ["dash2-stop-pressed"] = { file = "dash2-stop-pressed", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
     ["planner-frame-wide"] = { file = "planner-frame-wide", l = 0, r = 0.634766, t = 0, b = 0.8125, cw = 1024, ch = 512 },  -- 650x416 art on 1024x512
-    ["planner-frame-tall"] = { file = "planner-frame-tall", l = 0, r = 0.75, t = 0, b = 0.585938, cw = 512, ch = 1024 },  -- 384x600 art on 512x1024
     ["planner-panel"] = { file = "planner-panel", l = 0, r = 1, t = 0, b = 1, cw = 256, ch = 256 },  -- 256x256 art on 256x256
     ["screen-backdrop"] = { file = "screen-backdrop", l = 0, r = 1, t = 0, b = 0.800781, cw = 512, ch = 256 },  -- 512x205 art on 512x256
     ["title-plate"] = { file = "title-plate", l = 0, r = 1, t = 0, b = 1, cw = 256, ch = 64 },  -- 256x64 art on 256x64
@@ -38,6 +37,21 @@ ns.Data.Art = {
     ["close-hover"] = { file = "close-hover", l = 0, r = 1, t = 0, b = 1, cw = 32, ch = 32 },  -- 32x32 art on 32x32
     ["gear"] = { file = "gear", l = 0, r = 1, t = 0, b = 1, cw = 32, ch = 32 },  -- 32x32 art on 32x32
     ["gear-hover"] = { file = "gear-hover", l = 0, r = 1, t = 0, b = 1, cw = 32, ch = 32 },  -- 32x32 art on 32x32
+    ["node-ring"] = { file = "node-ring", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["node-destination"] = { file = "node-destination", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-flight"] = { file = "icon-flight", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-boat"] = { file = "icon-boat", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-zeppelin"] = { file = "icon-zeppelin", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-tram"] = { file = "icon-tram", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-hearth"] = { file = "icon-hearth", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-walk"] = { file = "icon-walk", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-ride"] = { file = "icon-ride", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-horde"] = { file = "icon-horde", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-alliance"] = { file = "icon-alliance", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["icon-neutral"] = { file = "icon-neutral", l = 0, r = 1, t = 0, b = 1, cw = 64, ch = 64 },  -- 64x64 art on 64x64
+    ["line-solid"] = { file = "line-solid", l = 0, r = 1, t = 0, b = 1, cw = 128, ch = 16 },  -- 128x16 art on 128x16
+    ["line-dashed"] = { file = "line-dashed", l = 0, r = 1, t = 0, b = 1, cw = 128, ch = 16 },  -- 128x16 art on 128x16
+    ["line-dot"] = { file = "line-dot", l = 0, r = 1, t = 0, b = 1, cw = 16, ch = 16 },  -- 16x16 art on 16x16
 }
 
 ns.Data.ArtGeometry = {
@@ -80,113 +94,8 @@ ns.Data.ArtGeometry = {
     ["planner"] = {
         ["strip"] = {
             ["labelGap"] = 0.012,
-            ["lineThickness"] = 0.003,
+            ["lineThickness"] = 0.02,
             ["nodeDiameter"] = 0.06
-        },
-        ["tall"] = {
-            ["canvas"] = {
-                ["h"] = 1600,
-                ["w"] = 1024
-            },
-            ["closeButton"] = {
-                ["cx"] = 0.837891,
-                ["cy"] = 0.16875,
-                ["r"] = 0.0332031
-            },
-            ["dropdownButton"] = {
-                ["cx"] = 0.828125,
-                ["cy"] = 0.281875,
-                ["r"] = 0.0351562
-            },
-            ["fromBox"] = {
-                ["bottom"] = 0.24625,
-                ["left"] = 0.136719,
-                ["right"] = 0.664062,
-                ["top"] = 0.2
-            },
-            ["gearButton"] = {
-                ["cx"] = 0.757812,
-                ["cy"] = 0.16875,
-                ["r"] = 0.0332031
-            },
-            ["goButton"] = {
-                ["bottom"] = 0.8875,
-                ["left"] = 0.511719,
-                ["right"] = 0.863281,
-                ["top"] = 0.83125
-            },
-            ["hereButton"] = {
-                ["bottom"] = 0.24625,
-                ["left"] = 0.679688,
-                ["right"] = 0.863281,
-                ["top"] = 0.2
-            },
-            ["hintLine"] = {
-                ["bottom"] = 0.81375,
-                ["left"] = 0.146484,
-                ["right"] = 0.853516,
-                ["top"] = 0.78875
-            },
-            ["interior"] = {
-                ["bottom"] = 0.9175,
-                ["left"] = 0.114258,
-                ["right"] = 0.886719,
-                ["top"] = 0.139375
-            },
-            ["layoutButton"] = {
-                ["bottom"] = 0.1875,
-                ["left"] = 0.136719,
-                ["right"] = 0.332031,
-                ["top"] = 0.1525
-            },
-            ["resultsList"] = {
-                ["bottom"] = 0.5075,
-                ["left"] = 0.136719,
-                ["right"] = 0.863281,
-                ["top"] = 0.3125
-            },
-            ["screen"] = {
-                ["bottom"] = 0.51375,
-                ["left"] = 0.136719,
-                ["right"] = 0.863281,
-                ["top"] = 0.31875
-            },
-            ["sidePanel"] = {
-                ["bottom"] = 0.77125,
-                ["left"] = 0.136719,
-                ["right"] = 0.863281,
-                ["top"] = 0.5275
-            },
-            ["stripTrack"] = {
-                ["bottom"] = 0.4725,
-                ["left"] = 0.170898,
-                ["right"] = 0.829102,
-                ["top"] = 0.365
-            },
-            ["taglinePlate"] = {
-                ["bottom"] = 0.984375,
-                ["left"] = 0.34375,
-                ["right"] = 0.65625,
-                ["top"] = 0.934375
-            },
-            ["titlePlate"] = {
-                ["bottom"] = 0.12875,
-                ["left"] = 0.292969,
-                ["right"] = 0.707031,
-                ["top"] = 0.0625
-            },
-            ["toBox"] = {
-                ["bottom"] = 0.305,
-                ["left"] = 0.136719,
-                ["right"] = 0.773438,
-                ["top"] = 0.25875
-            },
-            ["totalLine"] = {
-                ["bottom"] = 0.85875,
-                ["left"] = 0.146484,
-                ["right"] = 0.498047,
-                ["top"] = 0.83625
-            }
         },
         ["wide"] = {
             ["canvas"] = {
@@ -199,15 +108,9 @@ ns.Data.ArtGeometry = {
                 ["r"] = 0.02375
             },
             ["dropdownButton"] = {
-                ["cx"] = 0.87625,
-                ["cy"] = 0.329102,
-                ["r"] = 0.023125
-            },
-            ["fromBox"] = {
-                ["bottom"] = 0.365234,
-                ["left"] = 0.09375,
-                ["right"] = 0.38125,
-                ["top"] = 0.292969
+                ["cx"] = 0.85875,
+                ["cy"] = 0.322266,
+                ["r"] = 0.0225
             },
             ["gearButton"] = {
                 ["cx"] = 0.825,
@@ -215,22 +118,16 @@ ns.Data.ArtGeometry = {
                 ["r"] = 0.02375
             },
             ["goButton"] = {
-                ["bottom"] = 0.826172,
-                ["left"] = 0.7,
-                ["right"] = 0.9,
-                ["top"] = 0.748047
-            },
-            ["hereButton"] = {
-                ["bottom"] = 0.365234,
-                ["left"] = 0.38875,
-                ["right"] = 0.48875,
-                ["top"] = 0.292969
+                ["bottom"] = 0.845703,
+                ["left"] = 0.35,
+                ["right"] = 0.65,
+                ["top"] = 0.767578
             },
             ["hintLine"] = {
-                ["bottom"] = 0.819336,
-                ["left"] = 0.1,
-                ["right"] = 0.675,
-                ["top"] = 0.788086
+                ["bottom"] = 0.742188,
+                ["left"] = 0.11875,
+                ["right"] = 0.875,
+                ["top"] = 0.705078
             },
             ["interior"] = {
                 ["bottom"] = 0.857422,
@@ -238,34 +135,34 @@ ns.Data.ArtGeometry = {
                 ["right"] = 0.919375,
                 ["top"] = 0.251953
             },
-            ["layoutButton"] = {
-                ["bottom"] = 0.263672,
-                ["left"] = 0.09375,
-                ["right"] = 0.20625,
-                ["top"] = 0.209961
+            ["knownLine"] = {
+                ["bottom"] = 0.576172,
+                ["left"] = 0.11875,
+                ["right"] = 0.875,
+                ["top"] = 0.535156
+            },
+            ["notesLine"] = {
+                ["bottom"] = 0.515625,
+                ["left"] = 0.11875,
+                ["right"] = 0.875,
+                ["top"] = 0.472656
             },
             ["resultsList"] = {
-                ["bottom"] = 0.644531,
-                ["left"] = 0.09375,
-                ["right"] = 0.9,
-                ["top"] = 0.373047
+                ["bottom"] = 0.634766,
+                ["left"] = 0.20625,
+                ["right"] = 0.88125,
+                ["top"] = 0.371094
             },
             ["screen"] = {
-                ["bottom"] = 0.730469,
+                ["bottom"] = 0.759766,
                 ["left"] = 0.09375,
-                ["right"] = 0.57,
-                ["top"] = 0.386719
-            },
-            ["sidePanel"] = {
-                ["bottom"] = 0.730469,
-                ["left"] = 0.58375,
                 ["right"] = 0.9,
-                ["top"] = 0.386719
+                ["top"] = 0.376953
             },
             ["stripTrack"] = {
-                ["bottom"] = 0.638672,
-                ["left"] = 0.115625,
-                ["right"] = 0.548125,
+                ["bottom"] = 0.625,
+                ["left"] = 0.14375,
+                ["right"] = 0.85,
                 ["top"] = 0.46875
             },
             ["taglinePlate"] = {
@@ -282,15 +179,15 @@ ns.Data.ArtGeometry = {
             },
             ["toBox"] = {
                 ["bottom"] = 0.365234,
-                ["left"] = 0.50125,
-                ["right"] = 0.84375,
-                ["top"] = 0.292969
+                ["left"] = 0.20625,
+                ["right"] = 0.83,
+                ["top"] = 0.279297
             },
             ["totalLine"] = {
-                ["bottom"] = 0.77832,
-                ["left"] = 0.1,
-                ["right"] = 0.675,
-                ["top"] = 0.74707
+                ["bottom"] = 0.6875,
+                ["left"] = 0.11875,
+                ["right"] = 0.875,
+                ["top"] = 0.650391
             }
         }
     },
