@@ -1,36 +1,31 @@
 local _, ns = ...
 
--- The big device: From and To boxes, the green screen, the step list, the
--- total, the hint and Go. One set of widgets; ApplyLayout only moves them.
--- The schematic map and the dash unit arrive in later plans: for now the
--- screen shows what the device knows, and Go drops Blizzard's map pin on
--- the first step.
+-- The planner: one search box, the green screen with the route strip in it,
+-- the total and the warning under the strip, and Start Route. The route
+-- always starts where you stand. One wide shape; every position comes from
+-- the geometry the art tool generates.
 local Planner = {}
 ns.Planner = Planner
 
 local W = ns.Widgets
 
--- The window's rectangle on screen. The art is 1600x1024 and 1024x1600, so
--- these keep those shapes exactly; everything inside is placed as a fraction
--- of them, from the geometry the art tool generates. Nothing here is a
--- measured guess.
-Planner.SIZE = { wide = { 650, 416 }, tall = { 384, 600 } }
-Planner.MAX_ROWS = 8 -- each step is two lines: the step, then its detail
+-- The window's rectangle on screen. The frame art is 1600x1024, so this keeps
+-- its 25:16 exactly; everything inside is placed as a fraction of it, from
+-- the geometry the art tool generates. Nothing here is a measured guess.
+Planner.SIZE = { 650, 416 }
 Planner.MAX_RESULTS = 8
-local ROW, STEP_ROW = 18, 32
+local ROW = 18
 
 local ui          -- built on first open
-local state = {}  -- from = place or nil ("where you stand"), to = place, plan = Core.PlanRoute's answer
+local state = {}  -- to = place, plan = Core.PlanRoute's answer
 
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
--- The active layout's geometry, or nil when the generated table is absent.
--- Gated on the geometry alone: whether the parts shipped is a different
--- question, and answering it here would drop the whole layout to its fallback
--- while a perfectly good geometry sat there unread.
-local function geo(mode)
+-- The layout's geometry, or nil when the generated table is absent. Gated on
+-- the geometry alone: whether the parts shipped is a different question.
+local function geo()
     local g = ns.Data.ArtGeometry and ns.Data.ArtGeometry.planner
-    return g and g[mode or ns.Core.Layout()]
+    return g and g.wide
 end
 
 -- Lay a shipped part over `parent`, cropping the power-of-two padding away.
@@ -51,62 +46,34 @@ local function art(parent, name, layer)
     return t
 end
 
-local function stepLine(i, step)
-    local cost = ns.Route.FormatTime(step.seconds)
-    if step.copper > 0 then
-        cost = cost .. "  " .. ns.Route.FormatMoney(step.copper)
-    end
-    return i .. ". " .. ns.Route.StepText(step), cost
-end
-
--- Paint whatever state.plan holds. A route longer than MAX_ROWS shows its
--- first MAX_ROWS-2 steps, then an overflow row, then the FINAL step (with
--- its own detail) in the last row: the arrival must always be visible.
+-- Paint whatever state.plan holds. With a route, the idle status lines give
+-- way to it; without one, they say why there is none.
 function Planner.Refresh()
     if not ui then
         return
     end
     local plan = state.plan
-    local level = plan and plan.level or nil
     local steps = plan and plan.result and plan.result.steps or {}
-    local overflow = #steps > Planner.MAX_ROWS
-    local headCount = overflow and (Planner.MAX_ROWS - 2) or Planner.MAX_ROWS
-    for i = 1, Planner.MAX_ROWS do
-        local row = ui.rows[i]
-        local left, right, detail, warn = "", "", "", false
-        local step, number
-        if overflow and i == Planner.MAX_ROWS - 1 then
-            left = "... and " .. (#steps - headCount - 1) .. " more steps"
-        elseif overflow and i == Planner.MAX_ROWS then
-            step, number = steps[#steps], #steps
-        elseif i <= headCount and steps[i] then
-            step, number = steps[i], i
+    local routed = #steps > 0
+    local notes = plan and table.concat(plan.notes, "  ") or ""
+    local total, hint = "", ""
+    if plan and routed then
+        total = ns.Route.FormatTime(plan.result.seconds) .. " · " .. ns.Route.FormatMoney(plan.result.copper)
+        -- One amber line under the strip. What the player must know first
+        -- wins: a note about the route itself, then a flight path worth
+        -- discovering. (Task 4 puts the level warning ahead of both.)
+        if notes ~= "" then
+            hint = notes
+        elseif plan.hint then
+            hint = ns.Route.HintText(plan.hint)
         end
-        if step then
-            left, right = stepLine(number, step)
-            detail, warn = ns.Route.StepDetail(ns.Data, step, level)
-        end
-        row.left:SetText(left)
-        row.right:SetText(right)
-        row.detail:SetText(detail)
-        local c = W.COLOR[warn and "amber" or "dim"]
-        row.detail:SetTextColor(c[1], c[2], c[3])
-    end
-
-    local total, hint, notes = "", "", ""
-    if plan then
-        notes = table.concat(plan.notes, "  ")
-    end
-    if plan and #steps > 0 then
-        total = ns.Route.FormatTime(plan.result.seconds) .. "  " .. ns.Route.FormatMoney(plan.result.copper)
-    end
-    if plan and plan.hint then
-        hint = ns.Route.HintText(plan.hint)
     end
     ui.total:SetText(total)
     ui.hint:SetText(hint)
     ui.notes:SetText(notes)
-    W.SetButtonEnabled(ui.go, #steps > 0)
+    ui.notes:SetShown(not routed)
+    ui.known:SetShown(not routed)
+    W.SetButtonEnabled(ui.go, routed)
 
     local known = ns.Core.KnownCount()
     ui.known:SetText(known == 0 and "No flight paths yet: open a flight map."
@@ -114,56 +81,48 @@ function Planner.Refresh()
 end
 
 local function replan()
-    state.plan = state.to and ns.Core.PlanRoute(state.to, state.from) or nil
+    state.plan = state.to and ns.Core.PlanRoute(state.to) or nil
     Planner.Refresh()
 end
 
--- ---- the results list under whichever box has focus ----
+-- ---- the results list under the search box ----
 
 local function hideResults()
     ui.results:Hide()
-    ui.results.owner = nil
 end
 
--- Puts the results list away and drops focus from both boxes: used wherever
+-- Puts the results list away and drops focus from the box: used wherever
 -- clicking something other than a result row should end the search.
 local function dismiss()
-    ui.fromBox:ClearFocus()
     ui.toBox:ClearFocus()
     hideResults()
 end
 
-local function pick(box, item)
+local function pick(item)
     hideResults()
-    if box == ui.toBox then
-        state.to = item
-        ns.Core.Remember(item.name)
-    else
-        state.from = item
-    end
-    box:SetText(item.name)
-    box:ClearFocus()
-    W.UpdatePlaceholder(box)
+    state.to = item
+    ns.Core.Remember(item.name)
+    ui.toBox:SetText(item.name)
+    ui.toBox:ClearFocus()
+    W.UpdatePlaceholder(ui.toBox)
     replan()
 end
 
--- Matches for the text; with an empty To box, the recent destinations.
-local function candidatesFor(box)
-    local text = box:GetText()
+-- Matches for the text; with an empty box, the recent destinations.
+local function candidates()
+    local text = ui.toBox:GetText()
     if text ~= "" then
         return ns.Search.Find(ns.Data, text, ns.Core.Faction(), Planner.MAX_RESULTS)
     end
     local out = {}
-    if box == ui.toBox then
-        for _, name in ipairs(ns.Core.Recents()) do
-            out[#out + 1] = ns.Search.Exact(ns.Data, name, ns.Core.Faction())
-        end
+    for _, name in ipairs(ns.Core.Recents()) do
+        out[#out + 1] = ns.Search.Exact(ns.Data, name, ns.Core.Faction())
     end
     return out
 end
 
-local function showResults(box)
-    local items = candidatesFor(box)
+local function showResults()
+    local items = candidates()
     if #items == 0 then
         hideResults()
         return
@@ -176,7 +135,6 @@ local function showResults(box)
             row.label:SetText(item.name .. (item.kind == "zone" and "" or "  (flight stop)"))
         end
     end
-    ui.results.owner = box
     ui.results:Show()
 end
 
@@ -184,21 +142,21 @@ local function wireBox(box)
     box:SetScript("OnTextChanged", function(self, userInput)
         W.UpdatePlaceholder(self)
         if userInput then
-            showResults(self)
+            showResults()
         end
     end)
     box:SetScript("OnEditFocusGained", showResults)
-    box:SetScript("OnEditFocusLost", function(self)
+    box:SetScript("OnEditFocusLost", function()
         -- The client drops edit focus on mouse-down, before a click on a row
         -- completes. With the cursor on the list, leave it for that click.
-        if ui.results.owner == self and not ui.results:IsMouseOver() then
+        if not ui.results:IsMouseOver() then
             hideResults()
         end
     end)
     box:SetScript("OnEnterPressed", function(self)
-        local first = candidatesFor(self)[1]
+        local first = candidates()[1]
         if first then
-            pick(self, first)
+            pick(first)
         else
             self:ClearFocus()
         end
@@ -253,11 +211,11 @@ end
 -- Everything else in the geometry sits in the cut-out.
 local ON_THE_CHASSIS = { titlePlate = true, taglinePlate = true }
 
--- The union rect of every placed area in this layout's geometry: minimum
--- left and top, maximum right and bottom, over every key in `g` that has a
--- `left` field (a rect; `canvas` is pixels, not a device fraction, and the
--- circle keys have cx/cy/r instead, so both are skipped without naming
--- them) and is not ON_THE_CHASSIS.
+-- The union rect of every placed area in the geometry: minimum left and top,
+-- maximum right and bottom, over every key in `g` that has a `left` field (a
+-- rect; `canvas` is pixels, not a device fraction, and the circle keys have
+-- cx/cy/r instead, so both are skipped without naming them) and is not
+-- ON_THE_CHASSIS.
 --
 -- Only the FALLBACK for the tiled panel backing now, used when the generated
 -- geometry has no `interior`. The real placement is `g.interior`: the frame's
@@ -283,20 +241,18 @@ local function boundingBox(g)
     return box
 end
 
--- ---- layout: the only thing that differs between wide and tall ----
+-- ---- placement ----
 
-function Planner.ApplyLayout(mode)
+function Planner.ApplyLayout()
     if not ui then
         return
     end
-    mode = (mode == "tall") and "tall" or "wide"
-    local size = Planner.SIZE[mode]
     local f = ui.frame
     -- The explicit size first, before anything reads it: every helper below
     -- measures this frame, and a frame with no size measures 0.
-    f:SetSize(size[1], size[2])
+    f:SetSize(Planner.SIZE[1], Planner.SIZE[2])
 
-    local part = ns.Data.Art and ns.Data.Art["planner-frame-" .. mode]
+    local part = ns.Data.Art and ns.Data.Art["planner-frame-wide"]
     if part and ui.frameArt:SetTexture(MEDIA .. part.file) then
         ui.frameArt:SetTexCoord(part.l, part.r, part.t, part.b)
         ui.frameArt:Show()
@@ -306,64 +262,54 @@ function Planner.ApplyLayout(mode)
         ui.flat:Show()
     end
 
-    local g = geo(mode)
-    if g then
-        if ui.titlePlate then
-            W.PlaceRect(ui.titlePlate, f, g.titlePlate)
-        end
-        if ui.taglinePlate then
-            W.PlaceRect(ui.taglinePlate, f, g.taglinePlate)
-        end
-        W.PlaceLine(ui.title, f, g.titlePlate)
-        W.PlaceLine(ui.tagline, f, g.taglinePlate)
-        W.PlaceCircle(ui.close, f, g.closeButton)
-        W.PlaceCircle(ui.gear, f, g.gearButton)
-        W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
-        W.PlaceRect(ui.layoutButton, f, g.layoutButton)
-        W.PlaceRect(ui.fromBox, f, g.fromBox)
-        W.PlaceRect(ui.toBox, f, g.toBox)
-        W.PlaceRect(ui.here, f, g.hereButton)
-        W.PlaceRect(ui.results, f, g.resultsList)
-        W.PlaceRect(ui.screen, f, g.screen)
-        W.PlaceRect(ui.side, f, g.sidePanel)
-        W.PlaceRect(ui.go, f, g.goButton)
-        W.PlaceLine(ui.total, f, g.totalLine)
-        W.PlaceLine(ui.hint, f, g.hintLine)
-        if ui.panelArt then
-            -- The frame's opening, measured from its own alpha by make_art.py.
-            -- Seen in the client 2026-09-21: sized to the controls instead,
-            -- the backing stopped short of the brass and the world showed
-            -- through on the left, the right and the bottom.
-            W.PlaceRect(ui.panelArt, f, g.interior or boundingBox(g))
-        end
-        -- Every three-sliced control has just been re-anchored corner to
-        -- corner, so its end caps were measured against the height it had
-        -- before. The new height CANNOT be read off the control: it only
-        -- inherits its size now. Work it out from the same two things
-        -- PlaceRect used -- the control's own rect and this frame, which was
-        -- given an explicit size at the top of ApplyLayout.
-        --
-        -- Pairs, not a flat list: `ipairs` over controls would stop dead at
-        -- the first nil and silently leave every later control's caps stale,
-        -- and each control needs its own rect in any case.
-        for _, pair in ipairs({ { ui.layoutButton, g.layoutButton }, { ui.here, g.hereButton },
-                                { ui.go, g.goButton }, { ui.fromBox, g.fromBox },
-                                { ui.toBox, g.toBox } }) do
-            W.Restretch3(pair[1], (pair[2].bottom - pair[2].top) * f:GetHeight())
-        end
-        if ui.backdrop then
-            -- Placed by its parent, not by the geometry, but the crop still
-            -- needs the screen opening's pixel size.
-            local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
-            if backdropPart then
-                coverCrop(ui.backdrop, backdropPart,
-                          (g.screen.right - g.screen.left) * f:GetWidth(),
-                          (g.screen.bottom - g.screen.top) * f:GetHeight())
-            end
+    local g = geo()
+    if not g then
+        return
+    end
+    if ui.titlePlate then
+        W.PlaceRect(ui.titlePlate, f, g.titlePlate)
+    end
+    if ui.taglinePlate then
+        W.PlaceRect(ui.taglinePlate, f, g.taglinePlate)
+    end
+    W.PlaceLine(ui.title, f, g.titlePlate)
+    W.PlaceLine(ui.tagline, f, g.taglinePlate)
+    W.PlaceCircle(ui.close, f, g.closeButton)
+    W.PlaceCircle(ui.gear, f, g.gearButton)
+    W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
+    W.PlaceRect(ui.toBox, f, g.toBox)
+    W.PlaceRect(ui.results, f, g.resultsList)
+    W.PlaceRect(ui.screen, f, g.screen)
+    W.PlaceRect(ui.go, f, g.goButton)
+    W.PlaceLine(ui.total, f, g.totalLine)
+    W.PlaceLine(ui.hint, f, g.hintLine)
+    W.PlaceLine(ui.notes, f, g.notesLine)
+    W.PlaceLine(ui.known, f, g.knownLine)
+    if ui.panelArt then
+        -- The frame's opening, measured from its own alpha by make_art.py.
+        -- Seen in the client 2026-09-21: sized to the controls instead,
+        -- the backing stopped short of the brass and the world showed
+        -- through on the left, the right and the bottom.
+        W.PlaceRect(ui.panelArt, f, g.interior or boundingBox(g))
+    end
+    -- Both three-sliced controls have just been re-anchored corner to corner,
+    -- so their end caps were measured against the height they had before.
+    -- The new height CANNOT be read off the control: it only inherits its
+    -- size now. Work it out from the same two things PlaceRect used -- the
+    -- control's own rect and this frame, given an explicit size above.
+    for _, pair in ipairs({ { ui.go, g.goButton }, { ui.toBox, g.toBox } }) do
+        W.Restretch3(pair[1], (pair[2].bottom - pair[2].top) * f:GetHeight())
+    end
+    if ui.backdrop then
+        -- Placed by its parent, not by the geometry, but the crop still
+        -- needs the screen opening's pixel size.
+        local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
+        if backdropPart then
+            coverCrop(ui.backdrop, backdropPart,
+                      (g.screen.right - g.screen.left) * f:GetWidth(),
+                      (g.screen.bottom - g.screen.top) * f:GetHeight())
         end
     end
-
-    ui.layoutButton.label:SetText(mode == "tall" and "Wide" or "Tall")
 end
 
 -- ---- construction ----
@@ -374,7 +320,7 @@ local function build()
     -- so an unhideable rectangle behind it boxes in a window that is not a
     -- rectangle. The dash unit shipped that fault once already.
     local f = CreateFrame("Frame", nil, UIParent)
-    f:SetSize(Planner.SIZE.wide[1], Planner.SIZE.wide[2])
+    f:SetSize(Planner.SIZE[1], Planner.SIZE[2])
     f:SetFrameStrata("HIGH")
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -406,11 +352,11 @@ local function build()
     content:SetAllPoints(f)
     content:SetFrameLevel(base + 2)
 
-    -- The window's own chassis. ApplyLayout swaps the texture between the two
-    -- frames, so create it empty here and let ApplyLayout fill it. It is on
-    -- "BORDER", one layer above the tiled backing on "BACKGROUND", so the
-    -- chassis is drawn OVER the backing: the backing's box tucks a few pixels
-    -- under the brass on every side, and only the frame on top hides that.
+    -- The window's own chassis. ApplyLayout gives it the frame art, so create
+    -- it empty here and let ApplyLayout fill it. It is on "BORDER", one layer
+    -- above the tiled backing on "BACKGROUND", so the chassis is drawn OVER the
+    -- backing: the backing's box tucks a few pixels under the brass on every
+    -- side, and only the frame on top hides that.
     local frameArt = artLayer:CreateTexture(nil, "BORDER")
     frameArt:SetAllPoints(artLayer)
 
@@ -490,10 +436,10 @@ local function build()
     local dropdown = CreateFrame("Button", nil, content)
     dropdown:RegisterForClicks("LeftButtonUp")
     dropdown:SetScript("OnClick", function()
-        if ui.results:IsShown() and ui.results.owner == ui.toBox then
+        if ui.results:IsShown() then
             hideResults()
         else
-            showResults(ui.toBox)
+            showResults()
         end
     end)
     local dropdownArt = art(dropdown, "dropdown-button", "ARTWORK")
@@ -518,35 +464,15 @@ local function build()
         gear:SetHighlightTexture(MEDIA .. gearHover.file, "ADD")
     end
 
-    -- The three plain buttons all draw the same "button" part at a width the
-    -- geometry, not this code, decides: 65 pixels for Here in the wide layout
-    -- and 135 for GO in the tall one. A single stretched texture would
-    -- squash those end caps at one width and stretch them at the other, so
-    -- each gets its own three-slice art on top of its flat fallback.
+    -- Start Route draws the "button" part at a width the geometry, not this
+    -- code, decides. A single stretched texture would squash its end caps, so
+    -- it gets three-slice art on top of its flat fallback.
     local BUTTON_CAP, BUTTON_CAP_ASPECT = 0.25, 1.0
 
-    local layoutButton = W.Button(content, "Tall", 44, 18, function()
-        dismiss()
-        Planner.ApplyLayout(ns.Core.ToggleLayout())
-    end)
-    W.Stretch3(layoutButton, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
-    W.WireButtonArt(layoutButton)
-
-    local fromBox = W.EditBox(content, 150, 20, "From: where you stand")
     local toBox = W.EditBox(content, 170, 20, "To: city, zone or flight stop")
-    local here = W.Button(content, "Here", 40, 20, function()
-        dismiss()
-        state.from = nil
-        ui.fromBox:SetText("")
-        W.UpdatePlaceholder(ui.fromBox)
-        replan()
-    end)
-    W.Stretch3(here, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
-    W.WireButtonArt(here)
 
     -- input-box.png is 1024x128, so 0.18 of its width is a 184x128 cap.
     local CAP, CAP_ASPECT = 0.18, 184 / 128
-    local fromSlice = W.Stretch3(fromBox, "input-box", CAP, CAP_ASPECT)
     local toSlice = W.Stretch3(toBox, "input-box", CAP, CAP_ASPECT)
 
     local screen = W.Panel(content, "screen", "steel", 2)
@@ -570,32 +496,16 @@ local function build()
         backdrop = nil
     end
 
+    -- Four lines, all on the screen so they draw over its scenery (a string on
+    -- `content` would sit under the screen, which is content's child). notes
+    -- and known are the idle status lines and give way to the route; total
+    -- and hint sit under the strip and stay.
     local notes = W.Text(screen, "dim")
-    notes:SetPoint("TOPLEFT", 8, -8)
-    notes:SetPoint("TOPRIGHT", -8, -8)
-    notes:SetWordWrap(true)
     local known = W.Text(screen, "green")
-    known:SetPoint("BOTTOMLEFT", 8, 8)
-    known:SetPoint("BOTTOMRIGHT", -8, 8)
-    local device = W.Text(screen, "green", "GameFontNormalHuge", "CENTER")
-    device:SetPoint("CENTER")
-    device:SetText("GoblinPS")
-    device:SetAlpha(0.25)
+    local total = W.Text(screen, "green", "GameFontNormal", "CENTER")
+    local hint = W.Text(screen, "amber", nil, "CENTER")
 
-    local side = W.Panel(content, "steel", "steel", 1)
-    local rows = {}
-    for i = 1, Planner.MAX_ROWS do
-        local row = { left = W.Text(side, "green"), right = W.Text(side, "dim", nil, "RIGHT"),
-                      detail = W.Text(side, "dim", "GameFontDisableSmall") }
-        row.left:SetPoint("TOPLEFT", 8, -(6 + (i - 1) * STEP_ROW))
-        row.right:SetPoint("TOPRIGHT", -8, -(6 + (i - 1) * STEP_ROW))
-        row.left:SetPoint("TOPRIGHT", row.right, "TOPLEFT", -6, 0)
-        row.detail:SetPoint("TOPLEFT", 22, -(6 + (i - 1) * STEP_ROW + 14))
-        row.detail:SetPoint("TOPRIGHT", -8, -(6 + (i - 1) * STEP_ROW + 14))
-        rows[i] = row
-    end
-    local hint = W.Text(side, "amber")
-    local go = W.Button(side, "GO", 56, 24, function()
+    local go = W.Button(content, "Start Route", 120, 24, function()
         dismiss()
         replan()
         ns.Core.Go(state.plan)
@@ -608,7 +518,6 @@ local function build()
     end)
     W.Stretch3(go, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
     W.WireButtonArt(go)
-    local total = W.Text(side, "green", "GameFontNormal")
 
     local results = W.Panel(content, "steel", "brass", 1)
     results:SetFrameStrata("DIALOG")
@@ -627,17 +536,15 @@ local function build()
         row.label = W.Text(row, "green")
         row.label:SetPoint("LEFT", 6, 0)
         row.label:SetPoint("RIGHT", -6, 0)
-        row:SetScript("OnClick", function(self) pick(results.owner, self.item) end)
+        row:SetScript("OnClick", function(self) pick(self.item) end)
         results.rows[i] = row
     end
 
     ui = { frame = f, artLayer = artLayer, content = content, flat = flat, frameArt = frameArt,
            titlePlate = titlePlate, taglinePlate = taglinePlate, title = title, tagline = tagline,
            close = close, gear = gear, dropdown = dropdown, backdrop = backdrop, panelArt = panelArt,
-           fromBox = fromBox, toBox = toBox, screen = screen, side = side, rows = rows,
-           hint = hint, total = total, go = go, here = here, known = known, results = results,
-           layoutButton = layoutButton, notes = notes, fromSlice = fromSlice, toSlice = toSlice }
-    wireBox(fromBox)
+           toBox = toBox, toSlice = toSlice, screen = screen, total = total, hint = hint,
+           notes = notes, known = known, go = go, results = results }
     wireBox(toBox)
     f:SetScript("OnHide", hideResults)
     ns.Core.CloseOnEscape(f, "GoblinPSPlanner")
@@ -653,7 +560,7 @@ function Planner.Toggle()
         else
             ui.frame:SetPoint("CENTER")
         end
-        Planner.ApplyLayout(ns.Core.Layout())
+        Planner.ApplyLayout()
     end
     if ui.frame:IsShown() then
         ui.frame:Hide()

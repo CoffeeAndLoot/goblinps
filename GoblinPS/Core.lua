@@ -43,8 +43,6 @@ function Core.KnownCount() return Known.Count(knownStore()) end
 function Core.Faction() return API.Faction() end
 function Core.Recents() return prefs().recents end
 function Core.Remember(name) Prefs.Remember(prefs(), name) end
-function Core.Layout() return prefs().layout end
-function Core.ToggleLayout() return Prefs.ToggleLayout(prefs()) end
 function Core.Position(window) return Prefs.Position(prefs(), window) end
 function Core.SavePosition(window, point, relativePoint, x, y)
     Prefs.SavePosition(prefs(), window, point, relativePoint, x, y)
@@ -201,7 +199,7 @@ function Core.Go(plan)
         return
     end
     if step.kind == "hearth" then
-        say("Use your hearthstone, then press GO again.")
+        say("Use your hearthstone, then press Start Route again.")
     elseif Core.PinStep(step) then
         say("Pin set: " .. Route.StepText(step) .. ".")
     else

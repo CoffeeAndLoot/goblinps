@@ -152,11 +152,11 @@ return function(h)
     end)
 
     h.describe("the planner window", function()
-        h.it("opens from the slash command with both layouts' widgets built once", function()
+        h.it("opens from the slash command", function()
             SlashCmdList.GOBLINPS("")
             local ui = Planner.Debug()
             h.truthy(ui.frame:IsShown())
-            h.eq(ui.frame:GetWidth(), Planner.SIZE.wide[1])
+            h.eq(ui.frame:GetWidth(), Planner.SIZE[1])
             h.eq(ui.known:GetText(), "Flight paths known: 3")
             h.eq(UISpecialFrames[1], "GoblinPSPlanner")
         end)
@@ -189,22 +189,14 @@ return function(h)
             h.falsy(ui.results:IsShown())
             h.eq(state.to.nodeID, 4)
             h.eq(ui.toBox:GetText(), "Delta")
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to Alpha")
-            h.eq(ui.rows[2].left:GetText(), "2. Fly to Bravo")
-            h.eq(ui.rows[2].right:GetText(), "~4 min  1s")
-            h.eq(ui.rows[4].left:GetText(), "4. Zeppelin to East Dock")
-            h.eq(ui.rows[5].left:GetText(), "5. Ride to Delta")
-            h.eq(ui.rows[6].left:GetText(), "")
-            h.eq(ui.total:GetText(), "~10 min  1s")
+            local steps = state.plan.result.steps
+            h.eq(#steps, 5)
+            h.eq(ns.Route.StepText(steps[1]), "Ride to Alpha")
+            h.eq(ns.Route.StepText(steps[2]), "Fly to Bravo")
+            h.eq(ns.Route.StepText(steps[4]), "Zeppelin to East Dock")
+            h.eq(ns.Route.StepText(steps[5]), "Ride to Delta")
+            h.eq(ui.total:GetText(), "~10 min · 1s")
             h.truthy(ui.go.enabled)
-        end)
-
-        h.it("clicking Here dismisses the open results list", function()
-            local ui = Planner.Debug()
-            Fake.Type(ui.toBox, "delt")
-            h.truthy(ui.results:IsShown())
-            Fake.Click(ui.here)
-            h.falsy(ui.results:IsShown())
         end)
 
         h.it("a mouse-down on the frame body also dismisses the open results list", function()
@@ -258,94 +250,50 @@ return function(h)
             table.remove(GoblinPSDB.recents, 1)
         end)
 
-        h.it("plans from another place", function()
-            local ui, state = Planner.Debug()
-            Fake.Type(ui.fromBox, "brav")
-            Fake.Click(ui.results.rows[1])
-            h.eq(state.from.nodeID, 2)
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to West Dock")
-        end)
-
-        h.it("GO drops a pin on the first step", function()
+        h.it("Start Route drops a pin on the first step", function()
             local ui = Planner.Debug()
             Fake.Click(ui.go)
             h.falsy(ui.frame:IsShown(), "GO hands off to the dash and gets out of the way")
             SlashCmdList.GOBLINPS("") -- /gps reopens it, without ending the trip, for the tests that follow
             h.eq(#pins, 1)
             h.eq(pins[1][1], 1)
-            h.truthy(printed[#printed]:find("Pin set: Ride to West Dock", 1, true))
+            h.truthy(printed[#printed]:find("Pin set: Ride to Alpha", 1, true))
         end)
 
-        h.it("switches layout with one set of widgets and saves the choice", function()
-            local ui = Planner.Debug()
-            local rowsBefore = ui.rows
-            Fake.Click(ui.layoutButton)
-            h.eq(ui.frame:GetWidth(), Planner.SIZE.tall[1])
-            h.eq(ui.frame:GetHeight(), Planner.SIZE.tall[2])
-            h.eq(GoblinPSDB.layout, "tall")
-            h.eq(ui.layoutButton.label:GetText(), "Wide")
-            h.truthy(ui.rows == rowsBefore, "the same row widgets")
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to West Dock")
-        end)
-
-        h.it("Here plans from where you stand again", function()
-            local ui, state = Planner.Debug()
-            Fake.Click(ui.here)
-            h.eq(state.from, nil)
-            h.eq(ui.fromBox:GetText(), "")
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to Alpha")
-        end)
-
-        h.it("shows the plan's notes on the screen when the route has steps", function()
+        h.it("puts the plan's notes on the warning line when the route has steps", function()
             local ui = Planner.Debug()
             local originalHearthBindName = ns.API.HearthBindName
             ns.API.HearthBindName = function() return "Nowhere Inn Bind" end
-            Fake.Click(ui.here)
-            h.truthy(ui.notes:GetText():find("Hearth: unknown inn", 1, true))
+            Planner.Replan()
+            h.truthy(ui.hint:GetText():find("Hearth: unknown inn", 1, true))
+            h.falsy(ui.notes:IsShown(), "the idle status lines give way to the route")
+            h.falsy(ui.known:IsShown())
             ns.API.HearthBindName = originalHearthBindName
-            Fake.Click(ui.here)
-            h.eq(ui.notes:GetText(), "")
-        end)
-
-        h.it("shows an overflow row for a route longer than MAX_ROWS, with the last step always visible", function()
-            local ui, state = Planner.Debug()
-            local savedMax, savedPlan = Planner.MAX_ROWS, state.plan
-            Planner.MAX_ROWS = 3
-            local steps = {}
-            for i = 1, 5 do
-                steps[i] = { kind = "ride", to = { name = "Stop " .. i }, seconds = 60, copper = 0 }
-            end
-            state.plan = { to = { name = "Stop 5" }, notes = {}, result = { steps = steps, seconds = 300, copper = 0 } }
-            Planner.Refresh()
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to Stop 1")
-            h.eq(ui.rows[2].left:GetText(), "... and 3 more steps")
-            h.eq(ui.rows[3].left:GetText(), "5. Ride to Stop 5")
-            Planner.MAX_ROWS = savedMax
-            state.plan = savedPlan
-            Planner.Refresh()
+            Planner.Replan()
+            h.falsy(ui.hint:GetText():find("Hearth", 1, true))
         end)
 
         h.it("explains itself when it cannot tell where you are", function()
             local ui = Planner.Debug()
             where.map = nil
-            Fake.Click(ui.here)
-            h.eq(ui.rows[1].left:GetText(), "")
+            Planner.Replan()
             h.eq(ui.notes:GetText(), "Can't tell where you are. Inside an instance?")
+            h.truthy(ui.notes:IsShown(), "a status line says why there is no route")
             h.eq(ui.total:GetText(), "")
             h.falsy(ui.go.enabled)
             where.map = 1
-            Fake.Click(ui.here)
+            Planner.Replan()
             h.truthy(ui.go.enabled)
         end)
 
-        h.it("GO re-plans from where you are now instead of using a stale plan", function()
-            local ui = Planner.Debug()
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to Alpha")
+        h.it("Start Route re-plans from where you are now instead of using a stale plan", function()
+            local ui, state = Planner.Debug()
+            h.eq(ns.Route.StepText(state.plan.result.steps[1]), "Ride to Alpha")
             -- The player moves without touching either box: the planner's
             -- last plan (from near Alpha) is now stale.
             where.mx, where.my = 0.1, 0.9 -- right beside Bravo now
             Fake.Click(ui.go)
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to West Dock")
+            h.eq(ns.Route.StepText(state.plan.result.steps[1]), "Ride to West Dock")
             h.truthy(printed[#printed]:find("Pin set: Ride to West Dock", 1, true))
             h.eq(pins[#pins][1], 1)
             where.mx, where.my = 0.89, 0.9 -- restore for the tests that follow
@@ -357,8 +305,8 @@ return function(h)
             Fake.Type(ui.toBox, "westland")
             Fake.Click(ui.results.rows[1])
             h.eq(state.to.name, "Westland")
-            h.eq(ui.rows[1].left:GetText(), "")
             h.eq(ui.notes:GetText(), "You're already at Westland.")
+            h.truthy(ui.notes:IsShown())
             h.eq(ui.total:GetText(), "")
             h.falsy(ui.go.enabled)
         end)
@@ -373,17 +321,13 @@ return function(h)
         end)
 
         h.it("keeps the window at the art's exact aspect ratio", function()
-            -- 1600x1024 is 25:16 and 1024x1600 is 16:25. The old 660x400 and
-            -- 390x600 were 1.65 and 0.65, so the wide frame would have drawn
-            -- about 6% too wide -- the fault that made the dash's first design
-            -- render as an oval, which took a client run to see.
-            local g = ns.Data.ArtGeometry.planner
-            for _, mode in ipairs({ "wide", "tall" }) do
-                local size = ns.Planner.SIZE[mode]
-                local canvas = g[mode].canvas
-                h.truthy(math.abs(size[1] / size[2] - canvas.w / canvas.h) < 0.001,
-                         mode .. " must keep the art's aspect ratio")
-            end
+            -- 1600x1024 is 25:16. The old 660x400 was 1.65, so the frame
+            -- would have drawn about 6% too wide -- the fault that made the
+            -- dash's first design render as an oval, which took a client run
+            -- to see.
+            local canvas = ns.Data.ArtGeometry.planner.wide.canvas
+            h.truthy(math.abs(Planner.SIZE[1] / Planner.SIZE[2] - canvas.w / canvas.h) < 0.001,
+                     "the window must keep the art's aspect ratio")
         end)
 
         h.it("carries no art of its own on the window frame", function()
@@ -426,7 +370,7 @@ return function(h)
             -- Pin the position, not just the size: a test that checks how big
             -- a thing is cannot tell you it is in the wrong place.
             ns.Planner.Toggle()
-            ns.Planner.ApplyLayout("wide")
+            ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             local g = ns.Data.ArtGeometry.planner.wide
             local w = ui.frame:GetWidth()
@@ -454,7 +398,7 @@ return function(h)
             -- is it on, at what layer, and is anything opaque over it there.
             local ORDER = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
             ns.Planner.Toggle()
-            ns.Planner.ApplyLayout("wide")
+            ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             h.truthy(ui.backdrop, "the backdrop texture exists")
             h.truthy(ui.backdrop.parent == ui.screen,
@@ -475,19 +419,22 @@ return function(h)
             -- screen-backdrop is 2.5:1 scenery and the screen opening is not.
             -- Stretching it to fit would squash the mountains; the answer is
             -- to crop the overflow, centred, inside the part's own texture
-            -- coordinates.
+            -- coordinates. The mockup's opening is about 3.3:1, wider than
+            -- the scenery, so the overflow is height: the full width stays.
             ns.Planner.Toggle()
-            ns.Planner.ApplyLayout("wide")
+            ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             h.truthy(ui.backdrop, "the backdrop texture exists")
-            local l, r = unpack(ui.backdrop.texCoord)
+            local l, r, t, b = unpack(ui.backdrop.texCoord)
             local part = ns.Data.Art["screen-backdrop"]
-            h.truthy(l >= part.l - 0.0001 and r <= part.r + 0.0001,
+            h.truthy(math.abs(l - part.l) < 0.0001 and math.abs(r - part.r) < 0.0001,
+                     "an opening wider than the scenery keeps its whole width")
+            h.truthy(t >= part.t - 0.0001 and b <= part.b + 0.0001,
                      "the cover-crop stays inside the part's own padding crop")
-            h.truthy(math.abs((l - part.l) - (part.r - r)) < 0.0001,
-                     "the crop is centred: equal slivers off each side")
-            h.truthy(r - l < part.r - part.l,
-                     "2.5:1 scenery in a wider-than-tall-but-not-2.5 opening loses width")
+            h.truthy(math.abs((t - part.t) - (part.b - b)) < 0.0001,
+                     "the crop is centred: equal slivers off top and bottom")
+            h.truthy(b - t < part.b - part.t,
+                     "2.5:1 scenery in a 3.3:1 opening loses height")
         end)
 
         h.it("crops the backdrop by the shipped canvas's aspect, not the master PNG's", function()
@@ -496,10 +443,11 @@ return function(h)
             -- Close, not equal -- and using the master's pixel size instead
             -- of the shipped canvas's still lands a crop that is centred and
             -- inside bounds (the test above stays green either way), just
-            -- the wrong SIZE: it trims about 15% a side instead of about 7%.
+            -- the wrong SIZE: in the mockup's 3.3:1 opening it trims about 3%
+            -- of the art off top and bottom instead of about 12%.
             -- Centredness cannot catch that; only the magnitude can.
             ns.Planner.Toggle()
-            ns.Planner.ApplyLayout("wide")
+            ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             local part = ns.Data.Art["screen-backdrop"]
             local g = ns.Data.ArtGeometry.planner.wide
@@ -513,11 +461,12 @@ return function(h)
             -- master's.
             local partAspect = (part.cw * span) / (part.ch * tall)
             local boxAspect = boxW / boxH
-            local wantKeep = span * (boxAspect / partAspect)
-            local l, r = unpack(ui.backdrop.texCoord)
-            h.truthy(math.abs((r - l) - wantKeep) < 0.001,
+            h.truthy(boxAspect > partAspect, "the opening is wider than the scenery, so height is trimmed")
+            local wantKeep = tall * (partAspect / boxAspect)
+            local _, _, t, b = unpack(ui.backdrop.texCoord)
+            h.truthy(math.abs((b - t) - wantKeep) < 0.001,
                      "trimmed span must match the shipped canvas's aspect: got "
-                     .. tostring(r - l) .. ", wanted " .. tostring(wantKeep))
+                     .. tostring(b - t) .. ", wanted " .. tostring(wantKeep))
         end)
 
         h.it("tiles the panel backing behind every opening, not just the screen", function()
@@ -526,7 +475,7 @@ return function(h)
             -- right where screen-backdrop goes and never be seen, while the
             -- side panel next to it kept its flat colour.
             ns.Planner.Toggle()
-            ns.Planner.ApplyLayout("wide")
+            ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             local g = ns.Data.ArtGeometry.planner.wide
             local frameW, frameH = ui.frame:GetWidth(), ui.frame:GetHeight()
@@ -535,7 +484,7 @@ return function(h)
             local topFrac = -ui.panelArt.points[1][5] / frameH
             local rightFrac = ui.panelArt.points[2][4] / frameW
             local bottomFrac = -ui.panelArt.points[2][5] / frameH
-            for _, rect in ipairs({ g.screen, g.sidePanel }) do
+            for _, rect in ipairs({ g.screen, g.toBox, g.goButton }) do
                 h.truthy(leftFrac <= rect.left + 0.001, "covers the rect's left")
                 h.truthy(topFrac <= rect.top + 0.001, "covers the rect's top")
                 h.truthy(rightFrac >= rect.right - 0.001, "covers the rect's right")
@@ -554,26 +503,23 @@ return function(h)
             ns.Planner.Toggle()
             local ui = ns.Planner.Debug()
             h.truthy(ui.panelArt, "the panel backing exists")
-            for _, mode in ipairs({ "wide", "tall" }) do
-                ns.Planner.ApplyLayout(mode)
-                local g = ns.Data.ArtGeometry.planner[mode]
-                local w, frameH = ui.frame:GetWidth(), ui.frame:GetHeight()
-                local top = -ui.panelArt.points[1][5] / frameH
-                local bottom = -ui.panelArt.points[2][5] / frameH
-                h.truthy(top > g.titlePlate.top + 0.001,
-                         mode .. ": the tile climbed onto the brass crest, top is " .. tostring(top))
-                h.truthy(bottom < g.taglinePlate.bottom - 0.001,
-                         mode .. ": the tile reached the bottom rail, bottom is " .. tostring(bottom))
-                -- Shrinking it must not cost the openings it exists to back.
-                local left = ui.panelArt.points[1][4] / w
-                local right = ui.panelArt.points[2][4] / w
-                for _, rect in ipairs({ g.screen, g.sidePanel }) do
-                    h.truthy(left <= rect.left + 0.001 and top <= rect.top + 0.001
-                             and right >= rect.right - 0.001 and bottom >= rect.bottom - 0.001,
-                             mode .. ": the tile must still cover every opening")
-                end
+            ns.Planner.ApplyLayout()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w, frameH = ui.frame:GetWidth(), ui.frame:GetHeight()
+            local top = -ui.panelArt.points[1][5] / frameH
+            local bottom = -ui.panelArt.points[2][5] / frameH
+            h.truthy(top > g.titlePlate.top + 0.001,
+                     "wide: the tile climbed onto the brass crest, top is " .. tostring(top))
+            h.truthy(bottom < g.taglinePlate.bottom - 0.001,
+                     "wide: the tile reached the bottom rail, bottom is " .. tostring(bottom))
+            -- Shrinking it must not cost the openings it exists to back.
+            local left = ui.panelArt.points[1][4] / w
+            local right = ui.panelArt.points[2][4] / w
+            for _, rect in ipairs({ g.screen, g.toBox, g.goButton }) do
+                h.truthy(left <= rect.left + 0.001 and top <= rect.top + 0.001
+                         and right >= rect.right - 0.001 and bottom >= rect.bottom - 0.001,
+                         "wide: the tile must still cover every opening")
             end
-            ns.Planner.ApplyLayout("wide")
         end)
 
         h.it("fills the frame's whole opening with the backing, drawn under the brass", function()
@@ -586,27 +532,24 @@ return function(h)
             -- tucks a few pixels under the brass on every side.
             ns.Planner.Toggle()
             local ui = ns.Planner.Debug()
-            for _, mode in ipairs({ "wide", "tall" }) do
-                ns.Planner.ApplyLayout(mode)
-                local inner = ns.Data.ArtGeometry.planner[mode].interior
-                h.truthy(inner, mode .. ": the generated geometry carries the measured opening")
-                local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
-                local p1, p2 = ui.panelArt.points[1], ui.panelArt.points[2]
-                h.truthy(math.abs(p1[4] - inner.left * w) < 0.5,
-                         mode .. ": the backing's left edge is not at the opening, got " .. tostring(p1[4] / w))
-                h.truthy(math.abs(-p1[5] - inner.top * fh) < 0.5,
-                         mode .. ": the backing's top edge is not at the opening, got " .. tostring(-p1[5] / fh))
-                h.truthy(math.abs(p2[4] - inner.right * w) < 0.5,
-                         mode .. ": the backing's right edge is not at the opening, got " .. tostring(p2[4] / w))
-                h.truthy(math.abs(-p2[5] - inner.bottom * fh) < 0.5,
-                         mode .. ": the backing's bottom edge is not at the opening, got " .. tostring(-p2[5] / fh))
-            end
+            ns.Planner.ApplyLayout()
+            local inner = ns.Data.ArtGeometry.planner.wide.interior
+            h.truthy(inner, "wide: the generated geometry carries the measured opening")
+            local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
+            local p1, p2 = ui.panelArt.points[1], ui.panelArt.points[2]
+            h.truthy(math.abs(p1[4] - inner.left * w) < 0.5,
+                     "wide: the backing's left edge is not at the opening, got " .. tostring(p1[4] / w))
+            h.truthy(math.abs(-p1[5] - inner.top * fh) < 0.5,
+                     "wide: the backing's top edge is not at the opening, got " .. tostring(-p1[5] / fh))
+            h.truthy(math.abs(p2[4] - inner.right * w) < 0.5,
+                     "wide: the backing's right edge is not at the opening, got " .. tostring(p2[4] / w))
+            h.truthy(math.abs(-p2[5] - inner.bottom * fh) < 0.5,
+                     "wide: the backing's bottom edge is not at the opening, got " .. tostring(-p2[5] / fh))
             h.eq(ui.panelArt.parent, ui.frameArt.parent,
                  "backing and chassis share one frame, so their draw layers decide the order")
             local order = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4 }
             h.truthy(order[ui.frameArt.drawLayer] > order[ui.panelArt.drawLayer],
                      "the chassis must be drawn over the backing, not under it")
-            ns.Planner.ApplyLayout("wide")
         end)
 
         h.it("lets the plates carry their own lettering, not a second copy", function()
@@ -641,7 +584,7 @@ return function(h)
         end)
 
         h.it("labels a button on its shipped art in green, and dims it when disabled", function()
-            -- Seen in the client 2026-09-21: Tall, Here and GO kept the steel
+            -- Seen in the client 2026-09-21: GO kept the steel
             -- label meant for the flat brass face -- dark text on the shipped
             -- art's dark glass -- and could not be read.
             local function is(button, name)
@@ -651,8 +594,6 @@ return function(h)
             end
             ns.Planner.Toggle()
             local ui = ns.Planner.Debug()
-            h.truthy(is(ui.layoutButton, "green"), "Tall reads green on its glass")
-            h.truthy(is(ui.here, "green"), "Here reads green on its glass")
             W.SetButtonEnabled(ui.go, false)
             h.truthy(is(ui.go, "dim"), "a disabled GO is dim")
             W.SetButtonEnabled(ui.go, true)
@@ -698,7 +639,7 @@ return function(h)
                     "a control with no slice answers false rather than erroring")
         end)
 
-        h.it("sizes every three-sliced control's caps from its own rect, in both layouts", function()
+        h.it("sizes every three-sliced control's caps from its own rect", function()
             -- The fault this pins: Restretch3 was wired in correctly and
             -- changed no number, because it measured the control -- which by
             -- then only inherited its size. Every cap stayed at its build-time
@@ -710,28 +651,21 @@ return function(h)
             -- proves only that ApplyLayout made the call.
             ns.Planner.Toggle()
             local ui = ns.Planner.Debug()
-            for _, mode in ipairs({ "wide", "tall" }) do
-                ns.Planner.ApplyLayout(mode)
-                local g = ns.Data.ArtGeometry.planner[mode]
-                local frameH = ui.frame:GetHeight()
-                local checks = { { ui.layoutButton, g.layoutButton, "layoutButton" },
-                                 { ui.here, g.hereButton, "here" },
-                                 { ui.go, g.goButton, "go" },
-                                 { ui.fromBox, g.fromBox, "fromBox" },
-                                 { ui.toBox, g.toBox, "toBox" } }
-                for _, check in ipairs(checks) do
-                    local slice, rect, name = check[1].slice, check[2], check[3]
-                    h.truthy(slice, mode .. ": " .. name .. " carries no three-slice")
-                    local want = (rect.bottom - rect.top) * frameH * slice.capAspect
-                    for _, cap in ipairs({ { slice.left, "left" }, { slice.right, "right" } }) do
-                        h.truthy(math.abs(cap[1]:GetWidth() - want) < 0.01,
-                                 mode .. ": " .. name .. "'s " .. cap[2] .. " cap is "
-                                 .. tostring(cap[1]:GetWidth()) .. ", the geometry implies "
-                                 .. tostring(want))
-                    end
+            ns.Planner.ApplyLayout()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local frameH = ui.frame:GetHeight()
+            local checks = { { ui.go, g.goButton, "go" }, { ui.toBox, g.toBox, "toBox" } }
+            for _, check in ipairs(checks) do
+                local slice, rect, name = check[1].slice, check[2], check[3]
+                h.truthy(slice, "wide: " .. name .. " carries no three-slice")
+                local want = (rect.bottom - rect.top) * frameH * slice.capAspect
+                for _, cap in ipairs({ { slice.left, "left" }, { slice.right, "right" } }) do
+                    h.truthy(math.abs(cap[1]:GetWidth() - want) < 0.01,
+                             "wide: " .. name .. "'s " .. cap[2] .. " cap is "
+                             .. tostring(cap[1]:GetWidth()) .. ", the geometry implies "
+                             .. tostring(want))
                 end
             end
-            ns.Planner.ApplyLayout("wide")
         end)
 
         h.it("swaps a stretched button's art to button-disabled instead of only tinting the face", function()
@@ -809,32 +743,27 @@ return function(h)
 
         h.it("places every input, panel and footer line from the geometry", function()
             ns.Planner.Toggle()
-            for _, mode in ipairs({ "wide", "tall" }) do
-                ns.Planner.ApplyLayout(mode)
-                local ui = ns.Planner.Debug()
-                local g = ns.Data.ArtGeometry.planner[mode]
-                local w = ui.frame:GetWidth()
-                local checks = {
-                    { ui.fromBox, g.fromBox, "fromBox" },
-                    { ui.toBox, g.toBox, "toBox" },
-                    { ui.here, g.hereButton, "hereButton" },
-                    { ui.screen, g.screen, "screen" },
-                    { ui.side, g.sidePanel, "sidePanel" },
-                    { ui.go, g.goButton, "goButton" },
-                }
-                for _, check in ipairs(checks) do
-                    local region, rect, name = check[1], check[2], check[3]
-                    h.truthy(region, mode .. ": " .. name .. " is missing")
-                    h.truthy(math.abs(region.points[1][4] - rect.left * w) < 1,
-                             mode .. ": " .. name .. " starts at its rect's left, got "
-                             .. tostring(region.points[1][4]))
-                end
-                -- The two footer lines are lines, so they carry two horizontal
-                -- anchors on one y, not four corners.
-                for _, fs in ipairs({ ui.total, ui.hint }) do
-                    h.eq(#fs.points, 2)
-                    h.eq(fs.points[1][5], fs.points[2][5], "both ends sit on one line")
-                end
+            ns.Planner.ApplyLayout()
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w = ui.frame:GetWidth()
+            local checks = {
+                { ui.toBox, g.toBox, "toBox" },
+                { ui.screen, g.screen, "screen" },
+                { ui.go, g.goButton, "goButton" },
+            }
+            for _, check in ipairs(checks) do
+                local region, rect, name = check[1], check[2], check[3]
+                h.truthy(region, "wide: " .. name .. " is missing")
+                h.truthy(math.abs(region.points[1][4] - rect.left * w) < 1,
+                         "wide: " .. name .. " starts at its rect's left, got "
+                         .. tostring(region.points[1][4]))
+            end
+            -- The status and footer lines are lines, so they carry two
+            -- horizontal anchors on one y, not four corners.
+            for _, fs in ipairs({ ui.total, ui.hint, ui.notes, ui.known }) do
+                h.eq(#fs.points, 2)
+                h.eq(fs.points[1][5], fs.points[2][5], "both ends sit on one line")
             end
         end)
 
@@ -845,7 +774,7 @@ return function(h)
             ns.Data.Art = nil
             local ok = pcall(function()
                 ns.Planner.Toggle()
-                ns.Planner.ApplyLayout("wide")
+                ns.Planner.ApplyLayout()
             end)
             ns.Data.Art = restore
             h.truthy(ok, "building with no art at all must not error")
@@ -882,11 +811,11 @@ return function(h)
             h.truthy(ui.results:IsShown(), "the control must still work")
         end)
 
-        h.it("drops the results list over the search area, not under one box", function()
+        h.it("drops the results list over the screen", function()
             -- One shared list, spanning the search area: it serves whichever
             -- box has focus and the art has one opening for it.
             ns.Planner.Toggle()
-            ns.Planner.ApplyLayout("wide")
+            ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             local g = ns.Data.ArtGeometry.planner.wide
             local w = ui.frame:GetWidth()
@@ -896,7 +825,7 @@ return function(h)
                  "anchored to the window, not to the box that has focus")
             h.truthy(math.abs(ui.results.points[1][4] - g.resultsList.left * w) < 1,
                      "and it sits where the geometry says")
-            Fake.Click(ui.here) -- put the list away for the test that follows
+            Fake.MouseDown(GoblinPSPlanner) -- put the list away for the test that follows
         end)
 
         h.it("opens the whole list from the dropdown button", function()
@@ -908,50 +837,43 @@ return function(h)
             Fake.Click(ui.dropdown)
             h.falsy(ui.results:IsShown(), "and clicking again puts it away")
         end)
+
+        h.it("is the mockup: no From, no Here, no layout switch, no step list", function()
+            local ui = Planner.Debug()
+            h.eq(ui.fromBox, nil)
+            h.eq(ui.here, nil)
+            h.eq(ui.layoutButton, nil)
+            h.eq(ui.side, nil)
+            h.eq(ui.rows, nil)
+            h.eq(Planner.MAX_ROWS, nil)
+            h.eq(ns.Core.Layout, nil)
+            h.eq(ns.Data.ArtGeometry.planner.tall, nil, "the tall geometry no longer ships")
+            h.eq(ns.Data.Art["planner-frame-tall"], nil, "nor the tall frame")
+            h.eq(ui.go.label:GetText(), "Start Route")
+        end)
+
+        h.it("shows the idle status lines before a destination is picked", function()
+            -- Start Route, a few tests up, left a trip running, and a fresh
+            -- window seeds its box from a running trip (plan 7). Hide the trip
+            -- from it rather than end it: later tests expect it.
+            local savedPlanner, savedDestination = ns.Planner, ns.Dash.Destination
+            ns.Dash.Destination = function() return nil end
+            local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+            ns.Planner = savedPlanner
+            FreshPlanner.Toggle()
+            ns.Dash.Destination = savedDestination
+            local ui, state = FreshPlanner.Debug()
+            h.eq(state.to, nil, "a fresh window with no trip to show has no destination")
+            h.truthy(ui.notes:IsShown())
+            h.truthy(ui.known:IsShown())
+            h.eq(ui.known:GetText(), "Flight paths known: 3")
+            h.eq(ui.total:GetText(), "")
+            h.falsy(ui.go.enabled)
+            FreshPlanner.Toggle()
+        end)
     end)
 
-    h.describe("ground steps in the window", function()
-        local amber, dim = ns.Widgets.COLOR.amber, ns.Widgets.COLOR.dim
-        local function pickTo(text)
-            local ui = Planner.Debug()
-            Fake.Type(ui.toBox, text)
-            Fake.Click(ui.results.rows[1])
-            return ui
-        end
-
-        h.it("shows each ground step's zone and levels on a second line", function()
-            local ui = pickTo("hotel")
-            h.eq(ui.rows[1].left:GetText(), "1. Ride to the North Gate")
-            h.eq(ui.rows[1].detail:GetText(), "into Northland · trolls on the bridge")
-            h.eq(ui.rows[2].left:GetText(), "2. Ride to Hotel")
-            h.eq(ui.rows[2].detail:GetText(), "in Northland · level 30-40")
-            h.eq(ui.rows[3].detail:GetText(), "")
-        end)
-        h.it("turns the detail amber for a hazard and leaves it dim otherwise", function()
-            local ui = Planner.Debug()
-            h.eq(ui.rows[1].detail.color[1], amber[1])   -- the crossing carries a hazard note
-            h.eq(ui.rows[1].detail.color[2], amber[2])
-            h.eq(ui.rows[1].detail.color[3], amber[3])
-            h.eq(ui.rows[2].detail.color[1], dim[1])     -- level 60 in a 30-40 zone
-            h.eq(ui.rows[2].detail.color[2], dim[2])
-            h.eq(ui.rows[2].detail.color[3], dim[3])
-        end)
-        h.it("says Walk and warns about the zone for a low-level character", function()
-            level = 1
-            local ui = pickTo("hotel")
-            h.eq(ui.rows[1].left:GetText(), "1. Walk to the North Gate")
-            h.eq(ui.rows[2].left:GetText(), "2. Walk to Hotel")
-            h.eq(ui.rows[2].detail.color[1], amber[1])
-            h.eq(ui.rows[2].detail.color[2], amber[2])
-            h.eq(ui.rows[2].detail.color[3], amber[3])
-            level = 60
-        end)
-        h.it("labels a straight line when the crossings table has a hole", function()
-            local ui = pickTo("lostland")
-            h.eq(ui.rows[1].left:GetText(), "1. Ride toward Lostland (no mapped path)")
-            h.eq(ui.rows[1].detail:GetText(), "")
-            pickTo("delt")
-        end)
+    h.describe("ground steps in chat", function()
         h.it("prints the detail under each step in chat too", function()
             local from = #printed
             SlashCmdList.GOBLINPS("to hotel")
@@ -2242,7 +2164,8 @@ return function(h)
             Core.SaveTrip(delta)
             reload()
             Core.ResumeTrip()
-            h.eq(ns.Dash.Destination() and ns.Dash.Destination().name, "Delta")
+            local trip = ns.Dash.Destination()
+            h.eq(trip and trip.name, "Delta")
             ns.Dash.Tick("tick")
             local _, state = ns.Dash.Debug()
             h.truthy(state.plan, "the trip is running again")

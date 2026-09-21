@@ -25,14 +25,13 @@ ns.Prefs = Prefs
 
 Prefs.MAX_RECENTS = 8
 Prefs.HEARTH_SAVING_DEFAULT = 300   -- five minutes
-local LAYOUTS = { wide = "tall", tall = "wide" } -- each layout's other one
 
 -- Returns db (or a new table) with every missing preference filled in.
 function Prefs.Init(db)
     db = type(db) == "table" and db or {}
-    if not LAYOUTS[db.layout] then
-        db.layout = "wide"
-    end
+    -- The wide/tall switch is gone (plan 8). A save from before it still
+    -- carries the choice; drop it rather than keep a key nothing reads.
+    db.layout = nil
     db.recents = type(db.recents) == "table" and db.recents or {}
     db.positions = type(db.positions) == "table" and db.positions or {}
     db.minimap = type(db.minimap) == "table" and db.minimap or {}
@@ -49,11 +48,6 @@ function Prefs.Init(db)
         db.hearthSaving = Prefs.HEARTH_SAVING_DEFAULT
     end
     return db
-end
-
-function Prefs.ToggleLayout(db)
-    db.layout = LAYOUTS[db.layout] or "wide"
-    return db.layout
 end
 
 -- Newest first, no duplicates, capped.
