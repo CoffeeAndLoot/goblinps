@@ -1,4 +1,52 @@
-# Planner handoff: decisions and integration notes
+# Current handoff: approved mockup layout (2026-09-21)
+
+This section supersedes the historical decisions below. See
+`docs/art-parts-brief-planner-mockup.md`. No source artwork was redrawn.
+
+- Wide has exactly the fourteen requested regions plus canvas. From, Here,
+  layout toggle, side panel and tools alias are removed from wide only.
+- Tall is retained literally, including JSON whitespace, by the builder.
+  Its source art and historical previews stay unchanged and unused.
+- Title, tagline, gear and Close deliberately mount on brass. Every other
+  region, including the dropdown square, clears the actual frame alpha.
+- The backdrop remains an independent cover-scaled, center-cropped insert
+  inside `screen`; it does not stack at the full canvas origin.
+- `strip_track` left/right are endpoint badge CENTERS; its vertical center is
+  the badge and connector center. The screen reserves 80 source pixels at each
+  end for the full 144px sprite (96px visible ring). Do not inset twice.
+- Eleven stops have 113px center spacing versus 96px visible rings. All remain
+  visible. Names disappear when crowded; stops do not scroll. Larger counts
+  eventually require smaller badges. Eleven is the checked long-route case.
+- Marker sprites remain 1.5 times their visible ring diameter. Node diameter
+  and label gap are unchanged. `line_thickness` is now 0.02 of canvas width and
+  means FULL texture height, including glow margins. The previous 0.003 made
+  the center stroke nearly invisible. Preserve texture aspect ratio, tile at
+  that scale, and crop only the final tile. Never stretch to a leg's length.
+- Solid and dashed edges match byte-for-byte. Three repeats were visually
+  checked in `_planner-line-seams.png`: steady solid glow and evenly spaced
+  dashes, including seams. No source texture repair is needed. First connector
+  is solid, later ones dashed; glowing dots sit at leg midpoints.
+- Total and warning have separate text-center slots below badges and names.
+  Search results end above both, so the warning stays visible while searching.
+  Start Route is centered below the screen, clear of the brass. Idle status
+  lines replace the strip; they are never drawn over an active route.
+
+Run `python images/parts/build_planner_geometry.py` to reproduce the geometry
+and fresh wide previews: assembled, geometry overlay, search-open, idle,
+eleven stops, and line seams. Checks cover exact wide keys, normalized values,
+frame alpha, footer separation, badge spacing, line edges and tall preservation.
+
+**Integration checker mismatch:** `tools/check_art.py` still uses the previous
+shared wide/tall allow-list. Its 47 texture checks pass; geometry reports six
+schema mismatches: new `notes_line`/`known_line` and removed `from_box`,
+`here_button`, `layout_button`, `side_panel`. The implementation agent needs
+to update that allow-list for the approved design. Do not restore the deleted
+controls to silence it. No runtime Lua, shipped TGA or tools were changed in
+this art handoff. The new layout has not been verified in game.
+
+---
+
+# Historical planner handoff: superseded decisions
 
 For `docs/art-parts-brief-planner.md`. The existing art was already complete;
 `planner-geometry.json` and the six `*-geometry-*` / `*-search-proof` previews

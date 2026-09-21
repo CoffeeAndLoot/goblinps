@@ -8,15 +8,15 @@
     "strip": "all three lengths are fractions of the active layout canvas WIDTH"
   },
   "_placement": {
-    "screen-backdrop": "independent insert: uniformly cover screen rectangle, center-crop overflow; never stack at canvas origin",
-    "planner-panel": "tile behind contents, clipped to interior opening; no exterior background",
-    "controls": "destination rectangles describe full sprite canvases; use fixed end caps for inputs and buttons",
-    "tools_button": "compatibility alias of close_button; disabled as a separate control; never draw twice",
-    "layout_button": "existing button art with runtime Wide/Tall label",
-    "results_list": "overlay above content while either search is active; hide otherwise",
-    "screen": "contains strip_track; backdrop is decorative, not a geographic map",
-    "side_panel": "always-visible scrollable detailed step list; below screen in tall mode",
-    "lines": "vertical center slots for live text, not clipping rectangles",
+    "screen-backdrop": "independent insert: uniformly cover screen, center-crop overflow",
+    "planner-panel": "tile inside frame opening only",
+    "controls": "rectangles describe complete sprites; preserve input end caps",
+    "strip_track": "left/right are endpoint badge CENTERS; vertical center is badge/line center; labels below visible ring",
+    "results_list": "overlay while searching; ends above total and hint",
+    "lines": "text vertical-center slots, not clipping heights",
+    "notes_line": "idle only, mutually exclusive with route strip",
+    "known_line": "idle only, mutually exclusive with route strip",
+    "tall": "historical record preserved verbatim; unused by current planner",
     "source_art_changed": false,
     "in_game_verified": false
   },
@@ -47,81 +47,64 @@
       "cy": 0.224609375,
       "r": 0.02375
     },
-    "tools_button": {
-      "cx": 0.88125,
-      "cy": 0.224609375,
-      "r": 0.02375
-    },
-    "layout_button": {
-      "left": 0.09375,
-      "top": 0.2099609375,
-      "right": 0.20625,
-      "bottom": 0.263671875
-    },
-    "from_box": {
-      "left": 0.09375,
-      "top": 0.29296875,
-      "right": 0.38125,
-      "bottom": 0.365234375
-    },
-    "here_button": {
-      "left": 0.38875,
-      "top": 0.29296875,
-      "right": 0.48875,
-      "bottom": 0.365234375
-    },
     "to_box": {
-      "left": 0.50125,
-      "top": 0.29296875,
-      "right": 0.84375,
+      "left": 0.20625,
+      "top": 0.279296875,
+      "right": 0.83,
       "bottom": 0.365234375
     },
     "dropdown_button": {
-      "cx": 0.87625,
-      "cy": 0.3291015625,
-      "r": 0.023125
+      "cx": 0.85875,
+      "cy": 0.322265625,
+      "r": 0.0225
     },
     "results_list": {
-      "left": 0.09375,
-      "top": 0.373046875,
-      "right": 0.9,
-      "bottom": 0.64453125
+      "left": 0.20625,
+      "top": 0.37109375,
+      "right": 0.88125,
+      "bottom": 0.634765625
     },
     "screen": {
       "left": 0.09375,
-      "top": 0.38671875,
-      "right": 0.57,
-      "bottom": 0.73046875
+      "top": 0.376953125,
+      "right": 0.9,
+      "bottom": 0.759765625
     },
     "strip_track": {
-      "left": 0.115625,
+      "left": 0.14375,
       "top": 0.46875,
-      "right": 0.548125,
-      "bottom": 0.638671875
-    },
-    "side_panel": {
-      "left": 0.58375,
-      "top": 0.38671875,
-      "right": 0.9,
-      "bottom": 0.73046875
-    },
-    "go_button": {
-      "left": 0.7,
-      "top": 0.748046875,
-      "right": 0.9,
-      "bottom": 0.826171875
+      "right": 0.85,
+      "bottom": 0.625
     },
     "total_line": {
-      "left": 0.1,
-      "top": 0.7470703125,
-      "right": 0.675,
-      "bottom": 0.7783203125
+      "left": 0.11875,
+      "top": 0.650390625,
+      "right": 0.875,
+      "bottom": 0.6875
     },
     "hint_line": {
-      "left": 0.1,
-      "top": 0.7880859375,
-      "right": 0.675,
-      "bottom": 0.8193359375
+      "left": 0.11875,
+      "top": 0.705078125,
+      "right": 0.875,
+      "bottom": 0.7421875
+    },
+    "notes_line": {
+      "left": 0.11875,
+      "top": 0.47265625,
+      "right": 0.875,
+      "bottom": 0.515625
+    },
+    "known_line": {
+      "left": 0.11875,
+      "top": 0.53515625,
+      "right": 0.875,
+      "bottom": 0.576171875
+    },
+    "go_button": {
+      "left": 0.35,
+      "top": 0.767578125,
+      "right": 0.65,
+      "bottom": 0.845703125
     }
   },
   "tall": {
@@ -230,7 +213,7 @@
   },
   "strip": {
     "node_diameter": 0.06,
-    "line_thickness": 0.003,
+    "line_thickness": 0.02,
     "label_gap": 0.012
   }
 }
