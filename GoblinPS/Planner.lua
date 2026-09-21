@@ -10,16 +10,46 @@ ns.Planner = Planner
 
 local W = ns.Widgets
 
-Planner.SIZE = { wide = { 660, 400 }, tall = { 390, 600 } }
+-- The window's rectangle on screen. The art is 1600x1024 and 1024x1600, so
+-- these keep those shapes exactly; everything inside is placed as a fraction
+-- of them, from the geometry the art tool generates. Nothing here is a
+-- measured guess.
+Planner.SIZE = { wide = { 650, 416 }, tall = { 384, 600 } }
 Planner.MAX_ROWS = 8 -- each step is two lines: the step, then its detail
 Planner.MAX_RESULTS = 8
-local PAD, HEADER, INPUTS, FOOTER, ROW, STEP_ROW = 10, 30, 26, 64, 18, 32
--- The wide layout's screen keeps this share of the window width; plan 3 (the
--- schematic map) will revisit it once the map needs room too.
-local SCREEN_SHARE = 0.42
+local PAD, HEADER, FOOTER, ROW, STEP_ROW = 10, 30, 64, 18, 32
 
 local ui          -- built on first open
 local state = {}  -- from = place or nil ("where you stand"), to = place, plan = Core.PlanRoute's answer
+
+local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
+
+-- The active layout's geometry, or nil when the generated table is absent.
+-- Gated on the geometry alone: whether the parts shipped is a different
+-- question, and answering it here would drop the whole layout to its fallback
+-- while a perfectly good geometry sat there unread.
+local function geo(mode)
+    local g = ns.Data.ArtGeometry and ns.Data.ArtGeometry.planner
+    return g and g[mode or ns.Core.Layout()]
+end
+
+-- Lay a shipped part over `parent`, cropping the power-of-two padding away.
+-- Returns nil when the part is missing or the texture will not load, and every
+-- caller uses that: a missing texture must leave a working window.
+local function art(parent, name, layer)
+    local part = ns.Data.Art and ns.Data.Art[name]
+    if not part then
+        return nil
+    end
+    local t = parent:CreateTexture(nil, layer)
+    if not t:SetTexture(MEDIA .. part.file) then
+        t:Hide()
+        return nil
+    end
+    t:SetTexCoord(part.l, part.r, part.t, part.b)
+    t:SetAllPoints(parent)
+    return t
+end
 
 local function stepLine(i, step)
     local cost = ns.Route.FormatTime(step.seconds)
@@ -188,33 +218,51 @@ function Planner.ApplyLayout(mode)
     if not ui then
         return
     end
-    local size = Planner.SIZE[mode] or Planner.SIZE.wide
+    mode = (mode == "tall") and "tall" or "wide"
+    local size = Planner.SIZE[mode]
     local f = ui.frame
+    -- The explicit size first, before anything reads it: every helper below
+    -- measures this frame, and a frame with no size measures 0.
     f:SetSize(size[1], size[2])
 
-    ui.screen:ClearAllPoints()
-    ui.side:ClearAllPoints()
-    local top = -(HEADER + INPUTS + PAD)
-    if mode == "tall" then
-        ui.screen:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, top)
-        ui.screen:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, top)
-        ui.screen:SetHeight(190)
-        ui.side:SetPoint("TOPLEFT", ui.screen, "BOTTOMLEFT", 0, -PAD)
-        ui.side:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -PAD, PAD)
+    local part = ns.Data.Art and ns.Data.Art["planner-frame-" .. mode]
+    if part and ui.frameArt:SetTexture(MEDIA .. part.file) then
+        ui.frameArt:SetTexCoord(part.l, part.r, part.t, part.b)
+        ui.frameArt:Show()
+        ui.flat:Hide()
     else
-        ui.screen:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, top)
-        ui.screen:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", PAD, PAD)
-        ui.screen:SetWidth(math.floor(size[1] * SCREEN_SHARE))
-        ui.side:SetPoint("TOPLEFT", ui.screen, "TOPRIGHT", PAD, 0)
-        ui.side:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -PAD, PAD)
+        ui.frameArt:Hide()
+        ui.flat:Show()
     end
+
+    local g = geo(mode)
+    if g then
+        if ui.titlePlate then
+            W.PlaceRect(ui.titlePlate, f, g.titlePlate)
+        end
+        if ui.taglinePlate then
+            W.PlaceRect(ui.taglinePlate, f, g.taglinePlate)
+        end
+        W.PlaceLine(ui.title, f, g.titlePlate)
+        W.PlaceLine(ui.tagline, f, g.taglinePlate)
+        W.PlaceCircle(ui.close, f, g.closeButton)
+        W.PlaceCircle(ui.gear, f, g.gearButton)
+        W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
+        W.PlaceRect(ui.layoutButton, f, g.layoutButton)
+    end
+
     ui.layoutButton.label:SetText(mode == "tall" and "Wide" or "Tall")
 end
 
 -- ---- construction ----
 
 local function build()
-    local f = W.Panel(UIParent, "body", "brass", 3)
+    -- Bare on purpose. A texture created on this frame could only be taken off
+    -- screen by hiding the frame, and the window art has transparent margins,
+    -- so an unhideable rectangle behind it boxes in a window that is not a
+    -- rectangle. The dash unit shipped that fault once already.
+    local f = CreateFrame("Frame", nil, UIParent)
+    f:SetSize(Planner.SIZE.wide[1], Planner.SIZE.wide[2])
     f:SetFrameStrata("HIGH")
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -229,29 +277,107 @@ local function build()
     f:SetScript("OnMouseDown", dismiss)
     f:Hide()
 
-    local stripe = f:CreateTexture(nil, "ARTWORK")
-    stripe:SetPoint("TOPLEFT", 3, -3)
-    stripe:SetPoint("TOPRIGHT", -3, -3)
-    stripe:SetHeight(4)
-    stripe:SetColorTexture(W.COLOR.hazard[1], W.COLOR.hazard[2], W.COLOR.hazard[3], 1)
+    local base = f:GetFrameLevel()
 
-    local title = W.Text(f, "amber", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", PAD, -11)
+    -- The flat colour is the fallback for art that will not load. It is its
+    -- own frame so it can be hidden as a unit the moment the real frame art
+    -- arrives.
+    local flat = W.Panel(f, "body", "brass", 3)
+    flat:SetAllPoints(f)
+    flat:SetFrameLevel(base)
+
+    local artLayer = CreateFrame("Frame", nil, f)
+    artLayer:SetAllPoints(f)
+    artLayer:SetFrameLevel(base + 1)
+
+    local content = CreateFrame("Frame", nil, f)
+    content:SetAllPoints(f)
+    content:SetFrameLevel(base + 2)
+
+    -- The window's own chassis. ApplyLayout swaps the texture between the two
+    -- frames, so create it empty here and let ApplyLayout fill it.
+    local frameArt = artLayer:CreateTexture(nil, "BACKGROUND")
+    frameArt:SetAllPoints(artLayer)
+
+    -- The plates carry art but are NOT SetAllPoints to their parent: each sits
+    -- in its own rect, which ApplyLayout places. That is the one difference
+    -- from `art()` above, and it is why they cannot use it.
+    local function plate(name)
+        local part = ns.Data.Art and ns.Data.Art[name]
+        if not part then
+            return nil
+        end
+        local t = artLayer:CreateTexture(nil, "ARTWORK")
+        if not t:SetTexture(MEDIA .. part.file) then
+            t:Hide()
+            return nil
+        end
+        t:SetTexCoord(part.l, part.r, part.t, part.b)
+        return t
+    end
+    local titlePlate = plate("title-plate")
+    local taglinePlate = plate("tagline-plate")
+
+    local title = W.Text(content, "amber", "GameFontNormalLarge")
     title:SetText("GoblinPS")
-    local tagline = W.Text(f, "dim", "GameFontDisableSmall")
-    tagline:SetPoint("LEFT", title, "RIGHT", 8, -1)
+    local tagline = W.Text(content, "dim", "GameFontDisableSmall")
     tagline:SetText("Accuracy not guaranteed. No refunds.")
 
-    local close = W.Button(f, "X", 20, 18, function()
+    local close = CreateFrame("Button", nil, content)
+    close:RegisterForClicks("LeftButtonUp")
+    close:SetScript("OnClick", function()
         dismiss()
         f:Hide()
     end)
-    close:SetPoint("TOPRIGHT", -PAD, -10)
+    local closeArt = art(close, "close", "ARTWORK")
+    if not closeArt then
+        W.Fill(close, "ARTWORK", "hazard")
+    end
+    local closeHover = ns.Data.Art and ns.Data.Art["close-hover"]
+    if closeHover then
+        close:SetHighlightTexture(MEDIA .. closeHover.file, "ADD")
+    end
+
+    -- The art has a socket beside the To box and the geometry places it, but
+    -- no such control exists today: the results list only appears while you
+    -- type. An empty socket reads as a fault, and a way to browse every
+    -- destination without knowing its name is worth having, so the button
+    -- opens the same list with an empty query.
+    local dropdown = CreateFrame("Button", nil, content)
+    dropdown:RegisterForClicks("LeftButtonUp")
+    dropdown:SetScript("OnClick", function()
+        if ui.results:IsShown() and ui.results.owner == ui.toBox then
+            hideResults()
+        else
+            showResults(ui.toBox)
+        end
+    end)
+    local dropdownArt = art(dropdown, "dropdown-button", "ARTWORK")
+    if not dropdownArt then
+        W.Fill(dropdown, "ARTWORK", "steel")
+    end
+
+    -- The gear opens settings, which is a later plan. It is drawn and placed
+    -- now because the art has a socket for it and an empty socket reads as a
+    -- fault; it says so when clicked rather than doing nothing.
+    local gear = CreateFrame("Button", nil, content)
+    gear:RegisterForClicks("LeftButtonUp")
+    gear:SetScript("OnClick", function()
+        ns.Core.Say("Settings are not built yet.")
+    end)
+    local gearArt = art(gear, "gear", "ARTWORK")
+    if not gearArt then
+        W.Fill(gear, "ARTWORK", "steel")
+    end
+    local gearHover = ns.Data.Art and ns.Data.Art["gear-hover"]
+    if gearHover then
+        gear:SetHighlightTexture(MEDIA .. gearHover.file, "ADD")
+    end
+
     local layoutButton = W.Button(f, "Tall", 44, 18, function()
         dismiss()
         Planner.ApplyLayout(ns.Core.ToggleLayout())
     end)
-    layoutButton:SetPoint("RIGHT", close, "LEFT", -6, 0)
 
     local fromBox = W.EditBox(f, 150, 20, "From: where you stand")
     fromBox:SetPoint("TOPLEFT", PAD, -(HEADER + 4))
@@ -312,6 +438,7 @@ local function build()
 
     local results = W.Panel(f, "steel", "brass", 1)
     results:SetFrameStrata("DIALOG")
+    results:SetFrameLevel(base + 3)
     results:EnableMouse(true)
     results:Hide()
     results.rows = {}
@@ -330,7 +457,10 @@ local function build()
         results.rows[i] = row
     end
 
-    ui = { frame = f, fromBox = fromBox, toBox = toBox, screen = screen, side = side, rows = rows,
+    ui = { frame = f, artLayer = artLayer, content = content, flat = flat, frameArt = frameArt,
+           titlePlate = titlePlate, taglinePlate = taglinePlate, title = title, tagline = tagline,
+           close = close, gear = gear, dropdown = dropdown,
+           fromBox = fromBox, toBox = toBox, screen = screen, side = side, rows = rows,
            hint = hint, total = total, go = go, here = here, known = known, results = results,
            layoutButton = layoutButton, notes = notes }
     wireBox(fromBox)

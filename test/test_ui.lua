@@ -354,6 +354,70 @@ return function(h)
             h.truthy(ui.frame:IsShown())
             h.truthy(Planner.Debug() == ui)
         end)
+
+        h.it("keeps the window at the art's exact aspect ratio", function()
+            -- 1600x1024 is 25:16 and 1024x1600 is 16:25. The old 660x400 and
+            -- 390x600 were 1.65 and 0.65, so the wide frame would have drawn
+            -- about 6% too wide -- the fault that made the dash's first design
+            -- render as an oval, which took a client run to see.
+            local g = ns.Data.ArtGeometry.planner
+            for _, mode in ipairs({ "wide", "tall" }) do
+                local size = ns.Planner.SIZE[mode]
+                local canvas = g[mode].canvas
+                h.truthy(math.abs(size[1] / size[2] - canvas.w / canvas.h) < 0.001,
+                         mode .. " must keep the art's aspect ratio")
+            end
+        end)
+
+        h.it("carries no art of its own on the window frame", function()
+            -- Widgets.Panel lays two opaque textures on the frame it makes and
+            -- returns only the frame, so nothing can hide them. The planner
+            -- art has transparent margins; an unhideable rectangle behind it
+            -- boxes in a window that is not a rectangle. Fixed once on the
+            -- dash already.
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.eq(#ui.frame.regions, 0,
+                 "the window frame must own no regions; the fallback is its own frame")
+            h.truthy(ui.flat, "and the fallback frame exists")
+        end)
+
+        h.it("hides the flat fallback once the frame art loads", function()
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.frameArt, "the frame art loaded in the test fixture")
+            h.falsy(ui.flat:IsShown(), "so the coloured rectangle goes")
+        end)
+
+        h.it("stacks the art under the content", function()
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.content:GetFrameLevel() > ui.artLayer:GetFrameLevel(),
+                     "nothing the player reads is ever behind the chassis")
+            h.truthy(ui.results:GetFrameLevel() > ui.content:GetFrameLevel(),
+                     "the search overlay covers what it drops over")
+        end)
+
+        h.it("places the chrome from the geometry, in real pixels", function()
+            -- Pin the position, not just the size: a test that checks how big
+            -- a thing is cannot tell you it is in the wrong place.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w = ui.frame:GetWidth()
+            for _, name in ipairs({ "close", "gear" }) do
+                local button, circ = ui[name], g[name .. "Button"]
+                h.truthy(button, name .. " is missing")
+                h.truthy(math.abs(button:GetWidth() - circ.r * 2 * w) < 1,
+                         name .. " is sized from geometry." .. name .. "Button.r")
+                h.truthy(math.abs(button.points[1][4] - circ.cx * w) < 1,
+                         name .. " sits at geometry." .. name .. "Button.cx, got "
+                         .. tostring(button.points[1][4]))
+            end
+            h.truthy(math.abs(ui.titlePlate.points[1][4] - g.titlePlate.left * w) < 1,
+                     "the title plate starts where the geometry says")
+        end)
     end)
 
     h.describe("ground steps in the window", function()
