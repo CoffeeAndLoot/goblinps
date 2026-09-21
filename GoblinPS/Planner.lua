@@ -337,11 +337,11 @@ end
 --
 -- screen-backdrop is decorative scenery, not a map. The crop loses whichever
 -- side overflows -- the art's own left and right when it is wider than the
--- opening, its top and bottom when the opening is wider than the art, which
--- is today's case: the screen is roughly 3.3:1 against the part's 2.5:1. That
--- loss is intended either way. If the part carries no cw/ch (an older or
--- hand-edited table), this leaves the texture's coordinates alone rather than
--- compute a crop from nil.
+-- opening, which is today's case: the frame's opening is roughly 2.17:1
+-- against the part's 2.5:1 -- or its top and bottom when the opening is
+-- wider than the art. That loss is intended either way. If the part carries
+-- no cw/ch (an older or hand-edited table), this leaves the texture's
+-- coordinates alone rather than compute a crop from nil.
 local function coverCrop(texture, part, boxW, boxH)
     if not (part.cw and part.ch) then
         return
@@ -373,13 +373,13 @@ local ON_THE_CHASSIS = { titlePlate = true, taglinePlate = true }
 -- cx/cy/r instead, so both are skipped without naming them) and is not
 -- ON_THE_CHASSIS.
 --
--- Only the FALLBACK for the tiled panel backing now, used when the generated
--- geometry has no `interior`. The real placement is `g.interior`: the frame's
--- opening measured from its own alpha by tools/make_art.py. This union sits
--- inset from that opening, and seen in the client 2026-09-21 it let the world
--- show through on the left, the right and the bottom. The two plates stay
--- excluded because they are riveted to the chassis rather than set into the
--- opening.
+-- Only the FALLBACK for placing the scenery and the tiled backing, used when
+-- the generated geometry has no `interior`. The real placement is
+-- `g.interior`: the frame's opening measured from its own alpha by
+-- tools/make_art.py. This union sits inset from that opening, and seen in
+-- the client 2026-09-21 it let the world show through on the left, the right
+-- and the bottom. The two plates stay excluded because they are riveted to
+-- the chassis rather than set into the opening.
 local function boundingBox(g)
     local box
     for key, rect in pairs(g) do
@@ -441,12 +441,14 @@ function Planner.ApplyLayout()
     W.PlaceLine(ui.hint, f, g.hintLine)
     W.PlaceLine(ui.notes, f, g.notesLine)
     W.PlaceLine(ui.known, f, g.knownLine)
+    -- The frame's opening, measured from its own alpha by make_art.py.
+    -- Seen in the client 2026-09-21: sized to the controls instead, the
+    -- backing stopped short of the brass and the world showed through on the
+    -- left, the right and the bottom. The scenery and its tiled fallback
+    -- both fill it.
+    local opening = g.interior or boundingBox(g)
     if ui.panelArt then
-        -- The frame's opening, measured from its own alpha by make_art.py.
-        -- Seen in the client 2026-09-21: sized to the controls instead,
-        -- the backing stopped short of the brass and the world showed
-        -- through on the left, the right and the bottom.
-        W.PlaceRect(ui.panelArt, f, g.interior or boundingBox(g))
+        W.PlaceRect(ui.panelArt, f, opening)
     end
     -- Both three-sliced controls have just been re-anchored corner to corner,
     -- so their end caps were measured against the height they had before.
@@ -457,13 +459,12 @@ function Planner.ApplyLayout()
         W.Restretch3(pair[1], (pair[2].bottom - pair[2].top) * f:GetHeight())
     end
     if ui.backdrop then
-        -- Placed by its parent, not by the geometry, but the crop still
-        -- needs the screen opening's pixel size.
+        W.PlaceRect(ui.backdrop, f, opening)
         local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
         if backdropPart then
             coverCrop(ui.backdrop, backdropPart,
-                      (g.screen.right - g.screen.left) * f:GetWidth(),
-                      (g.screen.bottom - g.screen.top) * f:GetHeight())
+                      (opening.right - opening.left) * f:GetWidth(),
+                      (opening.bottom - opening.top) * f:GetHeight())
         end
     end
 end
@@ -510,9 +511,9 @@ local function build()
 
     -- The window's own chassis. ApplyLayout gives it the frame art, so create
     -- it empty here and let ApplyLayout fill it. It is on "BORDER", one layer
-    -- above the tiled backing on "BACKGROUND", so the chassis is drawn OVER the
-    -- backing: the backing's box tucks a few pixels under the brass on every
-    -- side, and only the frame on top hides that.
+    -- above the scenery and the tiled backing on "BACKGROUND", so the chassis
+    -- is drawn OVER them: their box tucks a few pixels under the brass on
+    -- every side, and only the frame on top hides that.
     local frameArt = artLayer:CreateTexture(nil, "BORDER")
     frameArt:SetAllPoints(artLayer)
 
@@ -633,35 +634,36 @@ local function build()
 
     local screen = W.Panel(content, "screen", "steel", 2)
 
-    -- The scenery belongs to the screen, not to the art layer behind it.
-    -- W.Panel lays two fully opaque colour fills on the frame it makes, so a
-    -- backdrop on artLayer at the same rect was drawn, cropped correctly and
-    -- never once seen -- the same fault the window frame's own panel had, one
-    -- level down. On the screen at "ARTWORK" it sits above those two fills
-    -- (BACKGROUND and BORDER) and below the OVERLAY text drawn on it, which
-    -- is this project's standing art-over-colours pattern. The fills stay
-    -- exactly where they are and remain the fallback when the texture will
-    -- not load. It fills its parent, so ApplyLayout never places it: the
-    -- geometry already places the screen.
-    local backdrop = screen:CreateTexture(nil, "ARTWORK")
+    -- The scenery fills the frame's whole opening, edge to edge, behind the
+    -- search box and Start Route too (the owner's call, 2026-09-21). It sits
+    -- at the back of the art layer, where the chassis on "BORDER" draws over
+    -- the edge the opening tucks under the brass. Nothing opaque may sit over
+    -- it: on 2026-09-20 a backdrop under the screen's opaque fills was drawn,
+    -- cropped correctly and never once seen. So once it loads the tiled
+    -- backing and the screen's fills give way; the screen frame stays, since
+    -- it carries the strip and the four lines. If it will not load, both stay
+    -- as the fallback. ApplyLayout places it.
+    local backdrop = artLayer:CreateTexture(nil, "BACKGROUND")
     local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
     if backdropPart and backdrop:SetTexture(MEDIA .. backdropPart.file) then
-        backdrop:SetAllPoints(screen)
+        panelArt:Hide()
+        for _, fill in ipairs(screen.fills) do
+            fill:Hide()
+        end
     else
         backdrop:Hide()
         backdrop = nil
     end
 
-    -- The route strip, a child of the screen so it draws over the screen's
-    -- opaque fills and its scenery -- the invisible-backdrop fault was exactly
-    -- a picture under an opaque panel. Its badges and legs are placed against
+    -- The route strip, a child of the screen so it draws over the screen and
+    -- the scenery behind it. Its badges and legs are placed against
     -- the window, which has a real size, by drawStrip.
     local strip = CreateFrame("Frame", nil, screen)
     strip:SetAllPoints(screen)
     strip.badges, strip.legs = {}, {}
     strip:Hide()
 
-    -- Four lines, all on the screen so they draw over its scenery (a string on
+    -- Four lines, all on the screen so they draw over it (a string on
     -- `content` would sit under the screen, which is content's child). notes
     -- and known are the idle status lines and give way to the route; total
     -- and hint sit under the strip and stay.

@@ -433,6 +433,8 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       middle names "Orgrimmar Zeppelin..." and "Undercity Zeppelin T..." truncate)
 - [ ] A 13-stop route: rings may touch and each badge's hover area overlaps
       its neighbour's; note whether the right tooltip comes up
+- [ ] No gold rectangle round Start Route or the search box, at rest or on hover
+- [ ] The scenery fills the frame's whole inside, edge to edge, behind the box and Start Route; nothing of the old dark tiled backing shows
 
 ## Flight paths survive a reload
 

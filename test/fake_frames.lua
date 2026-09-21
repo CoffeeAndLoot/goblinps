@@ -105,17 +105,17 @@ function Region:SetHeight(h) self.height = h end
 -- Fake.Layout() has run, and answer 0 before that, exactly as the client
 -- does.
 function Region:SetAllPoints(target)
-    self.fills = target
+    self.allPointsTarget = target
 end
 
 function Region:GetWidth()
     if self.width then return self.width end
-    if Fake.laidOut and self.fills then return self.fills:GetWidth() end
+    if Fake.laidOut and self.allPointsTarget then return self.allPointsTarget:GetWidth() end
     return 0                            -- what the client answers, unresolved
 end
 function Region:GetHeight()
     if self.height then return self.height end
-    if Fake.laidOut and self.fills then return self.fills:GetHeight() end
+    if Fake.laidOut and self.allPointsTarget then return self.allPointsTarget:GetHeight() end
     return 0                            -- what the client answers, unresolved
 end
 function Region:ClearAllPoints()
