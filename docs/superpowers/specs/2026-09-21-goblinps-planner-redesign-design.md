@@ -296,6 +296,29 @@ layout, the same rules. Brief: `docs/art-parts-brief-planner-mockup.md`. It
 blocks only the drawing tasks: the removals, the parts and `Strip.lua` do not
 need it. The measured `interior` from 2026-09-21 carries over unchanged.
 
+**Delivered 2026-09-21** (`6ebb83c`), verified here: `wide` holds exactly the
+fourteen requested regions, `tall` is byte-identical to before, every value is
+in range, and every content rectangle sits at 0% opaque frame pixels. Four
+facts from Codex's handoff (`images/parts/QUESTIONS.md`) bind the drawing:
+
+1. `strip_track`'s left and right are the end badges' **centres**, not edges;
+   the screen already reserves the full sprite at each end. Do not inset twice.
+2. `line_thickness` is now **0.02** of canvas width and means the texture's
+   **full height, glow included**. Keep the texture's aspect, tile at that
+   scale, crop only the last tile, never stretch a line to a leg's length.
+3. `line-solid` and `line-dashed` tile cleanly -- their edges match byte for
+   byte (`_planner-line-seams.png`).
+4. Eleven stops fit at 113 px centre spacing against 96 px rings; names drop,
+   stops do not scroll. The total and warning have their own slots below the
+   names, the results list ends above both so the warning stays visible while
+   searching, and the idle status lines replace the strip rather than drawing
+   over it.
+
+Until plan 8 adapts it, the desk art tooling reports the new layout as
+mismatched: 8 Python tests and 6 `check_art.py` geometry checks fail, by
+design, naming the dropped keys. The addon is unaffected -- `Data/Art.lua` has
+not been regenerated from the new geometry.
+
 ---
 
 ## Out of scope
