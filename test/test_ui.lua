@@ -394,8 +394,15 @@ return function(h)
             local ui = ns.Planner.Debug()
             h.truthy(ui.content:GetFrameLevel() > ui.artLayer:GetFrameLevel(),
                      "nothing the player reads is ever behind the chassis")
-            h.truthy(ui.results:GetFrameLevel() > ui.content:GetFrameLevel(),
-                     "the search overlay covers what it drops over")
+            -- The results list rides above the screen and the side panel on
+            -- its STRATA, not on its level. Its level (base + 3) only TIES
+            -- with theirs -- they are children of content, one above it by
+            -- default -- so a test asserting the level proves nothing about
+            -- what actually carries the overlay. DIALOG does.
+            h.eq(ui.results:GetFrameStrata(), "DIALOG",
+                 "the search overlay covers what it drops over")
+            h.truthy(ui.results:GetFrameLevel() <= ui.screen:GetFrameLevel(),
+                     "and its level does not: at best it ties with the panels it covers")
         end)
 
         h.it("places the chrome from the geometry, in real pixels", function()
@@ -417,6 +424,34 @@ return function(h)
             end
             h.truthy(math.abs(ui.titlePlate.points[1][4] - g.titlePlate.left * w) < 1,
                      "the title plate starts where the geometry says")
+        end)
+
+        h.it("draws the screen's scenery where nothing opaque can cover it", function()
+            -- The fault this pins: the backdrop was created on artLayer and
+            -- placed at exactly g.screen -- directly beneath the `screen`
+            -- panel, whose two colour fills are fully opaque and four frame
+            -- levels higher. Byte-identical rects, so the scenery was drawn,
+            -- cropped correctly, and never once seen. Every test on the
+            -- branch passed because they all asked where it was and how big,
+            -- and both were right. So ask the mechanism instead: whose frame
+            -- is it on, at what layer, and is anything opaque over it there.
+            local ORDER = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.backdrop, "the backdrop texture exists")
+            h.truthy(ui.backdrop.parent == ui.screen,
+                     "the scenery belongs to the screen it fills, not to a frame behind it")
+            h.eq(ui.backdrop.drawLayer, "ARTWORK",
+                 "art over colours: above the panel's fills, below the text drawn on it")
+            for _, r in ipairs(ui.screen.regions) do
+                if r ~= ui.backdrop then
+                    local opaque = r.colorTexture and r.colorTexture[4] >= 1
+                    h.falsy(opaque and ORDER[r.drawLayer or "ARTWORK"] >= ORDER[ui.backdrop.drawLayer],
+                            "a fully opaque fill at or above the backdrop's layer would hide it, "
+                            .. "layer " .. tostring(r.drawLayer))
+                end
+            end
         end)
 
         h.it("covers the screen with the backdrop without distorting it", function()
@@ -507,6 +542,45 @@ return function(h)
                      "the middle is anchored between the caps, so it takes the slack")
         end)
 
+        h.it("re-measures a three-slice's end caps when the control is resized", function()
+            -- Stretch3 sizes the caps from the control's height at BUILD time,
+            -- and ApplyLayout then re-anchors every control corner to corner
+            -- from the geometry, changing that height. A cap measured once is
+            -- squashed from the first layout onwards, and again on every
+            -- switch between wide and tall.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            h.eq(slice.left:GetWidth(), 40, "the cap starts at the build-time height")
+            f:SetSize(300, 80)                  -- what ApplyLayout's two anchors do in the client
+            W.Restretch3(f)
+            h.eq(slice.left:GetWidth(), 80, "the left cap tracks the new height")
+            h.eq(slice.right:GetWidth(), 80, "and so does the right")
+        end)
+
+        h.it("re-applies a three-sliced control's caps on every layout", function()
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local slice = ui.go.slice
+            h.truthy(slice, "GO carries a three-slice")
+            local was = ui.go:GetHeight()
+            -- The client resolves GO's height from the two anchors ApplyLayout
+            -- sets; the fake resolves no size from anchors, so stand in for
+            -- the layout pass by setting the height the tall geometry implies
+            -- before asking for that layout. capAspect is 1, so a correct cap
+            -- is exactly as wide as the control is tall.
+            local g = ns.Data.ArtGeometry.planner.tall
+            local height = (g.goButton.bottom - g.goButton.top) * ns.Planner.SIZE.tall[2]
+            ui.go:SetHeight(height)
+            ns.Planner.ApplyLayout("tall")
+            h.truthy(math.abs(slice.left:GetWidth() - height) < 0.001,
+                     "ApplyLayout must re-measure the caps of the control it just resized: cap is "
+                     .. tostring(slice.left:GetWidth()) .. ", control height is " .. tostring(height))
+            ui.go:SetHeight(was)
+            ns.Planner.ApplyLayout("wide")
+        end)
+
         h.it("swaps a stretched button's art to button-disabled instead of only tinting the face", function()
             -- SetButtonEnabled used to only tint button.face (BORDER), which
             -- a three-slice now sits over on the ARTWORK layer -- so once
@@ -531,6 +605,36 @@ return function(h)
                  "re-enabling swaps the art back")
             h.eq(slice.middle:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file)
             h.eq(slice.right:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file)
+        end)
+
+        h.it("lights a three-sliced button on hover and presses it while held", function()
+            -- button-hover and button-pressed shipped with this branch and
+            -- nothing drew them. reslice already existed for the disabled
+            -- swap, so the states cost four scripts.
+            local f = CreateFrame("Button", nil, UIParent)
+            f:SetSize(200, 40)
+            f.face = f:CreateTexture(nil, "BORDER")
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            W.WireButtonArt(f)
+            local function art(name)
+                return "Interface\\AddOns\\GoblinPS\\Media\\" .. ns.Data.Art[name].file
+            end
+
+            f.scripts.OnEnter(f)
+            h.eq(slice.left:GetTexture(), art("button-hover"), "the cursor lights it")
+            f.scripts.OnMouseDown(f)
+            h.eq(slice.middle:GetTexture(), art("button-pressed"), "holding it presses it")
+            f.scripts.OnMouseUp(f)
+            h.eq(slice.right:GetTexture(), art("button-hover"),
+                 "letting go with the cursor still on it goes back to lit, not to plain")
+            f.scripts.OnLeave(f)
+            h.eq(slice.left:GetTexture(), art("button"), "and leaving puts the plain art back")
+
+            W.SetButtonEnabled(f, false)
+            f.scripts.OnEnter(f)
+            f.scripts.OnMouseDown(f)
+            h.eq(slice.left:GetTexture(), art("button-disabled"),
+                 "a disabled button answers neither hover nor press")
         end)
 
         h.it("leaves a stretched button's art alone when button-disabled will not load", function()

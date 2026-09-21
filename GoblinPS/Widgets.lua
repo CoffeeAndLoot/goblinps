@@ -133,9 +133,6 @@ function Widgets.Stretch3(parent, name, capFraction, capAspect)
     local path = "Interface\\AddOns\\GoblinPS\\Media\\" .. part.file
     local span = part.r - part.l
     local cap = span * capFraction
-    -- The cap keeps the shape it was drawn at: its drawn width is its own
-    -- aspect times the control's height, so it never squashes.
-    local width = parent:GetHeight() * capAspect
 
     local function piece(l, r)
         local t = parent:CreateTexture(nil, "ARTWORK")
@@ -160,15 +157,41 @@ function Widgets.Stretch3(parent, name, capFraction, capAspect)
     end
     left:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
     left:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
-    left:SetWidth(width)
     right:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
     right:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
-    right:SetWidth(width)
     middle:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0)
     middle:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT", 0, 0)
-    local slice = { left = left, middle = middle, right = right, capFraction = capFraction, name = name }
+    local slice = { left = left, middle = middle, right = right,
+                    capFraction = capFraction, capAspect = capAspect, name = name }
     parent.slice = slice
+    Widgets.Restretch3(parent)
     return slice
+end
+
+-- Re-measure a three-slice's end caps against the control's CURRENT height:
+-- the cap keeps the shape it was drawn at, so its drawn width is its own
+-- aspect times that height, and it never squashes.
+--
+-- Stretch3 can only measure what the control was built at. ApplyLayout then
+-- re-anchors every control corner to corner from the geometry, which changes
+-- that height -- and changes it again on every switch between wide and tall.
+-- A cap measured once is squashed in exactly the way three-slicing exists to
+-- prevent, so the layout re-applies them after placing each control. Measured
+-- on this branch before the fix: GO's cap drew 24 px where the geometry
+-- implies 33.7.
+--
+-- Answers false rather than erroring for a control carrying no slice (its
+-- part was missing, and a missing texture must leave a working control), so
+-- the caller can call it unconditionally.
+function Widgets.Restretch3(frame)
+    local slice = frame and frame.slice
+    if not (slice and slice.capAspect) then
+        return false
+    end
+    local width = frame:GetHeight() * slice.capAspect
+    slice.left:SetWidth(width)
+    slice.right:SetWidth(width)
+    return true
 end
 
 -- Repoints an already-built three-slice's pieces at `part`, recomputing the
@@ -243,6 +266,27 @@ function Widgets.SetButtonEnabled(button, enabled)
         local partName = enabled and slice.name or (slice.name .. "-disabled")
         reslice(slice, ns.Data.Art and ns.Data.Art[partName])
     end
+end
+
+-- Swap a three-sliced button's art to "<name>-<suffix>", or back to the plain
+-- part when `suffix` is nil. A disabled button answers neither: it is already
+-- showing "<name>-disabled" and must keep showing it. reslice leaves the art
+-- exactly as it was when the state's part is missing or will not load, so a
+-- part that never shipped costs the button nothing.
+local function buttonState(button, suffix)
+    local slice = button.slice
+    if slice and button:IsEnabled() then
+        reslice(slice, ns.Data.Art and ns.Data.Art[suffix and (slice.name .. "-" .. suffix) or slice.name])
+    end
+end
+
+-- Hover and pressed art for a three-sliced button. OnMouseUp goes back to
+-- hover, not to the plain part: the cursor is still on the button.
+function Widgets.WireButtonArt(button)
+    button:SetScript("OnEnter", function(self) buttonState(self, "hover") end)
+    button:SetScript("OnLeave", function(self) buttonState(self, nil) end)
+    button:SetScript("OnMouseDown", function(self) buttonState(self, "pressed") end)
+    button:SetScript("OnMouseUp", function(self) buttonState(self, "hover") end)
 end
 
 function Widgets.EditBox(parent, width, height, placeholder)

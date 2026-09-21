@@ -20,11 +20,11 @@ function Fake.Layout() Fake.laidOut = true end
 -- misspelt or invented call, and the fake raises instead of quietly doing
 -- nothing, so a bad widget call fails on the desktop instead of only in game.
 local ALLOWED_NOOP = {
-    SetColorTexture = true, SetAlpha = true,
+    SetAlpha = true,
     SetJustifyH = true, SetFontObject = true,
     SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
-    StartMoving = true, StopMovingOrSizing = true, SetFrameStrata = true,
+    StartMoving = true, StopMovingOrSizing = true,
     SetHighlightTexture = true, RegisterEvent = true, SetOwner = true, AddLine = true,
     SetHorizTile = true, SetVertTile = true,
 }
@@ -172,6 +172,19 @@ end
 function Region:SetWordWrap(wrap) self.wordWrap = wrap and true or false end
 
 function Region:SetEnabled(enabled) self.enabled = enabled end
+-- Buttons start enabled in the client, so anything never told otherwise is.
+function Region:IsEnabled() return self.enabled ~= false end
+
+-- Recorded, not swallowed: strata beats level, so a test that wants to know
+-- what really carries an overlay above its siblings has to be able to read it.
+-- Levels only order frames WITHIN one strata.
+function Region:SetFrameStrata(strata) self.frameStrata = strata end
+function Region:GetFrameStrata()
+    if self.frameStrata then
+        return self.frameStrata
+    end
+    return self.parent and self.parent:GetFrameStrata() or "MEDIUM"
+end
 
 function Region:SetFrameLevel(level) self.frameLevel = level end
 -- A frame with no explicit level sits one above its parent, the same
@@ -191,6 +204,12 @@ function Region:SetTexture(path)
 end
 function Region:GetTexture() return self.texture end
 function Region:SetTexCoord(l, r, t, b) self.texCoord = { l, r, t, b } end
+-- Recorded, not swallowed: "is this flat colour opaque" is the question that
+-- decides whether a texture under it can ever be seen, and the project's whole
+-- art-over-colours pattern turns on the answer.
+function Region:SetColorTexture(r, g, b, a)
+    self.colorTexture = { r, g, b, a == nil and 1 or a }
+end
 function Region:SetRotation(radians) self.rotation = radians end
 function Region:SetVertexColor(r, g, b, a) self.vertexColor = { r, g, b, a } end
 function Region:SetDrawLayer(layer) self.drawLayer = layer end

@@ -321,8 +321,14 @@ function Planner.ApplyLayout(mode)
         if ui.panelArt then
             W.PlaceRect(ui.panelArt, f, boundingBox(g))
         end
+        -- Every three-sliced control has just been re-anchored, so its height
+        -- has changed and its end caps were measured against the old one.
+        for _, control in ipairs({ ui.layoutButton, ui.here, ui.go, ui.fromBox, ui.toBox }) do
+            W.Restretch3(control)
+        end
         if ui.backdrop then
-            W.PlaceRect(ui.backdrop, f, g.screen)
+            -- Placed by its parent, not by the geometry, but the crop still
+            -- needs the screen opening's pixel size.
             local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
             if backdropPart then
                 coverCrop(ui.backdrop, backdropPart,
@@ -398,13 +404,6 @@ local function build()
     end
     local titlePlate = plate("title-plate")
     local taglinePlate = plate("tagline-plate")
-
-    local backdrop = artLayer:CreateTexture(nil, "BORDER")
-    local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
-    if not (backdropPart and backdrop:SetTexture(MEDIA .. backdropPart.file)) then
-        backdrop:Hide()
-        backdrop = nil
-    end
 
     -- The interior backing, genuinely tiled. That works only because this part
     -- ships unpadded: a 512x512 source at 256x256 is already a power of two,
@@ -497,6 +496,7 @@ local function build()
         Planner.ApplyLayout(ns.Core.ToggleLayout())
     end)
     W.Stretch3(layoutButton, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
+    W.WireButtonArt(layoutButton)
 
     local fromBox = W.EditBox(content, 150, 20, "From: where you stand")
     local toBox = W.EditBox(content, 170, 20, "To: city, zone or flight stop")
@@ -508,6 +508,7 @@ local function build()
         replan()
     end)
     W.Stretch3(here, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
+    W.WireButtonArt(here)
 
     -- input-box.png is 1024x128, so 0.18 of its width is a 184x128 cap.
     local CAP, CAP_ASPECT = 0.18, 184 / 128
@@ -515,6 +516,26 @@ local function build()
     local toSlice = W.Stretch3(toBox, "input-box", CAP, CAP_ASPECT)
 
     local screen = W.Panel(content, "screen", "steel", 2)
+
+    -- The scenery belongs to the screen, not to the art layer behind it.
+    -- W.Panel lays two fully opaque colour fills on the frame it makes, so a
+    -- backdrop on artLayer at the same rect was drawn, cropped correctly and
+    -- never once seen -- the same fault the window frame's own panel had, one
+    -- level down. On the screen at "ARTWORK" it sits above those two fills
+    -- (BACKGROUND and BORDER) and below the OVERLAY text drawn on it, which
+    -- is this project's standing art-over-colours pattern. The fills stay
+    -- exactly where they are and remain the fallback when the texture will
+    -- not load. It fills its parent, so ApplyLayout never places it: the
+    -- geometry already places the screen.
+    local backdrop = screen:CreateTexture(nil, "ARTWORK")
+    local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
+    if backdropPart and backdrop:SetTexture(MEDIA .. backdropPart.file) then
+        backdrop:SetAllPoints(screen)
+    else
+        backdrop:Hide()
+        backdrop = nil
+    end
+
     local notes = W.Text(screen, "dim")
     notes:SetPoint("TOPLEFT", 8, -8)
     notes:SetPoint("TOPRIGHT", -8, -8)
@@ -552,6 +573,7 @@ local function build()
         end
     end)
     W.Stretch3(go, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
+    W.WireButtonArt(go)
     local total = W.Text(side, "green", "GameFontNormal")
 
     local results = W.Panel(content, "steel", "brass", 1)
