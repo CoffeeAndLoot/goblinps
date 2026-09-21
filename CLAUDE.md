@@ -14,7 +14,7 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 6 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 7 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
 crossings). Plan 4, the dash unit's first design, ran in the client twice on
 2026-09-20: the round art rendered as an oval (a square texture stretched
@@ -42,12 +42,24 @@ showing distance and time left, advancing when you arrive and replanning
 when you stray. What is still estimated is **data, not code**: crossing
 coordinates, the two mount speeds, `cross` times and some zone level ranges.
 The addon says so in amber where it matters;
-`docs/manual-test-checklist.md` lists what to walk. Next: plan 7, the route
-strip. A schematic world map was dropped on 2026-09-20 in favour of the strip;
-the spike that proved it feasible is kept at `docs/research/schematic-spike/`.
-The product is a GPS: point to point with an arrow, in game. The design is
-`docs/superpowers/specs/2026-09-19-goblinps-design.md`. Write each plan after
-the one before it has been used in game.
+`docs/manual-test-checklist.md` lists what to walk. Plan 7, built 2026-09-21,
+made a trip end only on Stop: the dash comes off `UISpecialFrames`, hiding it
+no longer ends the trip, and the destination is saved by name in the
+account-wide `GoblinPSDB.trips` so a `/reload` or logout resumes it.
+**Plan 7 has not been run in the client**, for the same reason as plan 6
+above: verified in source is not verified in game. Next: plan 8, the planner
+rebuilt to the mockup, with the route strip in place of today's From/To/
+step-list window. Codex has already delivered plan 8's wide geometry, so the
+desk art tooling (8 Python tests, 6 `check_art.py` geometry checks) is red by
+design until plan 8 adapts it; the addon itself, built off the old geometry,
+is unaffected. A schematic world map was dropped on 2026-09-20 in favour
+of the strip; the spike that proved it feasible is kept at
+`docs/research/schematic-spike/`. The product is a GPS: point to point with
+an arrow, in game. The design is
+`docs/superpowers/specs/2026-09-19-goblinps-design.md`, amended for plans 7
+and 8 by
+`docs/superpowers/specs/2026-09-21-goblinps-planner-redesign-design.md`.
+Write each plan after the one before it has been used in game.
 
 Everything known about the client API and data sources is in
 `docs/research/2026-09-19-api-and-data-findings.md`. Read it first. It marks
@@ -241,6 +253,12 @@ commit; re-read files before editing.
   its opening and centre-cropped, with the crop composed into the part's own
   padding coordinates. Reading one rule as the other either distorts the art
   or crops the padding instead of the picture.
+- **Only Stop ends a trip.** Escape, hiding the interface, arriving and a
+  reload must never end it or clear its save. The dash is not on
+  `UISpecialFrames`, its `OnHide` does nothing to the trip, and `Dash.Stop` is
+  the one place the saved trip (`GoblinPSDB.trips["Name-Realm"]`) and the map
+  pin are cleared. It clears only a pin GoblinPS set: a waypoint the player
+  dropped mid-trip is theirs.
 - **"Zero lint warnings" is not licence to silence one instead of fixing
   it.** `.luacheckrc` carries per-file `max_line_length = false` for five
   files, four of them generated -- nobody reads generated Lua, and line

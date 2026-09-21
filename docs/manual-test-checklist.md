@@ -359,6 +359,26 @@ turns that test red. That is the prompt to update this table, not a bug.
 - [ ] Teldrassil still needs the boat; a Darnassus character leaves by "the
       Darnassus gate"
 
+## A trip survives everything except Stop (plan 7)
+
+Built 2026-09-21; not yet run in the client. The dash used to end its trip
+whenever it was hidden, so pressing Escape -- which players do constantly --
+killed the route, and a reload or logout always lost it.
+
+- [ ] With a trip running, press Escape: the dash stays up and keeps going
+- [ ] Alt+Z twice: the interface hides and comes back, and the trip carries on
+- [ ] `/reload` mid-trip: the dash comes back, replans from where you stand,
+      and puts the map pin on the first step
+- [ ] Log out and back in mid-trip: the same
+- [ ] Press Stop: the dash goes, the map pin clears, and a `/reload` brings
+      nothing back
+- [ ] Arrive: the dash says "Arrived." and stays up until Stop; the map pin
+      at the destination clears
+- [ ] Drop your own map pin mid-trip, then arrive or press Stop: your pin is
+      still there
+- [ ] Open `/gps` mid-trip: the search box shows the trip's destination
+- [ ] Log in a second character: no trip comes back for it
+
 ## Flight paths survive a reload
 
 Fixed 2026-09-21. This build writes per-character saves and never loads
@@ -453,8 +473,9 @@ still unconfirmed.
       instance and it carries on
 - [ ] Reach the last step: the device says Arrived, clears the distance and
       time, hides the arrow, and stays open until Stop is pressed
-- [ ] Drag the dash; its position survives /reload. /reload mid-trip ends the
-      trip, by design
+- [ ] Drag the dash; its position survives /reload. A trip now survives a
+      /reload too -- see "A trip survives everything except Stop (plan 7)"
+      above; only Stop ends it
 - [ ] The device is round, not oval, and the compass ring turns with you while
       the arrow turns toward the step. If the arrow is right and the ring is
       wrong, that is Trip.CompassAngle, not Trip.ROTATION_SIGN

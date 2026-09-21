@@ -59,6 +59,8 @@ green-dot ring; their art stays on disk.
 
 ## Plan 7 — a trip survives everything except Stop
 
+Built 2026-09-21 -- not yet run in the client.
+
 ### Behaviour
 
 - **Stop is the only thing that ends a trip.** Pressing it ends the trip,
