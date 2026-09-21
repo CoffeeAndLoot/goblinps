@@ -799,7 +799,7 @@ return function(h)
             ns.Planner = savedPlanner
             local ok, err = pcall(function()
                 FreshPlanner.Toggle()
-                FreshPlanner.ApplyLayout("wide")
+                FreshPlanner.ApplyLayout()
             end)
             Fake.missingTextures[badPath] = nil
             h.truthy(ok, err)
@@ -927,17 +927,26 @@ return function(h)
             local length = (t.right - t.left) / 5
             for i = 1, 5 do
                 local line = ui.strip.legs[i].line
-                h.eq(line:GetTexture(), art(i == 1 and "line-solid" or "line-dashed"), "leg " .. i)
+                local style = i == 1 and "line-solid" or "line-dashed"
+                h.eq(line:GetTexture(), art(style), "leg " .. i)
                 h.eq(line.wrapH, "REPEAT", "a dash keeps its length on any leg")
-                local part = ns.Data.Art["line-dashed"]
+                local part = ns.Data.Art[style]
                 h.truthy(near(line.texCoord[2], length / (t.thick * part.cw / part.ch)),
                          "one tile per line-box times the part's own aspect")
                 h.truthy(near(line:GetWidth(), length))
                 h.truthy(near(line:GetHeight(), t.thick))
+                h.eq(line.points[1][1], "LEFT")
+                h.truthy(line.points[1][2] == ui.frame, "measured from the window, which has a real size")
                 h.truthy(near(line.points[1][4], t.left + (i - 1) * length), "starts at its badge's centre")
+                h.truthy(near(line.points[1][5], -t.cy))
                 local dot = ui.strip.legs[i].dot
                 h.eq(dot:GetTexture(), art("line-dot"))
+                h.eq(dot.points[1][1], "CENTER")
+                h.truthy(dot.points[1][2] == ui.frame, "measured from the window, which has a real size")
                 h.truthy(near(dot.points[1][4], t.left + (i - 0.5) * length), "the dot sits mid-leg")
+                h.truthy(near(dot.points[1][5], -t.cy))
+                h.truthy(near(dot:GetWidth(), t.thick), "the dot's width and height match the leg's thickness")
+                h.truthy(near(dot:GetHeight(), t.thick))
             end
         end)
 
@@ -1055,6 +1064,24 @@ return function(h)
             h.truthy(ui.notes:IsShown())
             pickTo("delt")
             h.truthy(ui.strip:IsShown())
+        end)
+
+        h.it("hides the strip rather than error when the strip geometry is missing", function()
+            -- I2: stripMetrics indexed ns.Data.ArtGeometry.planner.strip with no
+            -- guard, so an Art.lua shipped without that table threw on every
+            -- routed /gps open. A routed plan must instead leave the rest of
+            -- the window working with the strip simply hidden.
+            local ui = pickTo("delt")
+            h.truthy(ui.strip:IsShown(), "a routed plan normally shows it")
+            local savedStrip = ns.Data.ArtGeometry.planner.strip
+            ns.Data.ArtGeometry.planner.strip = nil
+            local ok, err = pcall(Planner.Refresh)
+            h.truthy(ok, err)
+            h.falsy(ui.strip:IsShown(), "no strip geometry: hide it, not the whole window")
+            h.truthy(ui.frame:IsShown(), "the rest of the window keeps working")
+            ns.Data.ArtGeometry.planner.strip = savedStrip
+            Planner.Refresh()
+            h.truthy(ui.strip:IsShown(), "restored geometry, restored strip")
         end)
 
         h.it("W.ShowTooltip colours every line after the first, amber for a warning", function()

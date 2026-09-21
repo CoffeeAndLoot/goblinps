@@ -36,8 +36,8 @@ project draws a hard line between verified in source and verified in game,
 and this branch's own history is faults that passed every desktop test and
 were only visible on screen. `/gps` opens the planner;
 `/gps to <place>` prints a route in chat, with ground travel going zone by
-zone through named crossings and walk-or-ride by level. GO closes the
-planner and opens the dash unit: an arrow pointing at the current step,
+zone through named crossings and walk-or-ride by level. Start Route closes
+the planner and opens the dash unit: an arrow pointing at the current step,
 showing distance and time left, advancing when you arrive and replanning
 when you stray. What is still estimated is **data, not code**: crossing
 coordinates, the two mount speeds, `cross` times and some zone level ranges.
@@ -91,7 +91,7 @@ GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard
                               # three-slice stretcher that both windows read their geometry through
 GoblinPS/Planner.lua         # the window; draws Strip.lua's layout and decides nothing; no coordinate
                               # is hand-typed here -- every position comes from ns.Data.ArtGeometry.planner.wide
-GoblinPS/Dash.lua            # the small draggable device shown when GO closes the planner; arrow, distance, ETA
+GoblinPS/Dash.lua            # the small draggable device shown when Start Route closes the planner; arrow, distance, ETA
 GoblinPS/Data/Art.lua        # GENERATED: texture coordinates AND placement geometry (ns.Data.ArtGeometry) for
                               # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json
                               # and images/parts/planner-geometry.json; no coordinate is hand-typed in Dash.lua

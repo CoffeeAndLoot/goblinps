@@ -28,6 +28,15 @@ local function geo()
     return g and g.wide
 end
 
+-- The strip's own measurements (ring, line thickness, label gap), or nil when
+-- an older or hand-edited Art.lua lacks that table. Refresh checks this
+-- alongside geo() before drawing the strip: stripMetrics needs both and must
+-- not be reached with either one missing.
+local function stripGeo()
+    local g = ns.Data.ArtGeometry and ns.Data.ArtGeometry.planner
+    return g and g.strip
+end
+
 -- The badge art is a 128 px ring on a 192 px canvas, and the geometry's
 -- nodeDiameter is the RING, so the whole sprite is 1.5 times it. Size from
 -- the ring alone and every stop draws a third too small.
@@ -35,8 +44,7 @@ local SPRITE = 1.5
 
 -- The strip's measurements in real pixels, all read off the window: it is
 -- the frame given an explicit SetSize, so measuring it is legal.
-local function stripMetrics(g)
-    local s = ns.Data.ArtGeometry.planner.strip
+local function stripMetrics(g, s)
     local w, h = ui.frame:GetWidth(), ui.frame:GetHeight()
     return { left = g.stripTrack.left * w, right = g.stripTrack.right * w,
              cy = (g.stripTrack.top + g.stripTrack.bottom) / 2 * h,
@@ -189,10 +197,10 @@ function Planner.Refresh()
     local plan = state.plan
     local steps = plan and plan.result and plan.result.steps or {}
     local routed = #steps > 0
-    local g = geo()
+    local g, s = geo(), stripGeo()
     local layout
-    if plan and routed and g then
-        local m = stripMetrics(g)
+    if plan and routed and g and s then
+        local m = stripMetrics(g, s)
         layout = ns.Strip.Layout(ns.Data, steps, { faction = ns.Core.Faction(), level = plan.level,
                                                    trackWidth = m.right - m.left, badgeWidth = m.ring })
         drawStrip(layout, m)
@@ -327,10 +335,13 @@ end
 -- padded to 512x256 (aspect 2.4976): close, not equal, and the padding shifts
 -- it further still on a part whose canvas isn't square.
 --
--- screen-backdrop is decorative scenery, not a map. Losing its sides is
--- intended. If the part carries no cw/ch (an older or hand-edited table),
--- this leaves the texture's coordinates alone rather than compute a crop
--- from nil.
+-- screen-backdrop is decorative scenery, not a map. The crop loses whichever
+-- side overflows -- the art's own left and right when it is wider than the
+-- opening, its top and bottom when the opening is wider than the art, which
+-- is today's case: the screen is roughly 3.3:1 against the part's 2.5:1. That
+-- loss is intended either way. If the part carries no cw/ch (an older or
+-- hand-edited table), this leaves the texture's coordinates alone rather than
+-- compute a crop from nil.
 local function coverCrop(texture, part, boxW, boxH)
     if not (part.cw and part.ch) then
         return

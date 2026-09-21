@@ -122,7 +122,8 @@ local lastPin
 
 -- Blizzard's map pin and on-screen arrow for one step. Spec decision 3 puts
 -- the pin on the step you are ON, so the dash calls this again each time it
--- advances, not only when GO is pressed. Quiet: only GO explains itself.
+-- advances, not only when Start Route is pressed. Quiet: only Start Route
+-- explains itself.
 function Core.PinStep(step)
     if not step or step.kind == "hearth" or not step.to.map then
         return false

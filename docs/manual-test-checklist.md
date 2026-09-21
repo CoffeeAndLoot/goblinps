@@ -261,6 +261,9 @@ Restart the game first: the TOC changed.
       Ashenvale · level 18-30"); it is amber when the zone is well above the
       character's level or the crossing has a hazard, dim otherwise
 - [ ] `/gps to` prints the same detail line under each ground step in chat
+
+Superseded by plan 8: the window has one box, one layout and no step list.
+
 - [ ] Both layouts: the two-line rows fit, nothing overlaps the hint, the
       total or GO; a route longer than 8 steps ends "... and N more steps"
 - [x] ~~The levels at which riding is learned.~~ 2026-09-20, from the riding
@@ -415,6 +418,10 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       stay on the glass
 - [ ] A long note (e.g. an unknown inn plus no flight paths) on the one-line
       status or warning line: it truncates cleanly rather than overflowing
+- [ ] The names under the two end badges read in full (they get about 65 px);
+      note any that truncate, e.g. "You are here" or a long destination
+- [ ] A 13-stop route: rings may touch and each badge's hover area overlaps
+      its neighbour's; note whether the right tooltip comes up
 
 ## Flight paths survive a reload
 

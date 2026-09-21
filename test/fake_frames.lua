@@ -41,7 +41,7 @@ Region.__index = function(_, key)
     -- Blizzard's own widget methods are always PascalCase (SetPoint,
     -- GetText, ...); anything shaped like one that we have not modelled or
     -- allow-listed is a misspelt or invented call, so raise. A lowercase key
-    -- is the addon's own instance data (row.item, results.owner, ...), not
+    -- is the addon's own instance data (row.item, strip.badges, ...), not
     -- yet set on this object: real frames answer that with plain nil too.
     if key:match("^%u") then
         error("fake_frames: unknown widget method '" .. key .. "'", 2)

@@ -108,9 +108,10 @@ end
 
 -- Draw one part as three textures so its decorative ends keep their shape at
 -- any width: a left cap and a right cap at their natural size, and a middle
--- stretched between them. One button part draws at 65 pixels for "Here" and
--- 135 for "GO"; stretching the whole texture squashes the caps at one width
--- and stretches them at the other.
+-- stretched between them. One "button" part is drawn at whatever width the
+-- geometry gives its control -- Start Route today; stretching the whole
+-- texture would squash its caps at a narrow width and stretch them at a wide
+-- one.
 --
 -- `capFraction` is how much of the part's width each cap takes, and
 -- `capAspect` is that cap region's width over its height in the source art.
