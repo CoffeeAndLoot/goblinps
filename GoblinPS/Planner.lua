@@ -17,7 +17,7 @@ local W = ns.Widgets
 Planner.SIZE = { wide = { 650, 416 }, tall = { 384, 600 } }
 Planner.MAX_ROWS = 8 -- each step is two lines: the step, then its detail
 Planner.MAX_RESULTS = 8
-local PAD, HEADER, FOOTER, ROW, STEP_ROW = 10, 30, 64, 18, 32
+local ROW, STEP_ROW = 18, 32
 
 local ui          -- built on first open
 local state = {}  -- from = place or nil ("where you stand"), to = place, plan = Core.PlanRoute's answer
@@ -177,9 +177,6 @@ local function showResults(box)
         end
     end
     ui.results.owner = box
-    ui.results:ClearAllPoints()
-    ui.results:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 0, -2)
-    ui.results:SetSize(box:GetWidth(), math.min(#items, Planner.MAX_RESULTS) * ROW + 4)
     ui.results:Show()
 end
 
@@ -210,6 +207,31 @@ local function wireBox(box)
         hideResults()
         self:ClearFocus()
     end)
+end
+
+-- Cover `rect` (in device fractions) with a part whose own aspect differs,
+-- losing the overflow evenly off both sides rather than distorting the art.
+-- The crop composes with the part's padding crop: the part's artwork lives in
+-- l..r of its texture, so the cover-crop takes a centred sub-range of THAT,
+-- never of 0..1. Getting this backwards crops the padding instead of the art.
+--
+-- screen-backdrop is decorative scenery, not a map. Losing its sides is
+-- intended.
+local function coverCrop(texture, part, partW, partH, boxW, boxH)
+    local span = part.r - part.l
+    local tall = part.b - part.t
+    local partAspect = (partW * span) / (partH * tall)
+    local boxAspect = boxW / boxH
+    if partAspect > boxAspect then
+        -- The art is wider than the opening: keep a centred slice of width.
+        local keep = span * (boxAspect / partAspect)
+        local trim = (span - keep) / 2
+        texture:SetTexCoord(part.l + trim, part.r - trim, part.t, part.b)
+    else
+        local keep = tall * (partAspect / boxAspect)
+        local trim = (tall - keep) / 2
+        texture:SetTexCoord(part.l, part.r, part.t + trim, part.b - trim)
+    end
 end
 
 -- ---- layout: the only thing that differs between wide and tall ----
@@ -249,6 +271,27 @@ function Planner.ApplyLayout(mode)
         W.PlaceCircle(ui.gear, f, g.gearButton)
         W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
         W.PlaceRect(ui.layoutButton, f, g.layoutButton)
+        W.PlaceRect(ui.fromBox, f, g.fromBox)
+        W.PlaceRect(ui.toBox, f, g.toBox)
+        W.PlaceRect(ui.here, f, g.hereButton)
+        W.PlaceRect(ui.results, f, g.resultsList)
+        W.PlaceRect(ui.screen, f, g.screen)
+        W.PlaceRect(ui.side, f, g.sidePanel)
+        W.PlaceRect(ui.go, f, g.goButton)
+        W.PlaceLine(ui.total, f, g.totalLine)
+        W.PlaceLine(ui.hint, f, g.hintLine)
+        if ui.panelArt then
+            W.PlaceRect(ui.panelArt, f, g.screen)
+        end
+        if ui.backdrop then
+            W.PlaceRect(ui.backdrop, f, g.screen)
+            local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
+            if backdropPart then
+                coverCrop(ui.backdrop, backdropPart, 1600, 640,
+                          (g.screen.right - g.screen.left) * f:GetWidth(),
+                          (g.screen.bottom - g.screen.top) * f:GetHeight())
+            end
+        end
     end
 
     ui.layoutButton.label:SetText(mode == "tall" and "Wide" or "Tall")
@@ -318,6 +361,36 @@ local function build()
     local titlePlate = plate("title-plate")
     local taglinePlate = plate("tagline-plate")
 
+    local backdrop = artLayer:CreateTexture(nil, "BORDER")
+    local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
+    if not (backdropPart and backdrop:SetTexture(MEDIA .. backdropPart.file)) then
+        backdrop:Hide()
+        backdrop = nil
+    end
+
+    -- The interior backing, genuinely tiled. That works only because this part
+    -- ships unpadded: a 512x512 source at 256x256 is already a power of two,
+    -- so its crop is the whole texture. Tiling a PADDED part would repeat the
+    -- transparent padding along with the picture, which is why every other
+    -- part in this window is stretched instead. check_art.py flags this one as
+    -- tiling, meaning its four edges were drawn to meet.
+    --
+    -- SetHorizTile and SetVertTile are both present on build 1.60.1.69913
+    -- (SimpleTextureBaseAPIDocumentation.lua) and Blizzard's own UI calls them.
+    local panelArt = artLayer:CreateTexture(nil, "BACKGROUND")
+    local panelPart = ns.Data.Art and ns.Data.Art["planner-panel"]
+    local whole = panelPart and panelPart.l == 0 and panelPart.r == 1
+                  and panelPart.t == 0 and panelPart.b == 1
+    if whole and panelArt:SetTexture(MEDIA .. panelPart.file, "REPEAT", "REPEAT") then
+        panelArt:SetHorizTile(true)
+        panelArt:SetVertTile(true)
+    elseif panelPart and panelArt:SetTexture(MEDIA .. panelPart.file) then
+        -- Padded after all: stretch rather than repeat the padding.
+        panelArt:SetTexCoord(panelPart.l, panelPart.r, panelPart.t, panelPart.b)
+    else
+        panelArt:Hide()
+    end
+
     local title = W.Text(content, "amber", "GameFontNormalLarge")
     title:SetText("GoblinPS")
     local tagline = W.Text(content, "dim", "GameFontDisableSmall")
@@ -374,25 +447,36 @@ local function build()
         gear:SetHighlightTexture(MEDIA .. gearHover.file, "ADD")
     end
 
-    local layoutButton = W.Button(f, "Tall", 44, 18, function()
+    -- The three plain buttons all draw the same "button" part at a width the
+    -- geometry, not this code, decides: 65 pixels for Here in the wide layout
+    -- and 135 for GO in the tall one. A single stretched texture would
+    -- squash those end caps at one width and stretch them at the other, so
+    -- each gets its own three-slice art on top of its flat fallback.
+    local BUTTON_CAP, BUTTON_CAP_ASPECT = 0.25, 1.0
+
+    local layoutButton = W.Button(content, "Tall", 44, 18, function()
         dismiss()
         Planner.ApplyLayout(ns.Core.ToggleLayout())
     end)
+    W.Stretch3(layoutButton, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
 
-    local fromBox = W.EditBox(f, 150, 20, "From: where you stand")
-    fromBox:SetPoint("TOPLEFT", PAD, -(HEADER + 4))
-    local toBox = W.EditBox(f, 170, 20, "To: city, zone or flight stop")
-    toBox:SetPoint("LEFT", fromBox, "RIGHT", 6, 0)
-    local here = W.Button(f, "Here", 40, 20, function()
+    local fromBox = W.EditBox(content, 150, 20, "From: where you stand")
+    local toBox = W.EditBox(content, 170, 20, "To: city, zone or flight stop")
+    local here = W.Button(content, "Here", 40, 20, function()
         dismiss()
         state.from = nil
         ui.fromBox:SetText("")
         W.UpdatePlaceholder(ui.fromBox)
         replan()
     end)
-    here:SetPoint("LEFT", toBox, "RIGHT", 6, 0)
+    W.Stretch3(here, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
 
-    local screen = W.Panel(f, "screen", "steel", 2)
+    -- input-box.png is 1024x128, so 0.18 of its width is a 184x128 cap.
+    local CAP, CAP_ASPECT = 0.18, 184 / 128
+    local fromSlice = W.Stretch3(fromBox, "input-box", CAP, CAP_ASPECT)
+    local toSlice = W.Stretch3(toBox, "input-box", CAP, CAP_ASPECT)
+
+    local screen = W.Panel(content, "screen", "steel", 2)
     local notes = W.Text(screen, "dim")
     notes:SetPoint("TOPLEFT", 8, -8)
     notes:SetPoint("TOPRIGHT", -8, -8)
@@ -405,7 +489,7 @@ local function build()
     device:SetText("GoblinPS")
     device:SetAlpha(0.25)
 
-    local side = W.Panel(f, "steel", "steel", 1)
+    local side = W.Panel(content, "steel", "steel", 1)
     local rows = {}
     for i = 1, Planner.MAX_ROWS do
         local row = { left = W.Text(side, "green"), right = W.Text(side, "dim", nil, "RIGHT"),
@@ -418,8 +502,6 @@ local function build()
         rows[i] = row
     end
     local hint = W.Text(side, "amber")
-    hint:SetPoint("BOTTOMLEFT", 8, FOOTER - 18)
-    hint:SetPoint("BOTTOMRIGHT", -8, FOOTER - 18)
     local go = W.Button(side, "GO", 56, 24, function()
         dismiss()
         replan()
@@ -431,12 +513,10 @@ local function build()
             ui.frame:Hide()
         end
     end)
-    go:SetPoint("BOTTOMRIGHT", -8, 8)
+    W.Stretch3(go, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
     local total = W.Text(side, "green", "GameFontNormal")
-    total:SetPoint("BOTTOMLEFT", 8, 12)
-    total:SetPoint("RIGHT", go, "LEFT", -8, 0)
 
-    local results = W.Panel(f, "steel", "brass", 1)
+    local results = W.Panel(content, "steel", "brass", 1)
     results:SetFrameStrata("DIALOG")
     results:SetFrameLevel(base + 3)
     results:EnableMouse(true)
@@ -459,10 +539,10 @@ local function build()
 
     ui = { frame = f, artLayer = artLayer, content = content, flat = flat, frameArt = frameArt,
            titlePlate = titlePlate, taglinePlate = taglinePlate, title = title, tagline = tagline,
-           close = close, gear = gear, dropdown = dropdown,
+           close = close, gear = gear, dropdown = dropdown, backdrop = backdrop, panelArt = panelArt,
            fromBox = fromBox, toBox = toBox, screen = screen, side = side, rows = rows,
            hint = hint, total = total, go = go, here = here, known = known, results = results,
-           layoutButton = layoutButton, notes = notes }
+           layoutButton = layoutButton, notes = notes, fromSlice = fromSlice, toSlice = toSlice }
     wireBox(fromBox)
     wireBox(toBox)
     f:SetScript("OnHide", hideResults)

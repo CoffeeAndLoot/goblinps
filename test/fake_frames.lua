@@ -26,6 +26,7 @@ local ALLOWED_NOOP = {
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
     StartMoving = true, StopMovingOrSizing = true, SetFrameStrata = true,
     SetHighlightTexture = true, RegisterEvent = true, SetOwner = true, AddLine = true,
+    SetHorizTile = true, SetVertTile = true,
 }
 
 local Region = {}

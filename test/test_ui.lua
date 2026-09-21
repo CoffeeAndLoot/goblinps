@@ -418,6 +418,143 @@ return function(h)
             h.truthy(math.abs(ui.titlePlate.points[1][4] - g.titlePlate.left * w) < 1,
                      "the title plate starts where the geometry says")
         end)
+
+        h.it("covers the screen with the backdrop without distorting it", function()
+            -- screen-backdrop is 2.5:1 scenery and the screen opening is not.
+            -- Stretching it to fit would squash the mountains; the answer is
+            -- to crop the overflow, centred, inside the part's own texture
+            -- coordinates.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.backdrop, "the backdrop texture exists")
+            local l, r = unpack(ui.backdrop.texCoord)
+            local part = ns.Data.Art["screen-backdrop"]
+            h.truthy(l >= part.l - 0.0001 and r <= part.r + 0.0001,
+                     "the cover-crop stays inside the part's own padding crop")
+            h.truthy(math.abs((l - part.l) - (part.r - r)) < 0.0001,
+                     "the crop is centred: equal slivers off each side")
+            h.truthy(r - l < part.r - part.l,
+                     "2.5:1 scenery in a wider-than-tall-but-not-2.5 opening loses width")
+        end)
+
+        h.it("gives a stretched control fixed end caps", function()
+            -- One button part draws at 65 px for Here and 135 for GO. A single
+            -- stretched texture squashes the caps at one width and stretches
+            -- them at the other.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            -- button.png is 768x192, so a quarter of its width is a 192x192
+            -- cap: aspect 1.
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            h.truthy(slice, "three-slice returns its pieces")
+            h.eq(slice.left:GetWidth(), slice.right:GetWidth(),
+                 "both caps draw at the same natural width")
+            h.truthy(slice.middle.points and #slice.middle.points >= 2,
+                     "the middle is anchored between the caps, so it takes the slack")
+        end)
+
+        h.it("places every input, panel and footer line from the geometry", function()
+            ns.Planner.Toggle()
+            for _, mode in ipairs({ "wide", "tall" }) do
+                ns.Planner.ApplyLayout(mode)
+                local ui = ns.Planner.Debug()
+                local g = ns.Data.ArtGeometry.planner[mode]
+                local w = ui.frame:GetWidth()
+                local checks = {
+                    { ui.fromBox, g.fromBox, "fromBox" },
+                    { ui.toBox, g.toBox, "toBox" },
+                    { ui.here, g.hereButton, "hereButton" },
+                    { ui.screen, g.screen, "screen" },
+                    { ui.side, g.sidePanel, "sidePanel" },
+                    { ui.go, g.goButton, "goButton" },
+                }
+                for _, check in ipairs(checks) do
+                    local region, rect, name = check[1], check[2], check[3]
+                    h.truthy(region, mode .. ": " .. name .. " is missing")
+                    h.truthy(math.abs(region.points[1][4] - rect.left * w) < 1,
+                             mode .. ": " .. name .. " starts at its rect's left, got "
+                             .. tostring(region.points[1][4]))
+                end
+                -- The two footer lines are lines, so they carry two horizontal
+                -- anchors on one y, not four corners.
+                for _, fs in ipairs({ ui.total, ui.hint }) do
+                    h.eq(#fs.points, 2)
+                    h.eq(fs.points[1][5], fs.points[2][5], "both ends sit on one line")
+                end
+            end
+        end)
+
+        h.it("keeps working when not one texture loads", function()
+            -- Art is laid over colours. A beta patch that renames a file must
+            -- leave a window the player can still route with.
+            local restore = ns.Data.Art
+            ns.Data.Art = nil
+            local ok = pcall(function()
+                ns.Planner.Toggle()
+                ns.Planner.ApplyLayout("wide")
+            end)
+            ns.Data.Art = restore
+            h.truthy(ok, "building with no art at all must not error")
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.flat:IsShown(), "and the flat fallback comes back")
+        end)
+
+        h.it("keeps a working window when one named texture will not load", function()
+            -- The dash's tests fail exactly one part with Fake.missingTextures
+            -- while the rest load, which is a stricter check than nilling
+            -- ns.Data.Art wholesale above. screen-backdrop is an insert, not a
+            -- stacked layer, so its own failure must not take anything else
+            -- down with it.
+            local badPath = "Interface\\AddOns\\GoblinPS\\Media\\screen-backdrop"
+            Fake.missingTextures[badPath] = true
+            -- loadfile re-runs `ns.Planner = Planner` as a side effect; every
+            -- later test (and Core.lua's own slash handler) reaches the
+            -- planner through ns.Planner directly, so put the real one straight
+            -- back and drive this fresh copy only through its own local.
+            local savedPlanner = ns.Planner
+            local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+            ns.Planner = savedPlanner
+            local ok, err = pcall(function()
+                FreshPlanner.Toggle()
+                FreshPlanner.ApplyLayout("wide")
+            end)
+            Fake.missingTextures[badPath] = nil
+            h.truthy(ok, err)
+            local ui = FreshPlanner.Debug()
+            h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
+            h.falsy(ui.backdrop, "a texture that would not load must not be laid over the colour")
+            -- the rest of the window is still usable with the backdrop missing
+            Fake.Type(ui.toBox, "delt")
+            h.truthy(ui.results:IsShown(), "the control must still work")
+        end)
+
+        h.it("drops the results list over the search area, not under one box", function()
+            -- One shared list, spanning the search area: it serves whichever
+            -- box has focus and the art has one opening for it.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w = ui.frame:GetWidth()
+            Fake.Type(ui.toBox, "delt")
+            h.truthy(ui.results:IsShown(), "typing opens the list")
+            h.eq(ui.results.points[1][2], ui.frame,
+                 "anchored to the window, not to the box that has focus")
+            h.truthy(math.abs(ui.results.points[1][4] - g.resultsList.left * w) < 1,
+                     "and it sits where the geometry says")
+            Fake.Click(ui.here) -- put the list away for the test that follows
+        end)
+
+        h.it("opens the whole list from the dropdown button", function()
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.dropdown, "the socket beside To has a control in it")
+            Fake.Click(ui.dropdown)
+            h.truthy(ui.results:IsShown(), "browsing needs no typing")
+            Fake.Click(ui.dropdown)
+            h.falsy(ui.results:IsShown(), "and clicking again puts it away")
+        end)
     end)
 
     h.describe("ground steps in the window", function()

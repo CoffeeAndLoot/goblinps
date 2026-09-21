@@ -106,6 +106,60 @@ function Widgets.PlaceCircle(region, device, circ)
     region:SetPoint("CENTER", device, "TOPLEFT", circ.cx * w, -circ.cy * h)
 end
 
+-- Draw one part as three textures so its decorative ends keep their shape at
+-- any width: a left cap and a right cap at their natural size, and a middle
+-- stretched between them. One button part draws at 65 pixels for "Here" and
+-- 135 for "GO"; stretching the whole texture squashes the caps at one width
+-- and stretches them at the other.
+--
+-- `capFraction` is how much of the part's width each cap takes, and
+-- `capAspect` is that cap region's width over its height in the source art.
+-- Both are read off the artwork, because the geometry file describes where
+-- controls go and not how they are built. They are the only two hand-typed art
+-- numbers in this plan; a squashed end cap is visible in one look, and the
+-- checklist asks for that look.
+--
+-- Returns { left, middle, right }, or nil when the part is missing or will not
+-- load -- and every caller uses that, because a missing texture must leave a
+-- working control.
+function Widgets.Stretch3(parent, name, capFraction, capAspect)
+    local part = ns.Data.Art and ns.Data.Art[name]
+    if not part then
+        return nil
+    end
+    local path = "Interface\\AddOns\\GoblinPS\\Media\\" .. part.file
+    local span = part.r - part.l
+    local cap = span * capFraction
+    -- The cap keeps the shape it was drawn at: its drawn width is its own
+    -- aspect times the control's height, so it never squashes.
+    local width = parent:GetHeight() * capAspect
+
+    local function piece(l, r)
+        local t = parent:CreateTexture(nil, "ARTWORK")
+        if not t:SetTexture(path) then
+            return nil
+        end
+        t:SetTexCoord(l, r, part.t, part.b)
+        return t
+    end
+
+    local left, middle, right = piece(part.l, part.l + cap),
+                                piece(part.l + cap, part.r - cap),
+                                piece(part.r - cap, part.r)
+    if not (left and middle and right) then
+        return nil
+    end
+    left:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+    left:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
+    left:SetWidth(width)
+    right:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
+    right:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+    right:SetWidth(width)
+    middle:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0)
+    middle:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT", 0, 0)
+    return { left = left, middle = middle, right = right }
+end
+
 function Widgets.Button(parent, text, width, height, onClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(width, height)
