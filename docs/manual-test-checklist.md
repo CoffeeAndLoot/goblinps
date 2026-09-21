@@ -395,6 +395,9 @@ GoblinPS. Re-run them after each beta update, starting with the marker test:
 means saves load again. The plan 7 resume items above are blocked the same
 way.
 
+- [ ] Log in or `/reload`: chat says "No flight paths known this session:
+      open any flight master's map." Open one, `/reload` again: while saves
+      do not load, the line comes back; once they load, it stays quiet
 - [ ] Open a flight master's map, then `/reload`, then open `/gps` **without**
       visiting a flight master: it says "Flight paths known: N", not "No
       flight paths yet"

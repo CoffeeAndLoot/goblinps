@@ -1042,6 +1042,22 @@ return function(h)
         end)
     end)
 
+    h.describe("the login notice about flight paths", function()
+        h.it("says nothing when flight paths are known", function()
+            local from = #printed
+            ns.Core.NoteFlightPaths()
+            h.eq(#printed, from)
+        end)
+        h.it("tells a character with none to open a flight master's map", function()
+            character = "Fresh-Test Realm"
+            local from = #printed
+            ns.Core.NoteFlightPaths()
+            h.eq(#printed, from + 1)
+            h.truthy(printed[#printed]:find("open any flight master's map", 1, true))
+            character = "Tester-Test Realm"
+        end)
+    end)
+
     h.describe("the minimap button and the compartment", function()
         h.it("appears at login at the saved angle, and hides on request", function()
             h.eq(#loginCallbacks, 1)

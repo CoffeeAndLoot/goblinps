@@ -21,10 +21,9 @@ local function prefs()
 end
 
 -- This character's discovered flight paths, learned at flight masters, kept in
--- the ACCOUNT-wide save under "Name-Realm". Not in per-character
--- SavedVariables: verified in the client 2026-09-21, this build writes those
--- to disk and never loads them back, so every reload forgot every path until a
--- flight master's map taught them again. See Prefs.lua.
+-- the account-wide save under "Name-Realm". On build 1.60.1.69913 no save
+-- loads back (see Prefs.lua), so this starts empty every session until a
+-- flight master's map fills it.
 local function knownStore()
     local key = API.CharacterKey()
     if not key then
@@ -320,8 +319,19 @@ API.OnTaxiMapOpened(function()
     end
 end)
 
+-- Said at login when this character knows no flight paths, which on this
+-- build is every login: it loads no saved data, so routes would quietly skip
+-- every flight until a flight master's map is opened. Silent once saves load.
+function Core.NoteFlightPaths()
+    if Core.KnownCount() == 0 then
+        say("No flight paths known this session: open any flight master's map. "
+            .. "This beta build doesn't load saved data, so it forgets them on every reload.")
+    end
+end
+
 API.OnLogin(function()
     ns.MinimapButton.Initialize()
+    Core.NoteFlightPaths()
     Core.ResumeTrip()
 end)
 
