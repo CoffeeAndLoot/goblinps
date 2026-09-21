@@ -1655,16 +1655,62 @@ return function(h)
         end)
 
         h.describe("the dash unit and Escape", function()
-            h.it("ends the trip like Stop does, so no hidden trip keeps ticking or replanning unseen", function()
+            h.it("stays off Escape's list, so Escape never ends a trip", function()
+                -- Escape is pressed constantly: to close bags, clear a target,
+                -- open the game menu. It used to close the dash and end the
+                -- trip with it. The dash is a heads-up display, like the
+                -- minimap, not a dialog.
+                Dash.Start(plan)
+                for _, name in ipairs(UISpecialFrames) do
+                    h.truthy(name ~= "GoblinPSDash", "the dash must not be on Escape's list")
+                end
+                Dash.Stop()
+            end)
+
+            h.it("keeps the trip when the dash is hidden some other way", function()
                 Dash.Start(plan)
                 local ui, state = Dash.Debug()
-                h.truthy(state.plan, "sanity: a trip is running")
-                ui.frame:Hide() -- what UISpecialFrames does on Escape; Dash never sees the key itself
-                h.falsy(state.plan, "the trip must not outlive the window it belongs to")
-                standAt(10, 0)
-                Dash.Tick("tick") -- must do nothing: no error, no resurrected trip
+                ui.frame:Hide()
+                h.truthy(state.plan, "hiding is not stopping")
+                -- But a hidden trip must not move on behind the player's back:
+                -- standing on the first step's target would advance it.
+                standAt(0, 0)
+                Dash.Tick("tick")
+                h.eq(state.index, 1, "nothing moves while the dash is hidden")
+                ui.frame:Show()
+                Dash.Tick("tick")
+                h.eq(state.index, 2, "and it picks up again once shown")
+                standAt(1000, 1100)
+                Dash.Stop()
+            end)
+
+            h.it("ends the trip on Stop, clearing the saved trip and our pin", function()
+                Dash.Start(plan)
+                ns.Core.SaveTrip(plan.to)
+                ns.Core.PinStep({ kind = "ride", to = { name = "Gate", map = 1, mx = 0.5, my = 0.5 } })
+                Dash.Stop()
+                local ui, state = Dash.Debug()
                 h.falsy(state.plan)
                 h.falsy(ui.frame:IsShown())
+                h.eq(ns.Core.SavedTripName(), nil, "a stopped trip does not come back after a reload")
+                h.eq(waypoint, nil, "our pin is cleared")
+            end)
+
+            h.it("clears our pin on arrival, and keeps saying Arrived", function()
+                local oneStep = { level = 60, to = plan.to, result = { seconds = 60, steps = {
+                    { kind = "ride", seconds = 60,
+                      to = { name = "the North Gate", c = 1, x = 0, y = 0, map = 1, mx = 0.5, my = 0.5 } },
+                } } }
+                Dash.Start(oneStep)
+                ns.Core.PinStep(oneStep.result.steps[1])
+                standAt(0, 0)
+                Dash.Tick("tick")
+                local ui = Dash.Debug()
+                h.eq(ui.steps[1]:GetText(), "Arrived.")
+                h.truthy(ui.frame:IsShown(), "Arrived. stays up until Stop")
+                h.eq(waypoint, nil, "the pin at the destination is cleared")
+                standAt(1000, 1100)
+                Dash.Stop()
             end)
         end)
 
@@ -1849,7 +1895,7 @@ return function(h)
                 h.truthy(state.plan)
                 Fake.Click(ui.stop)
                 h.falsy(ui.frame:IsShown())
-                h.falsy(state.plan, "clicking Stop ends the trip, as Escape does")
+                h.falsy(state.plan, "clicking Stop ends the trip")
             end)
 
             h.it("keeps a usable button when its art will not load", function()

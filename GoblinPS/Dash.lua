@@ -109,14 +109,6 @@ local function build()
         local point, _, relativePoint, x, y = self:GetPoint(1)
         ns.Core.SavePosition("dash", point, relativePoint, x, y)
     end)
-    -- Escape hides this frame (it is in UISpecialFrames) without calling
-    -- Dash.Stop, and there is no other way to reopen it: without this, the
-    -- trip would keep ticking, replanning and even finishing behind a
-    -- window nobody can see. OnHide is the one place both Escape and the
-    -- Stop button end up, so ending the trip here covers both.
-    f:SetScript("OnHide", function()
-        state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
-    end)
     f:Hide()
 
     local base = f:GetFrameLevel()
@@ -316,8 +308,6 @@ local function build()
            content = content, destination = destination, distance = distance,
            steps = steps, eta = eta, stop = stop, stopNormal = stopNormal,
            stopPressed = stopPressed, stopHover = stopHover }
-    ns.Core.CloseOnEscape(f, "GoblinPSDash")
-
     local since = 0
     f:SetScript("OnUpdate", function(_, elapsed)
         since = since + elapsed
@@ -353,10 +343,13 @@ function Dash.Start(plan)
     ui.frame:Show()
 end
 
--- Hide is the one action that ends a trip: the OnHide script above clears
--- state, so Stop and Escape (which only hides the frame, via UISpecialFrames)
--- both end up ending the trip the same way.
+-- Stop is the one action that ends a trip. Nothing else does -- not Escape,
+-- not hiding the interface, not arriving, not a reload -- so it is also the
+-- one place the saved trip and our map pin are cleared.
 function Dash.Stop()
+    state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
+    ns.Core.ClearTrip()
+    ns.Core.ClearPin()
     if ui then
         ui.frame:Hide()
     end
@@ -396,13 +389,18 @@ local function finish()
     ui.distance:SetText("")
     ui.eta:SetText("")
     ui.arrow:Hide()
+    -- There is nowhere left to point. The trip is not over -- only Stop ends
+    -- it -- but a pin on the spot you are standing on says nothing.
+    ns.Core.ClearPin()
     state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
 end
 
 -- One look at where the player is against the step they are on. `event` is
 -- "tick", "zone" or "landed" and is handed straight to Trip.Check.
 function Dash.Tick(event)
-    if not ui or not state.plan then
+    -- Hidden (only something other than Stop can do that now): hold still,
+    -- so a trip never replans or moves the map pin where nobody can see.
+    if not ui or not state.plan or not ui.frame:IsShown() then
         return
     end
     if state.banner then

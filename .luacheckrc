@@ -4,7 +4,7 @@ self = false
 globals = {
     "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB", "GoblinPSCharDB",
     "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames",
-    "GoblinPSMinimapButton", "GoblinPSPlanner", "GoblinPSDash",
+    "GoblinPSMinimapButton", "GoblinPSPlanner",
 }
 read_globals = {
     "print",
