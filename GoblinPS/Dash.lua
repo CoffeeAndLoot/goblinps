@@ -437,6 +437,7 @@ local function tryResume()
     local steps = plan.result and plan.result.steps
     if not steps then
         ui.steps[1]:SetText(plan.notes[#plan.notes] or ("No route found to " .. place.name .. "."))
+        ui.distance:SetText("") -- clear whatever the waiting state left showing
         return
     end
     if #steps == 0 then

@@ -2154,6 +2154,43 @@ return function(h)
             ns.Dash.Stop()
         end)
 
+        h.it("clears the stale Waiting... when a resume's position has no route", function()
+            -- M1 from the final review: tryResume's no-route branch wrote the
+            -- "No route found" line into steps[1] but never cleared
+            -- ui.distance, so "Waiting..." (set while the position was still
+            -- unknown) stuck around until Stop. This fixture's rough-route
+            -- fallback reaches every zone on its two continents, so there is
+            -- no real destination it cannot plan to; stub Core.PlanRoute for
+            -- this one test instead, and restore it straight after.
+            home()
+            Core.SaveTrip(delta)
+            local calls, realPlanRoute = 0, ns.Core.PlanRoute
+            ns.Core.PlanRoute = function()
+                calls = calls + 1
+                return { to = delta, notes = { "No route found to Delta." }, level = 60 }
+            end
+
+            where.map = nil -- loading, or an instance: the client cannot say
+            ns.Dash.Resume(delta)
+            ns.Dash.Tick("tick")
+            local ui, state = ns.Dash.Debug()
+            h.eq(ui.distance:GetText(), "Waiting...", "sanity: still waiting with no position")
+
+            home() -- position known now; the stub still finds no route
+            ns.Dash.Tick("tick")
+            ns.Dash.Tick("tick")
+            ns.Dash.Tick("tick")
+
+            ns.Core.PlanRoute = realPlanRoute
+            h.eq(calls, 1, "the planner is asked only once across several ticks")
+            h.eq(ui.steps[1]:GetText(), "No route found to Delta.")
+            h.eq(ui.distance:GetText(), "", "Waiting... must not outlive the no-route message")
+            h.falsy(state.plan, "no plan is running")
+            h.eq(Core.SavedTripName(), "Delta", "only Stop ends a trip")
+
+            ns.Dash.Stop()
+        end)
+
         h.it("shows Arrived when you resume at the destination", function()
             home()
             local westland = ns.Search.Exact(ns.Data, "Westland", "H")
