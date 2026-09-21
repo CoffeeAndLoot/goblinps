@@ -51,8 +51,10 @@ SavedVariables rule below).
 **Plan 7 has not been run in the client**, for the same reason as plan 6
 above: verified in source is not verified in game. Plan 8, built 2026-09-21,
 rebuilt the planner to the mockup: one search box, the route strip drawn by
-the pure `Strip.lua`, a tooltip on every stop, wide only. **Plan 8 has not
-been run in the client.** A schematic world map was dropped on 2026-09-20 in
+the pure `Strip.lua`, a tooltip on every stop, wide only. Plan 8 was first seen in the client on
+2026-09-21 and drew as designed: the window sealed against a plain sky, the
+strip's badges on the line, solid then dashed, and the tooltips right. The
+rest of its checklist section is still to walk. A schematic world map was dropped on 2026-09-20 in
 favour of the strip; the spike that proved it feasible is kept at
 `docs/research/schematic-spike/`. The product is a GPS: point to point with
 an arrow, in game. The design is

@@ -395,20 +395,29 @@ killed the route, and a reload or logout always lost it.
 
 Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 
-- [ ] `/gps` opens one wide window: one search box, the screen, Start Route.
+- [x] `/gps` opens one wide window: one search box, the screen, Start Route.
       No From, no Here, no Wide/Tall button, no step list
+      (2026-09-21: as the mockup, against a plain sky; no gap at any edge)
 - [ ] With nothing picked, the screen shows the two status lines and no strip
-- [ ] Brill to Orgrimmar reads crest, boot or horseshoe, zeppelin, signpost;
+- [x] Brill to Orgrimmar reads crest, boot or horseshoe, zeppelin, signpost;
       the first leg solid, the rest dashed, a glowing dot mid-leg; the badges
       sit on the line, not above or below it
-- [ ] Hover each badge: the step, its time, and its detail line where it has
+      (2026-09-21, a low-level Horde character in Durotar to Silverpine Forest:
+      crest, boot, boot, zeppelin, signpost; solid then dashed, on the line.
+      The signpost is labelled with the border crossing, "the Tirisfal-...",
+      not the destination searched for)
+- [x] Hover each badge: the step, its time, and its detail line where it has
       one; a zeppelin says it includes the wait
+      (2026-09-21: "Walk to Orgrimmar Zeppelin Tower / ~4 min / in Durotar ·
+      level 1-10", title in gold, detail dim, above the badge. Zeppelin's wait
+      line not yet looked at)
 - [ ] A long route (try a far city on the other continent) shows every stop;
       when they crowd, the names go and the tooltips still say everything
 - [ ] A leg into a zone above your level: its tooltip detail is amber and the
       amber line under the strip names that stop; the line itself is not
       coloured and no badge changes (the skull is day 2)
-- [ ] The total under the strip reads like "~15 min · free"
+- [x] The total under the strip reads like "~15 min · free"
+      (2026-09-21: "~14 min · free")
 - [ ] Type in the box: the results list drops over the screen and the amber
       line stays visible under it
 - [ ] Start Route closes the planner and opens the dash; `/gps` mid-trip
@@ -420,6 +429,8 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       status or warning line: it truncates cleanly rather than overflowing
 - [ ] The names under the two end badges read in full (they get about 65 px);
       note any that truncate, e.g. "You are here" or a long destination
+      (2026-09-21: "You are here" reads in full; "the Tirisfal-..." and the
+      middle names "Orgrimmar Zeppelin..." and "Undercity Zeppelin T..." truncate)
 - [ ] A 13-stop route: rings may touch and each badge's hover area overlaps
       its neighbour's; note whether the right tooltip comes up
 
