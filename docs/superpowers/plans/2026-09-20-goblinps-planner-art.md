@@ -274,15 +274,15 @@ git status --porcelain GoblinPS/Media GoblinPS/Data/Art.lua
 
 Expected: sixteen new `??` lines under `Media/` and one `M` on `Art.lua`.
 
-- [ ] **Step 5: Teach `check_art.py` the new parts**
+- [ ] **Step 5: Confirm `check_art.py` needs no change**
 
-`tools/check_art.py` reports any `images/parts/*.png` it does not know as
-`extra`. Add the sixteen names to whatever list drives its expected set, in the
-same order as `PARTS`, so the run stays at zero problems. Do **not** add the
-strip parts: they are still legitimately "not drawn yet" from this plan's point
-of view, and the run's third counter is what says so.
+`tools/check_art.py` already carries all 47 parts in its `SPEC` table,
+including every planner part, with flags describing each — note
+`planner-panel.png` is flagged as tiling and `screen-backdrop.png` as solid.
+It checks the delivered PNGs, which arrived long before this plan; what ships
+as a TGA is a separate question it does not ask. **Make no edit here.**
 
-Run it:
+Run it and confirm nothing moved:
 
 ```bash
 python tools/check_art.py
@@ -958,8 +958,24 @@ Then, after `f:Hide()`:
     local frameArt = artLayer:CreateTexture(nil, "BACKGROUND")
     frameArt:SetAllPoints(artLayer)
 
-    local titlePlate = artLayer:CreateTexture(nil, "ARTWORK")
-    local taglinePlate = artLayer:CreateTexture(nil, "ARTWORK")
+    -- The plates carry art but are NOT SetAllPoints to their parent: each sits
+    -- in its own rect, which ApplyLayout places. That is the one difference
+    -- from `art()` above, and it is why they cannot use it.
+    local function plate(name)
+        local part = ns.Data.Art and ns.Data.Art[name]
+        if not part then
+            return nil
+        end
+        local t = artLayer:CreateTexture(nil, "ARTWORK")
+        if not t:SetTexture(MEDIA .. part.file) then
+            t:Hide()
+            return nil
+        end
+        t:SetTexCoord(part.l, part.r, part.t, part.b)
+        return t
+    end
+    local titlePlate = plate("title-plate")
+    local taglinePlate = plate("tagline-plate")
 ```
 
 Delete the orange `stripe` texture entirely: it was a flat-colour flourish for
@@ -1032,7 +1048,9 @@ geometry's `tools_button` was an alias that Task 2 dropped before it reached
 the addon. Do not create a second control.
 
 Extend the `ui` table with the new names: `artLayer`, `content`, `flat`,
-`frameArt`, `titlePlate`, `taglinePlate`, `close`, `gear`, `dropdown`.
+`frameArt`, `titlePlate`, `taglinePlate`, `close`, `gear`, `dropdown`,
+`title` and `tagline`. The last two already exist as locals in `build()` but
+have never been on the `ui` table, and `ApplyLayout` now places them.
 
 `showResults` and `hideResults` are declared above `build()` already, so the
 dropdown's handler can call them. `candidatesFor` returns every candidate when
@@ -1073,6 +1091,7 @@ function Planner.ApplyLayout(mode)
         W.PlaceLine(ui.tagline, f, g.taglinePlate)
         W.PlaceCircle(ui.close, f, g.closeButton)
         W.PlaceCircle(ui.gear, f, g.gearButton)
+        W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
         W.PlaceRect(ui.layoutButton, f, g.layoutButton)
     end
 
@@ -1080,12 +1099,12 @@ function Planner.ApplyLayout(mode)
 end
 ```
 
-The plates' textures are placed in Task 4 and their art assigned once in
-`build()` via `art()`; if a plate's part is missing, `art()` returned nil and
-`W.PlaceRect` is simply never called on it. Guard each with `if ui.titlePlate then`.
+`plate()` returns nil when a part is missing, so guard the two plate
+placements with `if ui.titlePlate then` and `if ui.taglinePlate then`. The two
+FontStrings always exist and are always placed.
 
-Task 5 adds the rest of `ApplyLayout`: the inputs, screen, side panel and
-footer.
+Task 5 adds its placements **inside this same `if g then` block**, not in a
+second one: one block, one condition, one place to look.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -1163,7 +1182,9 @@ Add to the planner block in `test/test_ui.lua`:
             -- them at the other.
             local f = CreateFrame("Frame", nil, UIParent)
             f:SetSize(200, 40)
-            local slice = W.Stretch3(f, "button", 0.25)
+            -- button.png is 768x192, so a quarter of its width is a 192x192
+            -- cap: aspect 1.
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
             h.truthy(slice, "three-slice returns its pieces")
             h.eq(slice.left:GetWidth(), slice.right:GetWidth(),
                  "both caps draw at the same natural width")
@@ -1234,11 +1255,17 @@ In `GoblinPS/Widgets.lua`, after the placement helpers:
 -- 135 for "GO"; stretching the whole texture squashes the caps at one width
 -- and stretches them at the other.
 --
--- `capFraction` is how much of the part's width each cap takes, from the art.
+-- `capFraction` is how much of the part's width each cap takes, and
+-- `capAspect` is that cap region's width over its height in the source art.
+-- Both are read off the artwork, because the geometry file describes where
+-- controls go and not how they are built. They are the only two hand-typed art
+-- numbers in this plan; a squashed end cap is visible in one look, and the
+-- checklist asks for that look.
+--
 -- Returns { left, middle, right }, or nil when the part is missing or will not
 -- load -- and every caller uses that, because a missing texture must leave a
 -- working control.
-function Widgets.Stretch3(parent, name, capFraction)
+function Widgets.Stretch3(parent, name, capFraction, capAspect)
     local part = ns.Data.Art and ns.Data.Art[name]
     if not part then
         return nil
@@ -1246,9 +1273,9 @@ function Widgets.Stretch3(parent, name, capFraction)
     local path = "Interface\\AddOns\\GoblinPS\\Media\\" .. part.file
     local span = part.r - part.l
     local cap = span * capFraction
-    -- The cap's drawn width: the same fraction of the control's height as it
-    -- is of the art's, so a tall control gets proportionally wider caps.
-    local width = parent:GetHeight() * capFraction * 4
+    -- The cap keeps the shape it was drawn at: its drawn width is its own
+    -- aspect times the control's height, so it never squashes.
+    local width = parent:GetHeight() * capAspect
 
     local function piece(l, r)
         local t = parent:CreateTexture(nil, "ARTWORK")
@@ -1325,13 +1352,24 @@ both on `artLayer` so they sit under the content:
         backdrop = nil
     end
 
-    -- The interior backing. Stretched, not tiled: our parts are padded up to a
-    -- power of two, so tiling would repeat the transparent padding along with
-    -- the texture. If it reads badly in game, ship this one part unpadded and
-    -- revisit.
+    -- The interior backing, genuinely tiled. That works only because this part
+    -- ships unpadded: a 512x512 source at 256x256 is already a power of two,
+    -- so its crop is the whole texture. Tiling a PADDED part would repeat the
+    -- transparent padding along with the picture, which is why every other
+    -- part in this window is stretched instead. check_art.py flags this one as
+    -- tiling, meaning its four edges were drawn to meet.
+    --
+    -- SetHorizTile and SetVertTile are both present on build 1.60.1.69913
+    -- (SimpleTextureBaseAPIDocumentation.lua) and Blizzard's own UI calls them.
     local panelArt = artLayer:CreateTexture(nil, "BACKGROUND")
     local panelPart = ns.Data.Art and ns.Data.Art["planner-panel"]
-    if panelPart and panelArt:SetTexture(MEDIA .. panelPart.file) then
+    local whole = panelPart and panelPart.l == 0 and panelPart.r == 1
+                  and panelPart.t == 0 and panelPart.b == 1
+    if whole and panelArt:SetTexture(MEDIA .. panelPart.file, "REPEAT", "REPEAT") then
+        panelArt:SetHorizTile(true)
+        panelArt:SetVertTile(true)
+    elseif panelPart and panelArt:SetTexture(MEDIA .. panelPart.file) then
+        -- Padded after all: stretch rather than repeat the padding.
         panelArt:SetTexCoord(panelPart.l, panelPart.r, panelPart.t, panelPart.b)
     else
         panelArt:Hide()
@@ -1350,8 +1388,10 @@ a unit.
 Give the two edit boxes and the three buttons their three-slice art:
 
 ```lua
-    local fromSlice = W.Stretch3(fromBox, "input-box", 0.18)
-    local toSlice = W.Stretch3(toBox, "input-box", 0.18)
+    -- input-box.png is 1024x128, so 0.18 of its width is a 184x128 cap.
+    local CAP, CAP_ASPECT = 0.18, 184 / 128
+    local fromSlice = W.Stretch3(fromBox, "input-box", CAP, CAP_ASPECT)
+    local toSlice = W.Stretch3(toBox, "input-box", CAP, CAP_ASPECT)
 ```
 
 Add to the `ui` table: `backdrop`, `panelArt`, `fromSlice`, `toSlice`.
@@ -1359,11 +1399,13 @@ Add to the `ui` table: `backdrop`, `panelArt`, `fromSlice`, `toSlice`.
 Then extend `ApplyLayout`, after the chrome block from Task 4:
 
 ```lua
-    if g then
+Add these **into the `if g then` block Task 4 opened**. Do not start a second
+one, and do not re-place the chrome Task 4 already placed:
+
+```lua
         W.PlaceRect(ui.fromBox, f, g.fromBox)
         W.PlaceRect(ui.toBox, f, g.toBox)
         W.PlaceRect(ui.here, f, g.hereButton)
-        W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
         W.PlaceRect(ui.results, f, g.resultsList)
         W.PlaceRect(ui.screen, f, g.screen)
         W.PlaceRect(ui.side, f, g.sidePanel)
@@ -1380,7 +1422,6 @@ Then extend `ApplyLayout`, after the chrome block from Task 4:
                       (g.screen.right - g.screen.left) * f:GetWidth(),
                       (g.screen.bottom - g.screen.top) * f:GetHeight())
         end
-    end
 ```
 
 Delete `SCREEN_SHARE`, `PAD`, `HEADER`, `INPUTS`, `FOOTER` and any other layout
