@@ -1338,9 +1338,21 @@ local function coverCrop(texture, part, partW, partH, boxW, boxH)
 end
 ```
 
-`partW` and `partH` are the part's **source** pixel dimensions, 1600 and 640
-for `screen-backdrop`. Put them in the call rather than in the helper: the
-helper knows nothing about which part it is given.
+**The part's own canvas dimensions come from the part, never from the call.**
+`part.l/r/t/b` are fractions of the **padded shipped canvas**, not of the
+master PNG: `screen-backdrop` is a 1600x640 source that draws at 512x205 on a
+512x256 canvas, so its `b` is about 0.80. Passing the master's 1600x640
+alongside those fractions mixes two coordinate systems and yields an aspect of
+3.12 where the truth is 2.4976 -- which crops 15.33% off each side instead of
+6.66%, showing well under half the scenery intended. It does not crash and it
+does not distort, so only a test on the crop's *magnitude* catches it.
+
+So `tools/make_art.py` emits each part's padded canvas size as `cw` and `ch` on
+its `Art.lua` row -- a number the generator already computes for the trailing
+size comment -- and `coverCrop` reads `part.cw` and `part.ch` itself. It takes
+no dimension parameters at all, so no caller can supply the wrong domain. If
+either field is missing it leaves the texcoords alone rather than computing a
+crop from nil.
 
 - [ ] **Step 5: Place the rest of the window**
 
@@ -1416,14 +1428,16 @@ one, and do not re-place the chrome Task 4 already placed:
         W.PlaceLine(ui.total, f, g.totalLine)
         W.PlaceLine(ui.hint, f, g.hintLine)
         if ui.panelArt then
-            W.PlaceRect(ui.panelArt, f, g.screen)
+            W.PlaceRect(ui.panelArt, f, boundingBox(g))
         end
         if ui.backdrop then
             W.PlaceRect(ui.backdrop, f, g.screen)
-            local part = ns.Data.Art["screen-backdrop"]
-            coverCrop(ui.backdrop, part, 1600, 640,
-                      (g.screen.right - g.screen.left) * f:GetWidth(),
-                      (g.screen.bottom - g.screen.top) * f:GetHeight())
+            local part = ns.Data.Art and ns.Data.Art["screen-backdrop"]
+            if part then
+                coverCrop(ui.backdrop, part,
+                          (g.screen.right - g.screen.left) * f:GetWidth(),
+                          (g.screen.bottom - g.screen.top) * f:GetHeight())
+            end
         end
 ```
 
