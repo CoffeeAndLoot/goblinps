@@ -150,7 +150,7 @@ class TestShipsThePlannerParts(unittest.TestCase):
         from PIL import Image
         import tools.make_art as make_art
         wanted = {
-            "planner-frame-wide", "planner-frame-tall", "planner-panel",
+            "planner-frame-wide", "planner-panel",
             "screen-backdrop", "title-plate", "tagline-plate", "input-box",
             "dropdown-button", "button", "button-hover", "button-pressed",
             "button-disabled", "close", "close-hover", "gear", "gear-hover",
@@ -169,11 +169,34 @@ class TestShipsThePlannerParts(unittest.TestCase):
                 "{0}: source aspect {1:.4f} but shipped {2:.4f}".format(
                     name, source, shipped))
 
-    def test_does_not_ship_the_strip_parts_yet(self):
-        """They belong to plan 7. A texture nothing draws is dead weight."""
+    STRIP = ("node-ring", "node-destination", "line-solid", "line-dashed", "line-dot",
+             "icon-flight", "icon-boat", "icon-zeppelin", "icon-tram", "icon-hearth",
+             "icon-walk", "icon-ride", "icon-horde", "icon-alliance", "icon-neutral")
+
+    def test_ships_the_fifteen_strip_parts_at_their_source_aspect(self):
+        from PIL import Image
+        import tools.make_art as make_art
+        by_name = {p.name: p for p in make_art.PARTS}
+        self.assertEqual(set(self.STRIP) - set(by_name), set(), "these strip parts are not shipped")
+        for name in self.STRIP:
+            part = by_name[name]
+            with Image.open(make_art.SOURCE / (name + ".png")) as im:
+                sw, sh = im.size
+            self.assertLess(abs(sw / sh - part.width / part.height) / (sw / sh), 0.005, name)
+
+    def test_ships_the_strip_parts_unpadded(self):
+        """The lines tile along a leg; a padded part would repeat its padding."""
+        import tools.make_art as make_art
+        by_name = {p.name: p for p in make_art.PARTS}
+        for name in self.STRIP:
+            part = by_name[name]
+            self.assertEqual(make_art.next_power_of_two(part.width), part.width, name)
+            self.assertEqual(make_art.next_power_of_two(part.height), part.height, name)
+
+    def test_does_not_ship_what_nothing_draws(self):
         import tools.make_art as make_art
         names = {p.name for p in make_art.PARTS}
-        for name in ("node-current", "line-solid", "icon-walk"):
+        for name in ("node-current", "icon-gate", "icon-warning", "planner-frame-tall"):
             self.assertNotIn(name, names)
 
 
@@ -207,21 +230,25 @@ class TestShippedCompass(unittest.TestCase):
 
 class TestPlannerGeometry(unittest.TestCase):
     def test_planner_geometry_reaches_the_addon_whole(self):
-        """Both layouts, the same keys, and every number still normalised."""
+        """Wide only, and every number still normalised."""
         import tools.make_art as make_art
         g = make_art.planner_geometry_lua()
-        self.assertIn("wide", g)
-        self.assertIn("tall", g)
-        self.assertEqual(set(g["wide"]) - {"canvas"}, set(g["tall"]) - {"canvas"})
+        self.assertEqual(set(g), {"wide", "strip"}, "tall is no longer read by the addon")
         self.assertEqual(g["wide"]["canvas"], {"w": 1600, "h": 1024})
-        self.assertEqual(g["tall"]["canvas"], {"w": 1024, "h": 1600})
-        for layout in ("wide", "tall"):
-            for key, box in g[layout].items():
-                if key == "canvas":
-                    continue
-                for edge, value in box.items():
-                    self.assertGreaterEqual(value, 0.0, "{0}.{1}.{2}".format(layout, key, edge))
-                    self.assertLessEqual(value, 1.0, "{0}.{1}.{2}".format(layout, key, edge))
+        for key, box in g["wide"].items():
+            if key == "canvas":
+                continue
+            for edge, value in box.items():
+                self.assertGreaterEqual(value, 0.0, "wide.{0}.{1}".format(key, edge))
+                self.assertLessEqual(value, 1.0, "wide.{0}.{1}".format(key, edge))
+
+    def test_planner_geometry_has_exactly_the_mockups_keys(self):
+        import tools.make_art as make_art
+        g = make_art.planner_geometry_lua()
+        self.assertEqual(set(g["wide"]), {
+            "canvas", "titlePlate", "taglinePlate", "closeButton", "gearButton", "toBox",
+            "dropdownButton", "resultsList", "screen", "stripTrack", "totalLine", "hintLine",
+            "notesLine", "knownLine", "goButton", "interior"})
 
     def test_planner_geometry_drops_the_tools_alias(self):
         """tools_button is close_button under another name.
@@ -241,7 +268,7 @@ class TestPlannerGeometry(unittest.TestCase):
         g = make_art.planner_geometry_lua()
         for key in g["wide"]:
             self.assertNotIn("_", key, "{0} still carries the file's underscores".format(key))
-        self.assertIn("fromBox", g["wide"])
+        self.assertIn("stripTrack", g["wide"])
         self.assertIn("strip", g)
         self.assertIn("nodeDiameter", g["strip"])
 
@@ -256,44 +283,44 @@ class TestFrameInterior(unittest.TestCase):
     of the frame art, so it is measured from the frame's own alpha.
     """
 
-    def test_every_layout_has_an_interior_that_holds_its_panels(self):
+    def test_the_interior_holds_every_panel(self):
         g = make_art.planner_geometry_lua()
-        for mode in ("wide", "tall"):
-            box = g[mode]["interior"]
-            for key in ("screen", "sidePanel", "fromBox", "toBox", "goButton"):
-                inner = g[mode][key]
-                self.assertLessEqual(box["left"], inner["left"], "%s.%s" % (mode, key))
-                self.assertLessEqual(box["top"], inner["top"], "%s.%s" % (mode, key))
-                self.assertGreaterEqual(box["right"], inner["right"], "%s.%s" % (mode, key))
-                self.assertGreaterEqual(box["bottom"], inner["bottom"], "%s.%s" % (mode, key))
+        mode = "wide"
+        box = g[mode]["interior"]
+        for key in ("screen", "toBox", "goButton", "stripTrack", "totalLine", "hintLine"):
+            inner = g[mode][key]
+            self.assertLessEqual(box["left"], inner["left"], "%s.%s" % (mode, key))
+            self.assertLessEqual(box["top"], inner["top"], "%s.%s" % (mode, key))
+            self.assertGreaterEqual(box["right"], inner["right"], "%s.%s" % (mode, key))
+            self.assertGreaterEqual(box["bottom"], inner["bottom"], "%s.%s" % (mode, key))
 
     def test_the_interior_is_tucked_under_solid_brass_on_every_side(self):
         """No world shows between the backing and the frame's inner edge."""
         from PIL import Image
         g = make_art.planner_geometry_lua()
-        for mode in ("wide", "tall"):
-            alpha = Image.open(make_art.SOURCE / ("planner-frame-%s.png" % mode)).convert("RGBA").getchannel("A")
-            w, h = alpha.size
-            box = g[mode]["interior"]
-            left, top = round(box["left"] * w), round(box["top"] * h)
-            right, bottom = round(box["right"] * w), round(box["bottom"] * h)
-            beyond = {"left": (left - 3, top, left, bottom), "right": (right, top, right + 3, bottom),
-                      "top": (left, top - 3, right, top), "bottom": (left, bottom, right, bottom + 3)}
-            for side, crop in beyond.items():
-                pixels = list(alpha.crop(crop).getdata())
-                solid = sum(1 for value in pixels if value > 200) / len(pixels)
-                self.assertGreaterEqual(solid, 0.99, "%s %s: only %.1f%% solid brass beyond the backing"
-                                        % (mode, side, 100 * solid))
+        mode = "wide"
+        alpha = Image.open(make_art.SOURCE / ("planner-frame-%s.png" % mode)).convert("RGBA").getchannel("A")
+        w, h = alpha.size
+        box = g[mode]["interior"]
+        left, top = round(box["left"] * w), round(box["top"] * h)
+        right, bottom = round(box["right"] * w), round(box["bottom"] * h)
+        beyond = {"left": (left - 3, top, left, bottom), "right": (right, top, right + 3, bottom),
+                  "top": (left, top - 3, right, top), "bottom": (left, bottom, right, bottom + 3)}
+        for side, crop in beyond.items():
+            pixels = list(alpha.crop(crop).getdata())
+            solid = sum(1 for value in pixels if value > 200) / len(pixels)
+            self.assertGreaterEqual(solid, 0.99, "%s %s: only %.1f%% solid brass beyond the backing"
+                                    % (mode, side, 100 * solid))
 
     def test_the_interior_never_escapes_the_frame(self):
         """A flood fill that leaked through a seam would swallow the canvas."""
         g = make_art.planner_geometry_lua()
-        for mode in ("wide", "tall"):
-            box = g[mode]["interior"]
-            self.assertGreater(box["left"], 0.02, mode)
-            self.assertGreater(box["top"], 0.02, mode)
-            self.assertLess(box["right"], 0.98, mode)
-            self.assertLess(box["bottom"], 0.98, mode)
+        mode = "wide"
+        box = g[mode]["interior"]
+        self.assertGreater(box["left"], 0.02, mode)
+        self.assertGreater(box["top"], 0.02, mode)
+        self.assertLess(box["right"], 0.98, mode)
+        self.assertLess(box["bottom"], 0.98, mode)
 
 
 if __name__ == "__main__":
