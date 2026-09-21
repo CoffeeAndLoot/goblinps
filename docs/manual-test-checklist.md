@@ -144,7 +144,7 @@ Restart the game first: the TOC changed.
 - [ ] Drag the window by its body: it follows the mouse from where you
       grabbed it, no jump, no Lua error
 - [x] `/gps selftest` ends "Self-test passed."; record any FAIL line here.
-      **2026-09-20: passed, and it answered the question plan 6 (the route
+      **2026-09-20: passed, and it answered the question plan 7 (the route
       strip) was waiting on.** All five dash textures reported `ok`, so this
       client loads the power-of-two TGAs `tools/make_art.py` writes from the
       PNG sources. The remaining 34 art parts can ship the same way; no BLP
@@ -381,6 +381,13 @@ not ones already seen on screen.
       fix an ambiguous draw order against that brass)
 - [ ] From, To and Here sit in their openings, and the end caps on the boxes
       and buttons are not squashed or stretched
+- [ ] Type into From and To: the typed text AND the grey placeholder are both
+      readable against the `input-box` art. Only the client can answer this --
+      the art arrived after the text colours were chosen. If either washes
+      out, say which and against which part of the box
+- [ ] Hover a button and then hold the mouse down on it: the art lights
+      (`button-hover`) and then presses (`button-pressed`), and a disabled GO
+      does neither
 - [ ] Typing in either box drops the results list over the screen, and it
       covers what it drops over rather than hiding behind it
 - [ ] The screen's scenery fills its opening without looking stretched;
