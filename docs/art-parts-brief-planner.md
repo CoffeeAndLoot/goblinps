@@ -11,6 +11,41 @@ is not asking you to start over. It asks for **one new file** — a geometry
 file — and for answers to a handful of places where the mockup and the working
 window disagree.
 
+## Answered, 2026-09-20 — see `images/parts/QUESTIONS.md`
+
+Codex delivered `planner-geometry.json` (both layouts, 17 keys each), a
+generator `build_planner_geometry.py` that reproduces it, and six proof
+previews. Verified here, not taken on trust: the key sets match, every number
+is in 0..1, the canvases match the frames, the generator reproduces the file
+with an empty `git diff`, and **every content box sits at 0% opaque frame
+pixels** — all of them inside the interior opening, none on the brass.
+
+All four design questions answered, and `_planner-wide-geometry-assembled.png`
+shows the nine homeless widgets with homes: the Tall toggle upper left, gear
+and close upper right, From / Here / To / dropdown on one row, the strip in the
+screen, a numbered scrolling step list beside it with detail lines, the total
+and the amber hint in the footer, GO bottom right. He also agreed the window
+should be `650x416` and `384x600`.
+
+**Three things that will bite the implementer, recorded here so they do not:**
+
+1. **`tools_button` is an alias of `close_button`, not a second control.** The
+   rects are byte-identical in both layouts (checked). There is no wrench
+   action — `close.png` *is* the crossed-wrench X. Building a widget per
+   geometry key would put two buttons in one socket.
+2. **`screen-backdrop` does not stack.** The dash trained us that layers share
+   a canvas corner to corner; this one is an independent insert, scaled to
+   cover `screen`, centre-cropped and clipped to that rectangle. Losing
+   scenery at the sides is intended — it is wallpaper.
+3. **`canvas` is in pixels.** It is the one exception to the 0..1 rule, and a
+   validator that does not special-case it will reject a correct file.
+
+Still ours: scrolling and selection sync between the strip and the step list,
+settings behaviour, live text, texture sizing, and frame-size timing. No
+in-game check has been done on any of it.
+
+---
+
 Read `docs/art-parts-brief-dash.md` first if you have not. Everything it says
 about shared canvases, materials and light applies here unchanged. This brief
 only covers what is different.
