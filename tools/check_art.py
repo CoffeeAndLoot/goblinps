@@ -258,6 +258,49 @@ def geometry_holds():
     return problems
 
 
+# Keys whose content is drawn straight onto the frame with nothing of its own
+# behind it -- the map, the scrollable step list, the search overlay, the
+# route strip and the two live-text line slots -- so they must land on the
+# frame's real cut-out, or the text prints on brass. Plates (title_plate,
+# tagline_plate) and controls (the buttons and the from/to boxes) each carry
+# their own opaque sprite that covers whatever the frame looks like beneath
+# them -- a name plate riveted to the brass crest, a button mounted on the
+# console -- so checking transparency under those would flag art that is
+# working exactly as drawn. Measured by hand: title_plate and tagline_plate
+# sit almost entirely on brass in both layouts, and layout_button sits on
+# brass in wide only; the six keys below sit at 0% opaque in both.
+PLANNER_INTERIOR_KEYS = {"screen", "side_panel", "results_list", "strip_track",
+                          "total_line", "hint_line"}
+
+
+def planner_geometry_holds():
+    """Every content box must sit inside the frame's interior opening.
+
+    Codex's own build script checks this and passes; checking it here too
+    means a later hand-edit of the geometry cannot slip past us.
+    """
+    import json
+    with open(PARTS / "planner-geometry.json", encoding="utf-8") as handle:
+        g = json.load(handle)
+    problems = []
+    frames = {"wide": "planner-frame-wide.png", "tall": "planner-frame-tall.png"}
+    for layout, filename in frames.items():
+        im = Image.open(PARTS / filename).convert("RGBA")
+        width, height = im.size
+        alpha = im.split()[3]
+        for key, rect in g[layout].items():
+            if key not in PLANNER_INTERIOR_KEYS:
+                continue
+            box = (int(rect["left"] * width), int(rect["top"] * height),
+                   int(rect["right"] * width), int(rect["bottom"] * height))
+            pixels = list(alpha.crop(box).getdata())
+            opaque = sum(1 for value in pixels if value > 200)
+            if opaque:
+                problems.append("{0}.{1}: {2} opaque frame pixels under it".format(
+                    layout, key, opaque))
+    return problems
+
+
 def main() -> int:
     if not PARTS.is_dir():
         print("no", PARTS, "- nothing delivered yet")
@@ -284,6 +327,11 @@ def main() -> int:
         print("PROBLEM  dash2-geometry.json")
         print("         -", problem)
         failed.append(("dash2-geometry.json", []))
+
+    for problem in planner_geometry_holds():
+        print("PROBLEM  planner-geometry.json")
+        print("         -", problem)
+        failed.append(("planner-geometry.json", []))
 
     extra = sorted(p.name for p in PARTS.glob("*.png")
                    if p.name not in SPEC and not p.name.startswith("_"))

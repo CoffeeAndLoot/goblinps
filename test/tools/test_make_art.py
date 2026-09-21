@@ -205,5 +205,46 @@ class TestShippedCompass(unittest.TestCase):
                                msg="the ring is off centre top to bottom; it would orbit as it turns")
 
 
+class TestPlannerGeometry(unittest.TestCase):
+    def test_planner_geometry_reaches_the_addon_whole(self):
+        """Both layouts, the same keys, and every number still normalised."""
+        import tools.make_art as make_art
+        g = make_art.planner_geometry_lua()
+        self.assertIn("wide", g)
+        self.assertIn("tall", g)
+        self.assertEqual(set(g["wide"]) - {"canvas"}, set(g["tall"]) - {"canvas"})
+        self.assertEqual(g["wide"]["canvas"], {"w": 1600, "h": 1024})
+        self.assertEqual(g["tall"]["canvas"], {"w": 1024, "h": 1600})
+        for layout in ("wide", "tall"):
+            for key, box in g[layout].items():
+                if key == "canvas":
+                    continue
+                for edge, value in box.items():
+                    self.assertGreaterEqual(value, 0.0, "{0}.{1}.{2}".format(layout, key, edge))
+                    self.assertLessEqual(value, 1.0, "{0}.{1}.{2}".format(layout, key, edge))
+
+    def test_planner_geometry_drops_the_tools_alias(self):
+        """tools_button is close_button under another name.
+
+        Codex shipped it for schema compatibility and said plainly: never draw
+        it twice. A key that must not be instantiated has no business reaching
+        the addon, where somebody will wire it to a second button sitting
+        exactly on top of Close.
+        """
+        import tools.make_art as make_art
+        g = make_art.planner_geometry_lua()
+        self.assertNotIn("toolsButton", g["wide"])
+        self.assertIn("closeButton", g["wide"])
+
+    def test_planner_geometry_names_are_camel_case(self):
+        import tools.make_art as make_art
+        g = make_art.planner_geometry_lua()
+        for key in g["wide"]:
+            self.assertNotIn("_", key, "{0} still carries the file's underscores".format(key))
+        self.assertIn("fromBox", g["wide"])
+        self.assertIn("strip", g)
+        self.assertIn("nodeDiameter", g["strip"])
+
+
 if __name__ == "__main__":
     unittest.main()

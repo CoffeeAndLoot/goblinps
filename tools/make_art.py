@@ -14,6 +14,7 @@ GoblinPS/Data/Art.lua and are read by the UI; nothing hand-types them.
 Run from anywhere: python tools/make_art.py
 """
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +25,7 @@ SOURCE = ROOT / "images" / "parts"
 MEDIA = ROOT / "GoblinPS" / "Media"
 TABLE = ROOT / "GoblinPS" / "Data" / "Art.lua"
 GEOMETRY = SOURCE / "dash2-geometry.json"
+PLANNER_GEOMETRY = SOURCE / "planner-geometry.json"
 
 # Half the compass crop, in source pixels. The ring's radius is 262, so this
 # clears it with margin and still fits inside the 1024x1280 canvas.
@@ -176,6 +178,61 @@ def geometry_lua():
     }
 
 
+def planner_geometry():
+    with open(PLANNER_GEOMETRY, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+# Keys the addon should never see. tools_button is a byte-identical alias of
+# close_button, shipped for schema compatibility with an explicit instruction
+# not to draw it twice; letting it through would invite a second button sitting
+# exactly on top of Close.
+PLANNER_DROP = {"tools_button"}
+
+
+def _camel(name):
+    """from_box -> fromBox, close_button -> closeButton, total_line -> totalLine.
+
+    Nothing is stripped. An earlier draft dropped the trailing _button and
+    _line as noise, which turned close_button into close and layout_button into
+    layout -- and "layout" beside a variable already called `mode` reads as the
+    wrong thing entirely. Converting and nothing else means a key in the
+    artist's file and a key in the addon differ by exactly one rule.
+    """
+    head, _, tail = name.partition("_")
+    while tail:
+        head = head + tail[:1].upper() + tail[1:].partition("_")[0]
+        tail = tail.partition("_")[2]
+    return head
+
+
+def planner_geometry_lua():
+    """The planner's placement numbers, as plain fractions.
+
+    Everything Planner.lua positions comes from here. The addon never
+    hand-types a coordinate, so a change in the art reaches the layout by
+    regenerating this file rather than by editing Lua.
+    """
+    g = planner_geometry()
+    out = {}
+    for layout in ("wide", "tall"):
+        source = g[layout]
+        # canvas is source pixels, the one exception to the 0..1 rule.
+        box = {"canvas": {"w": source["canvas"][0], "h": source["canvas"][1]}}
+        for key, rect in source.items():
+            if key == "canvas" or key in PLANNER_DROP:
+                continue
+            box[_camel(key)] = dict(rect)
+        out[layout] = box
+    strip = g["strip"]
+    out["strip"] = {
+        "nodeDiameter": strip["node_diameter"],
+        "lineThickness": strip["line_thickness"],
+        "labelGap": strip["label_gap"],
+    }
+    return out
+
+
 def lua_value(v, indent):
     pad = " " * indent
     if isinstance(v, dict):
@@ -212,7 +269,9 @@ def main():
         print("{0}: {1}x{2} on {3}x{4}, {5:.0f} KB".format(
             part.name, part.width, part.height, cw, ch, size / 1024))
     text = HEADER + "\n".join(rows) + "\n}\n"
-    text += "\nns.Data.ArtGeometry = {0}\n".format(lua_value(geometry_lua(), 0))
+    art_geometry = geometry_lua()
+    art_geometry["planner"] = planner_geometry_lua()
+    text += "\nns.Data.ArtGeometry = {0}\n".format(lua_value(art_geometry, 0))
     TABLE.write_text(text, encoding="utf-8")
     print("wrote {0}".format(TABLE))
     print("{0} textures, {1:.2f} MB total".format(len(PARTS), total / 1024 / 1024))
