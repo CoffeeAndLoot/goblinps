@@ -873,6 +873,202 @@ return function(h)
         end)
     end)
 
+    h.describe("the route strip", function()
+        local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
+        local amber, dim = ns.Widgets.COLOR.amber, ns.Widgets.COLOR.dim
+        local function art(name) return MEDIA .. ns.Data.Art[name].file end
+        local function pickTo(text)
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, text)
+            Fake.Click(ui.results.rows[1])
+            return ui
+        end
+        local function track()
+            local ui = Planner.Debug()
+            local g, s = ns.Data.ArtGeometry.planner.wide, ns.Data.ArtGeometry.planner.strip
+            local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
+            return { left = g.stripTrack.left * w, right = g.stripTrack.right * w,
+                     cy = (g.stripTrack.top + g.stripTrack.bottom) / 2 * fh,
+                     ring = s.nodeDiameter * w, thick = s.lineThickness * w }
+        end
+        local function near(a, b) return math.abs(a - b) < 0.01 end
+
+        h.it("draws one badge per stop, wearing how you get there", function()
+            if not Planner.Debug().frame:IsShown() then
+                SlashCmdList.GOBLINPS("")
+            end
+            local ui = pickTo("delt")
+            h.truthy(ui.strip:IsShown())
+            local want = { "icon-horde", "icon-ride", "icon-flight", "icon-ride", "icon-zeppelin",
+                           "node-destination" }
+            for i, name in ipairs(want) do
+                local b = ui.strip.badges[i]
+                h.truthy(b and b:IsShown(), "badge " .. i)
+                h.eq(b.art:GetTexture(), art(name), "badge " .. i)
+            end
+        end)
+
+        h.it("puts each badge where the layout says, in real pixels", function()
+            local ui, t = Planner.Debug(), track()
+            for i = 1, 6 do
+                local b = ui.strip.badges[i]
+                local p = b.points[1]
+                h.eq(p[1], "CENTER")
+                h.truthy(p[2] == ui.frame, "measured from the window, which has a real size")
+                h.truthy(near(p[4], t.left + (i - 1) / 5 * (t.right - t.left)), "badge " .. i .. " x")
+                h.truthy(near(p[5], -t.cy), "badge " .. i .. " y")
+                h.truthy(near(b:GetWidth(), t.ring * 1.5), "the sprite is 1.5 times the visible ring")
+                h.eq(b:GetWidth(), b:GetHeight())
+            end
+        end)
+
+        h.it("joins the stops with a solid first leg and dashed after, tiled not stretched", function()
+            local ui, t = Planner.Debug(), track()
+            local length = (t.right - t.left) / 5
+            for i = 1, 5 do
+                local line = ui.strip.legs[i].line
+                h.eq(line:GetTexture(), art(i == 1 and "line-solid" or "line-dashed"), "leg " .. i)
+                h.eq(line.wrapH, "REPEAT", "a dash keeps its length on any leg")
+                local part = ns.Data.Art["line-dashed"]
+                h.truthy(near(line.texCoord[2], length / (t.thick * part.cw / part.ch)),
+                         "one tile per line-box times the part's own aspect")
+                h.truthy(near(line:GetWidth(), length))
+                h.truthy(near(line:GetHeight(), t.thick))
+                h.truthy(near(line.points[1][4], t.left + (i - 1) * length), "starts at its badge's centre")
+                local dot = ui.strip.legs[i].dot
+                h.eq(dot:GetTexture(), art("line-dot"))
+                h.truthy(near(dot.points[1][4], t.left + (i - 0.5) * length), "the dot sits mid-leg")
+            end
+        end)
+
+        h.it("draws the line under the badges and the strip above the screen's fills", function()
+            local ui = Planner.Debug()
+            h.truthy(ui.strip.legs[1].line.parent == ui.strip, "the line is the strip's own texture")
+            h.truthy(ui.strip.badges[1].parent == ui.strip, "each badge is a child frame over it")
+            h.truthy(ui.strip.badges[1]:GetFrameLevel() > ui.strip:GetFrameLevel())
+            h.truthy(ui.strip.parent == ui.screen, "and the strip is a child of the opaque screen")
+            h.truthy(ui.strip:GetFrameLevel() > ui.screen:GetFrameLevel())
+        end)
+
+        h.it("names the stops while there is room, each name bounded", function()
+            local ui = Planner.Debug()
+            h.eq(ui.strip.badges[1].label:GetText(), "You are here")
+            h.eq(ui.strip.badges[2].label:GetText(), "Alpha")
+            for i = 1, 6 do
+                local label = ui.strip.badges[i].label
+                h.truthy(label:IsShown(), "91.8 px between stops is more than two 39 px rings")
+                h.eq(#label.points, 2, "two horizontal anchors, so it truncates")
+                h.eq(label.wordWrap, false)
+            end
+        end)
+
+        h.it("drops every name into the tooltips when the stops crowd", function()
+            local ui, state = Planner.Debug()
+            local saved = state.plan
+            local steps = {}
+            for i = 1, 8 do
+                steps[i] = { kind = "ride", to = { name = "Stop " .. i }, seconds = 60, copper = 0 }
+            end
+            state.plan = { to = { name = "Stop 8" }, notes = {}, level = 60,
+                           result = { steps = steps, seconds = 480, copper = 0 } }
+            Planner.Refresh()
+            for i = 1, 9 do
+                h.truthy(ui.strip.badges[i]:IsShown(), "every stop still shows")
+                h.falsy(ui.strip.badges[i].label:IsShown(), "57 px between stops: names go")
+            end
+            state.plan = saved
+            Planner.Refresh()
+            h.falsy(ui.strip.badges[7]:IsShown(), "a shorter route hides the spare badges")
+            h.falsy(ui.strip.badges[7].label:IsShown())
+            h.falsy(ui.strip.legs[6].line:IsShown(), "and the spare legs")
+            h.falsy(ui.strip.legs[6].dot:IsShown())
+        end)
+
+        h.it("shows a stop's lines on hover and puts them away on leave", function()
+            local ui = Planner.Debug()
+            local b = ui.strip.badges[3]
+            b.scripts.OnEnter(b)
+            h.truthy(GameTooltip.owner == b)
+            h.truthy(GameTooltip:IsShown())
+            h.eq(GameTooltip.lines[1].text, "Fly to Bravo")
+            h.eq(GameTooltip.lines[2].text, "~4 min")
+            b.scripts.OnLeave(b)
+            h.falsy(GameTooltip:IsShown())
+        end)
+
+        h.it("turns a hazard's detail amber and names it on the warning line", function()
+            local ui = pickTo("hotel")
+            local b = ui.strip.badges[2]
+            b.scripts.OnEnter(b)
+            h.eq(GameTooltip.lines[1].text, "Ride to the North Gate")
+            h.eq(GameTooltip.lines[3].text, "into Northland · trolls on the bridge")
+            h.eq(GameTooltip.lines[3].color[1], amber[1])
+            h.eq(GameTooltip.lines[3].color[2], amber[2])
+            h.eq(GameTooltip.lines[3].color[3], amber[3])
+            local last = ui.strip.badges[3]
+            last.scripts.OnEnter(last)
+            h.eq(GameTooltip.lines[3].text, "in Northland · level 30-40")
+            h.eq(GameTooltip.lines[3].color[1], dim[1], "level 60 in a 30-40 zone is no warning")
+            GameTooltip:Hide()
+            h.eq(ui.hint:GetText(), "the North Gate: into Northland · trolls on the bridge")
+        end)
+
+        h.it("wears the boot and says Walk for a low-level character", function()
+            level = 1
+            local ui = pickTo("hotel")
+            local b = ui.strip.badges[2]
+            h.eq(b.art:GetTexture(), art("icon-walk"))
+            b.scripts.OnEnter(b)
+            h.eq(GameTooltip.lines[1].text, "Walk to the North Gate")
+            GameTooltip:Hide()
+            level = 60
+        end)
+
+        h.it("says so on the tooltip when the crossings table has a hole", function()
+            local ui = pickTo("lostland")
+            local b = ui.strip.badges[2]
+            b.scripts.OnEnter(b)
+            h.eq(GameTooltip.lines[1].text, "Ride toward Lostland (no mapped path)")
+            h.eq(#GameTooltip.lines, 2, "a straight line has no zone detail")
+            GameTooltip:Hide()
+        end)
+
+        h.it("keeps a readable strip when a badge's art will not load", function()
+            local ui = pickTo("delt")
+            Fake.missingTextures[art("icon-flight")] = true
+            Planner.Refresh()
+            h.eq(ui.strip.badges[3].art:GetTexture(), art("node-ring"), "the plain ring stands in")
+            Fake.missingTextures[art("node-ring")] = true
+            Planner.Refresh()
+            h.falsy(ui.strip.badges[3].art:IsShown())
+            h.truthy(ui.strip.badges[3].flat:IsShown(), "and failing that, a flat marker")
+            Fake.missingTextures[art("icon-flight")] = nil
+            Fake.missingTextures[art("node-ring")] = nil
+            Planner.Refresh()
+            h.truthy(ui.strip.badges[3].art:IsShown())
+            h.falsy(ui.strip.badges[3].flat:IsShown())
+        end)
+
+        h.it("draws no strip without a route", function()
+            local ui = pickTo("westland")
+            h.falsy(ui.strip:IsShown(), "you're already there: words, not a strip")
+            h.truthy(ui.notes:IsShown())
+            pickTo("delt")
+            h.truthy(ui.strip:IsShown())
+        end)
+
+        h.it("W.ShowTooltip colours every line after the first, amber for a warning", function()
+            local owner = CreateFrame("Button", nil, UIParent)
+            W.ShowTooltip(owner, { { text = "Ride to X" }, { text = "~2 min" },
+                                   { text = "careful", amber = true } })
+            h.eq(GameTooltip.anchor, "ANCHOR_TOP")
+            h.eq(GameTooltip.lines[1].color, nil, "the first line keeps the tooltip's own title colour")
+            h.eq(GameTooltip.lines[2].color[1], dim[1])
+            h.eq(GameTooltip.lines[3].color[1], amber[1])
+            GameTooltip:Hide()
+        end)
+    end)
+
     h.describe("ground steps in chat", function()
         h.it("prints the detail under each step in chat too", function()
             local from = #printed

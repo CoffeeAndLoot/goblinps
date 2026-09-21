@@ -25,7 +25,7 @@ local ALLOWED_NOOP = {
     SetTextInsets = true, SetMaxLetters = true, SetAutoFocus = true, EnableMouse = true,
     SetMovable = true, SetClampedToScreen = true, RegisterForDrag = true, RegisterForClicks = true,
     StartMoving = true, StopMovingOrSizing = true,
-    SetHighlightTexture = true, RegisterEvent = true, SetOwner = true, AddLine = true,
+    SetHighlightTexture = true, RegisterEvent = true,
     SetHorizTile = true, SetVertTile = true,
 }
 
@@ -197,9 +197,12 @@ function Region:GetFrameLevel()
     return self.parent and (self.parent:GetFrameLevel() + 1) or 0
 end
 
--- The real SetTexture returns a documented success bool.
-function Region:SetTexture(path)
+-- The real SetTexture returns a documented success bool. The two wrap modes
+-- are recorded: a line that TILES along its leg needs "REPEAT", and a test
+-- must be able to tell a tiled texture from a stretched one.
+function Region:SetTexture(path, wrapH, wrapV)
     self.texture = path
+    self.wrapH, self.wrapV = wrapH, wrapV
     return path ~= nil and not Fake.missingTextures[path]
 end
 function Region:GetTexture() return self.texture end
@@ -243,7 +246,18 @@ function Fake.Install()
     _G.UIParent = new("Frame")
     _G.Minimap = new("Frame")
     _G.Minimap.width = 140
-    _G.GameTooltip = new("GameTooltip")
+    -- The one tooltip the client shares. SetOwner starts a fresh tooltip, as
+    -- the real one does, and each line is kept with its colour so a test can
+    -- read what the player would.
+    local tip = new("GameTooltip")
+    tip.lines = {}
+    function tip.SetOwner(self, owner, anchor)
+        self.owner, self.anchor, self.lines = owner, anchor, {}
+    end
+    function tip.AddLine(self, text, r, g, b)
+        self.lines[#self.lines + 1] = { text = text, color = r and { r, g, b } or nil }
+    end
+    _G.GameTooltip = tip
     _G.UISpecialFrames = {}
     _G.GetCursorPosition = function() return 150, 100 end
     _G.SlashCmdList = {}

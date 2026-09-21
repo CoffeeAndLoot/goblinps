@@ -334,4 +334,21 @@ function Widgets.UpdatePlaceholder(editBox)
     editBox.placeholder:SetShown(editBox:GetText() == "")
 end
 
+-- One tooltip for a thing on screen, from plain { text, amber } lines. The
+-- first line is the tooltip's title and keeps the client's own colour; every
+-- line after is dim, or amber for a warning. Blizzard's shared GameTooltip,
+-- not a template: SetOwner, AddLine and Show are on build 1.60.1.69913 and
+-- Blizzard's own UI calls them throughout. The minimap button keeps its own.
+function Widgets.ShowTooltip(owner, lines)
+    GameTooltip:SetOwner(owner, "ANCHOR_TOP")
+    for i, line in ipairs(lines) do
+        if i == 1 then
+            GameTooltip:AddLine(line.text)
+        else
+            GameTooltip:AddLine(line.text, rgb(line.amber and "amber" or "dim"))
+        end
+    end
+    GameTooltip:Show()
+end
+
 return Widgets

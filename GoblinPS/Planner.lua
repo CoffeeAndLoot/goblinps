@@ -28,6 +28,140 @@ local function geo()
     return g and g.wide
 end
 
+-- The badge art is a 128 px ring on a 192 px canvas, and the geometry's
+-- nodeDiameter is the RING, so the whole sprite is 1.5 times it. Size from
+-- the ring alone and every stop draws a third too small.
+local SPRITE = 1.5
+
+-- The strip's measurements in real pixels, all read off the window: it is
+-- the frame given an explicit SetSize, so measuring it is legal.
+local function stripMetrics(g)
+    local s = ns.Data.ArtGeometry.planner.strip
+    local w, h = ui.frame:GetWidth(), ui.frame:GetHeight()
+    return { left = g.stripTrack.left * w, right = g.stripTrack.right * w,
+             cy = (g.stripTrack.top + g.stripTrack.bottom) / 2 * h,
+             ring = s.nodeDiameter * w, thick = s.lineThickness * w, gap = s.labelGap * w,
+             screenLeft = g.screen.left * w, screenRight = g.screen.right * w }
+end
+
+-- Badges and legs are pooled: made the first time a route needs that many,
+-- reused after, hidden when a shorter route needs fewer.
+local function badge(i)
+    local b = ui.strip.badges[i]
+    if b then
+        return b
+    end
+    b = CreateFrame("Button", nil, ui.strip)
+    b.flat = b:CreateTexture(nil, "BACKGROUND")
+    b.flat:SetPoint("CENTER")
+    local c = W.COLOR.brass
+    b.flat:SetColorTexture(c[1], c[2], c[3], 1)
+    b.art = b:CreateTexture(nil, "ARTWORK")
+    b.art:SetAllPoints(b)
+    b.label = W.Text(ui.strip, "green", nil, "CENTER")
+    b:SetScript("OnEnter", function(self) W.ShowTooltip(self, self.stop.tooltip) end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    ui.strip.badges[i] = b
+    return b
+end
+
+local function leg(i)
+    local l = ui.strip.legs[i]
+    if not l then
+        -- On the strip itself, so the badges -- child frames -- cover their ends.
+        l = { line = ui.strip:CreateTexture(nil, "BORDER"), dot = ui.strip:CreateTexture(nil, "ARTWORK") }
+        ui.strip.legs[i] = l
+    end
+    return l
+end
+
+-- A badge wears its part; failing that the plain ring; failing that a flat
+-- marker the size of the ring. The strip must read with no art at all.
+local function wear(b, name)
+    for _, try in ipairs({ name, "node-ring" }) do
+        local part = ns.Data.Art and ns.Data.Art[try]
+        if part and b.art:SetTexture(MEDIA .. part.file) then
+            b.art:SetTexCoord(part.l, part.r, part.t, part.b)
+            b.art:Show()
+            b.flat:Hide()
+            return
+        end
+    end
+    b.art:Hide()
+    b.flat:Show()
+end
+
+-- A line part TILES along its leg at its own aspect, so a dash keeps its
+-- length on a short leg and a long one alike; only the last tile is cut.
+-- One tile is the line box's height times the part's width over its height.
+-- That needs the part shipped unpadded -- its crop the whole texture -- as
+-- planner-panel is, since tiling a padded part repeats the padding. Padded
+-- or missing, the leg falls back to a flat green stroke a quarter of the
+-- box: the glow box itself, filled solid, would read as a bar.
+local function drawLine(t, name, length, thick)
+    local part = ns.Data.Art and ns.Data.Art[name]
+    local whole = part and part.l == 0 and part.r == 1 and part.t == 0 and part.b == 1
+    if whole and t:SetTexture(MEDIA .. part.file, "REPEAT", "CLAMP") then
+        t:SetTexCoord(0, length / (thick * part.cw / part.ch), 0, 1)
+        t:SetHeight(thick)
+    else
+        local c = W.COLOR.green
+        t:SetColorTexture(c[1], c[2], c[3], 1)
+        t:SetHeight(thick / 4)
+    end
+end
+
+local function drawStrip(layout, m)
+    local span = m.right - m.left
+    local function at(x) return m.left + x * span end
+    local sprite = m.ring * SPRITE
+    for i, stop in ipairs(layout.stops) do
+        local b, x = badge(i), at(stop.x)
+        b.stop = stop
+        b:SetSize(sprite, sprite)
+        b:ClearAllPoints()
+        b:SetPoint("CENTER", ui.frame, "TOPLEFT", x, -m.cy)
+        b.flat:SetSize(m.ring, m.ring)
+        wear(b, stop.badge)
+        b:Show()
+        -- Half the space to the next stop either side, never off the glass.
+        local half = math.min(layout.spacing / 2, x - m.screenLeft, m.screenRight - x)
+        local top = -(m.cy + m.ring / 2 + m.gap)
+        b.label:ClearAllPoints()
+        b.label:SetPoint("TOPLEFT", ui.frame, "TOPLEFT", x - half, top)
+        b.label:SetPoint("TOPRIGHT", ui.frame, "TOPLEFT", x + half, top)
+        b.label:SetText(stop.label)
+        b.label:SetShown(layout.labels)
+    end
+    for i = #layout.stops + 1, #ui.strip.badges do
+        ui.strip.badges[i]:Hide()
+        ui.strip.badges[i].label:Hide()
+    end
+    for i, lg in ipairs(layout.legs) do
+        local l = leg(i)
+        local x1, x2 = at(layout.stops[lg.from].x), at(layout.stops[lg.to].x)
+        l.line:ClearAllPoints()
+        l.line:SetPoint("LEFT", ui.frame, "TOPLEFT", x1, -m.cy)
+        l.line:SetWidth(x2 - x1)
+        drawLine(l.line, lg.style == "solid" and "line-solid" or "line-dashed", x2 - x1, m.thick)
+        l.line:Show()
+        local dot = ns.Data.Art and ns.Data.Art["line-dot"]
+        l.dot:ClearAllPoints()
+        l.dot:SetPoint("CENTER", ui.frame, "TOPLEFT", at(lg.mid), -m.cy)
+        l.dot:SetSize(m.thick, m.thick)
+        if dot and l.dot:SetTexture(MEDIA .. dot.file) then
+            l.dot:SetTexCoord(dot.l, dot.r, dot.t, dot.b)
+            l.dot:Show()
+        else
+            l.dot:Hide()   -- decoration: the strip reads without it
+        end
+    end
+    for i = #layout.legs + 1, #ui.strip.legs do
+        ui.strip.legs[i].line:Hide()
+        ui.strip.legs[i].dot:Hide()
+    end
+end
+
 -- Lay a shipped part over `parent`, cropping the power-of-two padding away.
 -- Returns nil when the part is missing or the texture will not load, and every
 -- caller uses that: a missing texture must leave a working window.
@@ -55,14 +189,25 @@ function Planner.Refresh()
     local plan = state.plan
     local steps = plan and plan.result and plan.result.steps or {}
     local routed = #steps > 0
+    local g = geo()
+    local layout
+    if plan and routed and g then
+        local m = stripMetrics(g)
+        layout = ns.Strip.Layout(ns.Data, steps, { faction = ns.Core.Faction(), level = plan.level,
+                                                   trackWidth = m.right - m.left, badgeWidth = m.ring })
+        drawStrip(layout, m)
+    end
+    ui.strip:SetShown(layout ~= nil)
     local notes = plan and table.concat(plan.notes, "  ") or ""
     local total, hint = "", ""
     if plan and routed then
         total = ns.Route.FormatTime(plan.result.seconds) .. " · " .. ns.Route.FormatMoney(plan.result.copper)
         -- One amber line under the strip. What the player must know first
-        -- wins: a note about the route itself, then a flight path worth
-        -- discovering. (Task 4 puts the level warning ahead of both.)
-        if notes ~= "" then
+        -- wins: a stop in a dangerous place, then a note about the route
+        -- itself, then a flight path worth discovering.
+        if layout and layout.warning then
+            hint = layout.warning
+        elseif notes ~= "" then
             hint = notes
         elseif plan.hint then
             hint = ns.Route.HintText(plan.hint)
@@ -496,6 +641,15 @@ local function build()
         backdrop = nil
     end
 
+    -- The route strip, a child of the screen so it draws over the screen's
+    -- opaque fills and its scenery -- the invisible-backdrop fault was exactly
+    -- a picture under an opaque panel. Its badges and legs are placed against
+    -- the window, which has a real size, by drawStrip.
+    local strip = CreateFrame("Frame", nil, screen)
+    strip:SetAllPoints(screen)
+    strip.badges, strip.legs = {}, {}
+    strip:Hide()
+
     -- Four lines, all on the screen so they draw over its scenery (a string on
     -- `content` would sit under the screen, which is content's child). notes
     -- and known are the idle status lines and give way to the route; total
@@ -544,7 +698,7 @@ local function build()
            titlePlate = titlePlate, taglinePlate = taglinePlate, title = title, tagline = tagline,
            close = close, gear = gear, dropdown = dropdown, backdrop = backdrop, panelArt = panelArt,
            toBox = toBox, toSlice = toSlice, screen = screen, total = total, hint = hint,
-           notes = notes, known = known, go = go, results = results }
+           notes = notes, known = known, go = go, results = results, strip = strip }
     wireBox(toBox)
     f:SetScript("OnHide", hideResults)
     ns.Core.CloseOnEscape(f, "GoblinPSPlanner")
