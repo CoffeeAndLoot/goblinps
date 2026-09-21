@@ -60,6 +60,52 @@ function Widgets.Text(parent, color, fontObject, justify)
     return fs
 end
 
+-- ---- placement from a geometry table ----
+--
+-- Every one of these takes `device`: the frame with the explicit SetSize, and
+-- it must be. A frame sized only by SetAllPoints has NO resolved size until
+-- the client's layout pass runs, so GetWidth on one during build() answers 0.
+-- Every fraction would then be multiplied by nothing and the region would
+-- anchor twice to the same point. Seen in the client 2026-09-20: the dash's
+-- compass and arrow sat off the device and all six lines of text were
+-- invisible, while 257 tests passed. Measure and anchor the frame that was
+-- given a size, never one that inherits it.
+--
+-- `rect` is { left, top, right, bottom } in 0..1 with the origin at the top
+-- left, which is how both geometry files state every box.
+
+function Widgets.PlaceRect(region, device, rect)
+    local w, h = device:GetWidth(), device:GetHeight()
+    region:ClearAllPoints()
+    region:SetPoint("TOPLEFT", device, "TOPLEFT", rect.left * w, -rect.top * h)
+    region:SetPoint("BOTTOMRIGHT", device, "TOPLEFT", rect.right * w, -rect.bottom * h)
+end
+
+-- A *_line rect in the artist's files is a few pixels tall: a line for text to
+-- sit ON, not a box to fit text INTO -- the areas are named for what they are
+-- and are sized like areas. Anchoring corner to corner crushes the text into a
+-- box it cannot fit, so hang the FontString on the rect's vertical centre and
+-- let its font decide the height. Two horizontal anchors still, so the
+-- bounding rule holds and the line truncates rather than escaping.
+function Widgets.PlaceLine(fs, device, rect)
+    local w, h = device:GetWidth(), device:GetHeight()
+    local y = -(rect.top + rect.bottom) / 2 * h
+    fs:ClearAllPoints()
+    fs:SetPoint("LEFT", device, "TOPLEFT", rect.left * w, y)
+    fs:SetPoint("RIGHT", device, "TOPLEFT", rect.right * w, y)
+end
+
+-- `circ` is { cx, cy, r }. The radius is a fraction of the device's WIDTH on
+-- both layouts: a radius measured against two different axes stops being a
+-- circle, which is the rule that saved the dash's compass.
+function Widgets.PlaceCircle(region, device, circ)
+    local w, h = device:GetWidth(), device:GetHeight()
+    local side = circ.r * 2 * w
+    region:SetSize(side, side)
+    region:ClearAllPoints()
+    region:SetPoint("CENTER", device, "TOPLEFT", circ.cx * w, -circ.cy * h)
+end
+
 function Widgets.Button(parent, text, width, height, onClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(width, height)

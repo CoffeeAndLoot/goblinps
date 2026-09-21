@@ -89,37 +89,6 @@ local function geometry()
     return ns.Data.ArtGeometry
 end
 
--- Sit a line of text on the artist's line, as a fraction of `parent`. `rect`
--- is { left, top, right, bottom } in 0..1 with the origin at the top left,
--- which is how the artist's file states every box.
---
--- Every rect handed to this is a LINE, not an area: `destination_line` and
--- `distance_line` say so in their names, and the three step lines and the
--- ETA are single lines cut out of their panels. A line's rect is 6 to 21 px
--- tall on this device, far under the height the client's fonts draw at, so
--- anchoring corner to corner would crush the text into a box it cannot fit.
--- Instead the FontString is hung on the rect's vertical centre line and left
--- to take whatever height its font needs. Two horizontal anchors still, so
--- the bounding rule holds and the line truncates rather than escaping.
--- Anything that is genuinely an area is a texture and fills its own frame;
--- nothing in this file places one through here, and a future one must not
--- borrow this helper -- its name says line, and it means it.
---
--- `device` is the frame with the explicit SetSize, and it must be: a frame
--- sized only by SetAllPoints has NO resolved size until the client's layout
--- pass runs, so GetWidth on one during build() answers 0. Every fraction
--- here would then be multiplied by nothing and the line would anchor twice
--- to the same point -- a FontString of zero width, which draws nothing at
--- all. Seen in the client 2026-09-20: all six lines blank. Measure and
--- anchor the frame that was given a size, never one that inherits it.
-local function placeLine(fs, device, rect)
-    local w, h = device:GetWidth(), device:GetHeight()
-    local y = -(rect.top + rect.bottom) / 2 * h
-    fs:ClearAllPoints()
-    fs:SetPoint("LEFT", device, "TOPLEFT", rect.left * w, y)
-    fs:SetPoint("RIGHT", device, "TOPLEFT", rect.right * w, y)
-end
-
 local function build()
     -- Bare on purpose. A texture created on this frame could only be taken
     -- off screen by hiding the frame, which is the one thing that must never
@@ -181,7 +150,7 @@ local function build()
         region:SetSize(side, side)
         region:ClearAllPoints()
         -- `f`, not `artLayer`: artLayer is sized by SetAllPoints and so has no
-        -- resolved size during build(). See placeLine's note.
+        -- resolved size during build(). See Widgets.PlaceLine's note.
         region:SetPoint("CENTER", f, "TOPLEFT",
                         dial.x * f:GetWidth(), -dial.y * f:GetHeight())
     end
@@ -231,8 +200,8 @@ local function build()
     local destination = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     local distance = W.Text(content, "green", "GameFontNormalLarge", "CENTER")
     if g then
-        placeLine(destination, f, g.destination)
-        placeLine(distance, f, g.distance)
+        W.PlaceLine(destination, f, g.destination)
+        W.PlaceLine(distance, f, g.distance)
     else
         -- Only reached when the generated geometry is absent: a plain
         -- vertical stack down the middle of the frame, not a placed layout.
@@ -253,7 +222,7 @@ local function build()
     if g then
         local box, third = g.stepsText, (g.stepsText.bottom - g.stepsText.top) / 3
         for i = 1, 3 do
-            placeLine(steps[i], f, {
+            W.PlaceLine(steps[i], f, {
                 left = box.left, right = box.right,
                 top = box.top + third * (i - 1), bottom = box.top + third * i,
             })
@@ -272,7 +241,7 @@ local function build()
     -- On its own plate: the time left.
     local eta = W.Text(content, "green", "GameFontNormalSmall", "CENTER")
     if g then
-        placeLine(eta, f, g.etaText)
+        W.PlaceLine(eta, f, g.etaText)
     else
         -- Only reached when the generated geometry is absent: the last line
         -- of the same vertical stack.

@@ -61,6 +61,7 @@ return function(h)
     GoblinPSDB, GoblinPSCharDB = nil, { known = { [1] = true, [2] = true, [4] = true } }
 
     local Planner = ns.Planner
+    local W = ns.Widgets
 
     h.describe("Widgets.ChatColor", function()
         h.it("matches the formula for the palette entry, in chat and in the window", function()
@@ -69,6 +70,67 @@ return function(h)
             local expect = ("|cff%02x%02x%02x"):format(
                 math.floor(dim[1] * 255 + 0.5), math.floor(dim[2] * 255 + 0.5), math.floor(dim[3] * 255 + 0.5))
             h.eq(ns.Widgets.ChatColor("dim"), expect)
+        end)
+    end)
+
+    h.describe("the shared placement helpers", function()
+        local function device(w, h2)
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(w, h2)
+            return f
+        end
+
+        h.it("places a rectangle corner to corner from the device's top left", function()
+            local f = device(200, 100)
+            local t = f:CreateTexture(nil, "ARTWORK")
+            W.PlaceRect(t, f, { left = 0.1, top = 0.2, right = 0.6, bottom = 0.7 })
+            h.eq(#t.points, 2, "two corners fully place a region")
+            h.eq(t.points[1][1], "TOPLEFT")
+            h.eq(t.points[1][3], "TOPLEFT", "offsets are from the device's corner")
+            h.truthy(math.abs(t.points[1][4] - 20) < 0.01, "left 0.1 of 200")
+            h.truthy(math.abs(t.points[1][5] + 20) < 0.01, "top 0.2 of 100, downward")
+            h.eq(t.points[2][1], "BOTTOMRIGHT")
+            h.truthy(math.abs(t.points[2][4] - 120) < 0.01, "right 0.6 of 200")
+            h.truthy(math.abs(t.points[2][5] + 70) < 0.01, "bottom 0.7 of 100")
+        end)
+
+        h.it("hangs a line on its rect's centre, letting the font set the height", function()
+            -- The artist's *_line rects are a few pixels tall: slots to sit on,
+            -- not boxes to fit in. Anchoring one corner to corner crushes the
+            -- text into a box it cannot fit.
+            local f = device(200, 100)
+            local fs = W.Text(f, "green")
+            W.PlaceLine(fs, f, { left = 0.1, top = 0.4, right = 0.9, bottom = 0.44 })
+            h.eq(#fs.points, 2, "two horizontal anchors, so it still truncates")
+            h.eq(fs.points[1][1], "LEFT")
+            h.eq(fs.points[2][1], "RIGHT")
+            h.truthy(math.abs(fs.points[1][5] + 42) < 0.01, "centre of 0.40..0.44 of 100")
+            h.eq(fs.points[1][5], fs.points[2][5], "both ends sit on one line")
+        end)
+
+        h.it("makes a circle square and sizes it from the device's width", function()
+            -- A radius measured against two different axes stops being a
+            -- circle. Width, always, on both layouts.
+            local f = device(200, 100)
+            local t = f:CreateTexture(nil, "ARTWORK")
+            W.PlaceCircle(t, f, { cx = 0.5, cy = 0.25, r = 0.1 })
+            h.eq(t:GetWidth(), t:GetHeight(), "a circle is drawn on a square")
+            h.truthy(math.abs(t:GetWidth() - 40) < 0.01, "2 * 0.1 * 200")
+            h.eq(t.points[1][1], "CENTER")
+            h.truthy(math.abs(t.points[1][4] - 100) < 0.01)
+            h.truthy(math.abs(t.points[1][5] + 25) < 0.01)
+        end)
+
+        h.it("never reads a size from a frame that only inherits one", function()
+            -- The fault that reached the client on 2026-09-20. A frame sized
+            -- by SetAllPoints has no resolved size until the layout pass, so
+            -- every fraction would be multiplied by nothing.
+            local f = device(200, 100)
+            local child = CreateFrame("Frame", nil, f)
+            child:SetAllPoints(f)
+            local fs = W.Text(child, "green")
+            W.PlaceLine(fs, f, { left = 0.1, top = 0.4, right = 0.9, bottom = 0.44 })
+            h.truthy(fs.points[1][4] > 0, "measured the device, not the child")
         end)
     end)
 
