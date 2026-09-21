@@ -526,6 +526,42 @@ return function(h)
             end
         end)
 
+        h.it("keeps the tiled backing off the chassis's own ornament", function()
+            -- boundingBox unioned EVERY rect in the geometry, and the two
+            -- plates are riveted to the chassis -- the brass crest at the top,
+            -- the rail at the bottom -- rather than set into the opening. So
+            -- the tile stretched over both, and planner-panel is fully opaque
+            -- and drawn on artLayer at "BACKGROUND" AFTER frameArt on that
+            -- same frame and layer, which means over it: the inner brass
+            -- border on all four sides, both corner lamps and the bottom rail
+            -- all disappeared under it. The artist's note for this part reads
+            -- "tile behind contents, clipped to interior opening; no exterior
+            -- background".
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.panelArt, "the panel backing exists")
+            for _, mode in ipairs({ "wide", "tall" }) do
+                ns.Planner.ApplyLayout(mode)
+                local g = ns.Data.ArtGeometry.planner[mode]
+                local w, frameH = ui.frame:GetWidth(), ui.frame:GetHeight()
+                local top = -ui.panelArt.points[1][5] / frameH
+                local bottom = -ui.panelArt.points[2][5] / frameH
+                h.truthy(top > g.titlePlate.top + 0.001,
+                         mode .. ": the tile climbed onto the brass crest, top is " .. tostring(top))
+                h.truthy(bottom < g.taglinePlate.bottom - 0.001,
+                         mode .. ": the tile reached the bottom rail, bottom is " .. tostring(bottom))
+                -- Shrinking it must not cost the openings it exists to back.
+                local left = ui.panelArt.points[1][4] / w
+                local right = ui.panelArt.points[2][4] / w
+                for _, rect in ipairs({ g.screen, g.sidePanel }) do
+                    h.truthy(left <= rect.left + 0.001 and top <= rect.top + 0.001
+                             and right >= rect.right - 0.001 and bottom >= rect.bottom - 0.001,
+                             mode .. ": the tile must still cover every opening")
+                end
+            end
+            ns.Planner.ApplyLayout("wide")
+        end)
+
         h.it("gives a stretched control fixed end caps", function()
             -- One button part draws at 65 px for Here and 135 for GO. A single
             -- stretched texture squashes the caps at one width and stretches
@@ -542,42 +578,59 @@ return function(h)
                      "the middle is anchored between the caps, so it takes the slack")
         end)
 
-        h.it("re-measures a three-slice's end caps when the control is resized", function()
-            -- Stretch3 sizes the caps from the control's height at BUILD time,
-            -- and ApplyLayout then re-anchors every control corner to corner
-            -- from the geometry, changing that height. A cap measured once is
-            -- squashed from the first layout onwards, and again on every
-            -- switch between wide and tall.
+        h.it("sizes a three-slice's end caps from the height it is handed, never the frame's", function()
+            -- Restretch3 takes the height as an argument on purpose. Once
+            -- ApplyLayout has re-anchored a control corner to corner, that
+            -- control ONLY INHERITS its size, and this project's oldest rule
+            -- says never measure such a frame: GetHeight answers the stale
+            -- explicit size until the client's layout pass, and answers 0 if
+            -- there never was one. So the caller works the height out the same
+            -- way PlaceRect works its offsets out -- from the geometry and the
+            -- frame that really was given a size.
             local f = CreateFrame("Frame", nil, UIParent)
             f:SetSize(200, 40)
             local slice = W.Stretch3(f, "button", 0.25, 1.0)
             h.eq(slice.left:GetWidth(), 40, "the cap starts at the build-time height")
-            f:SetSize(300, 80)                  -- what ApplyLayout's two anchors do in the client
-            W.Restretch3(f)
-            h.eq(slice.left:GetWidth(), 80, "the left cap tracks the new height")
-            h.eq(slice.right:GetWidth(), 80, "and so does the right")
+            W.Restretch3(f, 33.75)              -- the geometry's height, not the frame's 40
+            h.eq(slice.left:GetWidth(), 33.75, "the left cap takes the height it was handed")
+            h.eq(slice.right:GetWidth(), 33.75, "and so does the right")
+            h.falsy(W.Restretch3(CreateFrame("Frame", nil, UIParent), 20),
+                    "a control with no slice answers false rather than erroring")
         end)
 
-        h.it("re-applies a three-sliced control's caps on every layout", function()
+        h.it("sizes every three-sliced control's caps from its own rect, in both layouts", function()
+            -- The fault this pins: Restretch3 was wired in correctly and
+            -- changed no number, because it measured the control -- which by
+            -- then only inherited its size. Every cap stayed at its build-time
+            -- width in both layouts: GO drew 24 where the wide geometry
+            -- implies 32.50 and the tall 33.75, `here` 20 against 30.06, the
+            -- two boxes 28.75 against 43.22, the layout button 18 against
+            -- 22.34. Asserting through ApplyLayout with nothing set by hand is
+            -- the only way to see that; a test that sets the height itself
+            -- proves only that ApplyLayout made the call.
             ns.Planner.Toggle()
-            ns.Planner.ApplyLayout("wide")
             local ui = ns.Planner.Debug()
-            local slice = ui.go.slice
-            h.truthy(slice, "GO carries a three-slice")
-            local was = ui.go:GetHeight()
-            -- The client resolves GO's height from the two anchors ApplyLayout
-            -- sets; the fake resolves no size from anchors, so stand in for
-            -- the layout pass by setting the height the tall geometry implies
-            -- before asking for that layout. capAspect is 1, so a correct cap
-            -- is exactly as wide as the control is tall.
-            local g = ns.Data.ArtGeometry.planner.tall
-            local height = (g.goButton.bottom - g.goButton.top) * ns.Planner.SIZE.tall[2]
-            ui.go:SetHeight(height)
-            ns.Planner.ApplyLayout("tall")
-            h.truthy(math.abs(slice.left:GetWidth() - height) < 0.001,
-                     "ApplyLayout must re-measure the caps of the control it just resized: cap is "
-                     .. tostring(slice.left:GetWidth()) .. ", control height is " .. tostring(height))
-            ui.go:SetHeight(was)
+            for _, mode in ipairs({ "wide", "tall" }) do
+                ns.Planner.ApplyLayout(mode)
+                local g = ns.Data.ArtGeometry.planner[mode]
+                local frameH = ui.frame:GetHeight()
+                local checks = { { ui.layoutButton, g.layoutButton, "layoutButton" },
+                                 { ui.here, g.hereButton, "here" },
+                                 { ui.go, g.goButton, "go" },
+                                 { ui.fromBox, g.fromBox, "fromBox" },
+                                 { ui.toBox, g.toBox, "toBox" } }
+                for _, check in ipairs(checks) do
+                    local slice, rect, name = check[1].slice, check[2], check[3]
+                    h.truthy(slice, mode .. ": " .. name .. " carries no three-slice")
+                    local want = (rect.bottom - rect.top) * frameH * slice.capAspect
+                    for _, cap in ipairs({ { slice.left, "left" }, { slice.right, "right" } }) do
+                        h.truthy(math.abs(cap[1]:GetWidth() - want) < 0.01,
+                                 mode .. ": " .. name .. "'s " .. cap[2] .. " cap is "
+                                 .. tostring(cap[1]:GetWidth()) .. ", the geometry implies "
+                                 .. tostring(want))
+                    end
+                end
+            end
             ns.Planner.ApplyLayout("wide")
         end)
 

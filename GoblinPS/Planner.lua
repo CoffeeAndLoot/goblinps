@@ -248,17 +248,34 @@ local function coverCrop(texture, part, boxW, boxH)
     end
 end
 
+-- The two keys that live ON the chassis rather than in its opening: the title
+-- plate is riveted to the brass crest, the tagline plate to the bottom rail.
+-- Everything else in the geometry sits in the cut-out.
+local ON_THE_CHASSIS = { titlePlate = true, taglinePlate = true }
+
 -- The union rect of every placed area in this layout's geometry: minimum
 -- left and top, maximum right and bottom, over every key in `g` that has a
 -- `left` field (a rect; `canvas` is pixels, not a device fraction, and the
 -- circle keys have cx/cy/r instead, so both are skipped without naming
--- them). Used for the tiled panel backing, which sits behind every opening
--- rather than any one of them -- placed at the screen's own rect it would
--- sit exactly where screen-backdrop goes and never be seen.
+-- them) and is not ON_THE_CHASSIS. Used for the tiled panel backing, which
+-- sits behind every opening rather than any one of them: at the screen's own
+-- rect it would back the screen and leave the side panel on flat colour.
+--
+-- The two plates have to come out by name. planner-panel is fully opaque and
+-- is created on artLayer at "BACKGROUND" after frameArt on that same frame
+-- and layer, so it draws OVER the chassis -- and unioning the plates in
+-- stretched it across about 30% chassis in wide and 16% in tall, swallowing
+-- the inner brass border, both corner lamps and the bottom rail. The artist's
+-- note for this part reads "tile behind contents, clipped to interior
+-- opening; no exterior background". Excluding them leaves about 8.6% in wide
+-- (the crest's plate still overhangs the tile's top edge) and 0.0% in tall,
+-- measured against each frame PNG's alpha. A real
+-- `interior` rect would do better still, and belongs in a geometry delivery,
+-- not invented here.
 local function boundingBox(g)
     local box
     for key, rect in pairs(g) do
-        if key ~= "canvas" and type(rect) == "table" and rect.left then
+        if key ~= "canvas" and not ON_THE_CHASSIS[key] and type(rect) == "table" and rect.left then
             if not box then
                 box = { left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom }
             else
@@ -321,10 +338,20 @@ function Planner.ApplyLayout(mode)
         if ui.panelArt then
             W.PlaceRect(ui.panelArt, f, boundingBox(g))
         end
-        -- Every three-sliced control has just been re-anchored, so its height
-        -- has changed and its end caps were measured against the old one.
-        for _, control in ipairs({ ui.layoutButton, ui.here, ui.go, ui.fromBox, ui.toBox }) do
-            W.Restretch3(control)
+        -- Every three-sliced control has just been re-anchored corner to
+        -- corner, so its end caps were measured against the height it had
+        -- before. The new height CANNOT be read off the control: it only
+        -- inherits its size now. Work it out from the same two things
+        -- PlaceRect used -- the control's own rect and this frame, which was
+        -- given an explicit size at the top of ApplyLayout.
+        --
+        -- Pairs, not a flat list: `ipairs` over controls would stop dead at
+        -- the first nil and silently leave every later control's caps stale,
+        -- and each control needs its own rect in any case.
+        for _, pair in ipairs({ { ui.layoutButton, g.layoutButton }, { ui.here, g.hereButton },
+                                { ui.go, g.goButton }, { ui.fromBox, g.fromBox },
+                                { ui.toBox, g.toBox } }) do
+            W.Restretch3(pair[1], (pair[2].bottom - pair[2].top) * f:GetHeight())
         end
         if ui.backdrop then
             -- Placed by its parent, not by the geometry, but the crop still

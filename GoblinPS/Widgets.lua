@@ -164,31 +164,39 @@ function Widgets.Stretch3(parent, name, capFraction, capAspect)
     local slice = { left = left, middle = middle, right = right,
                     capFraction = capFraction, capAspect = capAspect, name = name }
     parent.slice = slice
-    Widgets.Restretch3(parent)
+    -- Legal to measure here and nowhere else: every caller builds its control
+    -- with an explicit SetSize (W.Button, W.EditBox) and three-slices it
+    -- before the layout has re-anchored anything, so this height is real.
+    Widgets.Restretch3(parent, parent:GetHeight())
     return slice
 end
 
--- Re-measure a three-slice's end caps against the control's CURRENT height:
+-- Re-size a three-slice's end caps for a control that is now `height` tall:
 -- the cap keeps the shape it was drawn at, so its drawn width is its own
 -- aspect times that height, and it never squashes.
 --
--- Stretch3 can only measure what the control was built at. ApplyLayout then
--- re-anchors every control corner to corner from the geometry, which changes
--- that height -- and changes it again on every switch between wide and tall.
--- A cap measured once is squashed in exactly the way three-slicing exists to
--- prevent, so the layout re-applies them after placing each control. Measured
--- on this branch before the fix: GO's cap drew 24 px where the geometry
--- implies 33.7.
+-- The height is an ARGUMENT, and it has to be. Stretch3 can only measure what
+-- the control was built at; ApplyLayout then re-anchors every control corner
+-- to corner from the geometry, and from that moment the control only INHERITS
+-- its size -- which is the one thing this file's placement rule (see the note
+-- above PlaceRect) says never to measure. GetHeight on such a frame answers
+-- the stale explicit size until the client's layout pass, and 0 where there
+-- never was one, so a Restretch3 that measured the frame would be wired in
+-- correctly and change no number at all. Measured before this was fixed: GO's
+-- cap drew 24 px in both layouts, where the wide geometry implies 32.50 and
+-- the tall 33.75. So the caller works the height out the same way PlaceRect
+-- works its offsets out: from the control's own rect and the frame that really
+-- was given a size.
 --
 -- Answers false rather than erroring for a control carrying no slice (its
 -- part was missing, and a missing texture must leave a working control), so
 -- the caller can call it unconditionally.
-function Widgets.Restretch3(frame)
+function Widgets.Restretch3(frame, height)
     local slice = frame and frame.slice
     if not (slice and slice.capAspect) then
         return false
     end
-    local width = frame:GetHeight() * slice.capAspect
+    local width = height * slice.capAspect
     slice.left:SetWidth(width)
     slice.right:SetWidth(width)
     return true

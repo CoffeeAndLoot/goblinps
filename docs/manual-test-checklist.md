@@ -381,6 +381,11 @@ not ones already seen on screen.
       fix an ambiguous draw order against that brass)
 - [ ] From, To and Here sit in their openings, and the end caps on the boxes
       and buttons are not squashed or stretched
+- [ ] Toggle Wide/Tall and look at those end caps AGAIN. A cap sized for one
+      layout and left there is the fault this is watching for, and it only
+      shows after a switch: the controls change height between the two shapes.
+      If a cap is right in one shape and squashed or stretched in the other,
+      the height ApplyLayout hands Restretch3 is wrong for that layout
 - [ ] Type into From and To: the typed text AND the grey placeholder are both
       readable against the `input-box` art. Only the client can answer this --
       the art arrived after the text colours were chosen. If either washes
