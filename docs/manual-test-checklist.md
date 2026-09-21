@@ -409,8 +409,8 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [x] Hover each badge: the step, its time, and its detail line where it has
       one; a zeppelin says it includes the wait
       (2026-09-21: "Walk to Orgrimmar Zeppelin Tower / ~4 min / in Durotar ·
-      level 1-10", title in gold, detail dim, above the badge. Zeppelin's wait
-      line not yet looked at)
+      level 1-10", title in gold, detail dim, above the badge. The zeppelin:
+      "Zeppelin to Undercity Zeppelin Tower / ~4 min / includes the average wait")
 - [ ] A long route (try a far city on the other continent) shows every stop;
       when they crowd, the names go and the tooltips still say everything
 - [ ] A leg into a zone above your level: its tooltip detail is amber and the
