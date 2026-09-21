@@ -156,6 +156,8 @@ comes off that list.
 
 ## Plan 8 — the planner rebuilt to the mockup
 
+Built 2026-09-21 -- not yet run in the client.
+
 ### The window
 
 One wide shape, 650x416, exactly the art's 25:16. Top to bottom:

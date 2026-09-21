@@ -14,7 +14,7 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 7 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 8 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
 crossings). Plan 4, the dash unit's first design, ran in the client twice on
 2026-09-20: the round art rendered as an oval (a square texture stretched
@@ -49,13 +49,11 @@ account-wide `GoblinPSDB.trips` so a `/reload` or logout resumes it --
 once the client loads saves, which build 1.60.1.69913 does not (see the
 SavedVariables rule below).
 **Plan 7 has not been run in the client**, for the same reason as plan 6
-above: verified in source is not verified in game. Next: plan 8, the planner
-rebuilt to the mockup, with the route strip in place of today's From/To/
-step-list window. Codex has already delivered plan 8's wide geometry, so the
-desk art tooling (8 Python tests, 6 `check_art.py` geometry checks) is red by
-design until plan 8 adapts it; the addon itself, built off the old geometry,
-is unaffected. A schematic world map was dropped on 2026-09-20 in favour
-of the strip; the spike that proved it feasible is kept at
+above: verified in source is not verified in game. Plan 8, built 2026-09-21,
+rebuilt the planner to the mockup: one search box, the route strip drawn by
+the pure `Strip.lua`, a tooltip on every stop, wide only. **Plan 8 has not
+been run in the client.** A schematic world map was dropped on 2026-09-20 in
+favour of the strip; the spike that proved it feasible is kept at
 `docs/research/schematic-spike/`. The product is a GPS: point to point with
 an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`, amended for plans 7
@@ -79,6 +77,7 @@ GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
+GoblinPS/Strip.lua           # pure: the route strip as data -- badges, spacing, tooltips, solid/dashed legs
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences
 GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
@@ -90,8 +89,8 @@ GoblinPS/Travel.lua          # pure: walk or ride by level; the ONLY place mount
 GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates; owns the
                               # shared placement helpers (PlaceRect, PlaceLine, PlaceCircle) and the Stretch3
                               # three-slice stretcher that both windows read their geometry through
-GoblinPS/Planner.lua         # the window; one set of widgets, ApplyLayout moves them; no coordinate is
-                              # hand-typed here -- every position comes from ns.Data.ArtGeometry.planner
+GoblinPS/Planner.lua         # the window; draws Strip.lua's layout and decides nothing; no coordinate
+                              # is hand-typed here -- every position comes from ns.Data.ArtGeometry.planner.wide
 GoblinPS/Dash.lua            # the small draggable device shown when GO closes the planner; arrow, distance, ETA
 GoblinPS/Data/Art.lua        # GENERATED: texture coordinates AND placement geometry (ns.Data.ArtGeometry) for
                               # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json
