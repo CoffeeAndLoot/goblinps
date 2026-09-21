@@ -438,6 +438,36 @@ return function(h)
                      "2.5:1 scenery in a wider-than-tall-but-not-2.5 opening loses width")
         end)
 
+        h.it("crops the backdrop by the shipped canvas's aspect, not the master PNG's", function()
+            -- screen-backdrop's master PNG is 1600x640 (aspect 2.5), but it
+            -- ships at 512x205 padded to a 512x256 canvas (aspect 2.4976).
+            -- Close, not equal -- and using the master's pixel size instead
+            -- of the shipped canvas's still lands a crop that is centred and
+            -- inside bounds (the test above stays green either way), just
+            -- the wrong SIZE: it trims about 15% a side instead of about 7%.
+            -- Centredness cannot catch that; only the magnitude can.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local part = ns.Data.Art["screen-backdrop"]
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
+            local boxW = (g.screen.right - g.screen.left) * w
+            local boxH = (g.screen.bottom - g.screen.top) * fh
+            local span = part.r - part.l
+            local tall = part.b - part.t
+            -- The correct domain: part.cw/part.ch are the padded canvas's own
+            -- pixel size (what l/r/t/b are fractions OF), never the pre-scale
+            -- master's.
+            local partAspect = (part.cw * span) / (part.ch * tall)
+            local boxAspect = boxW / boxH
+            local wantKeep = span * (boxAspect / partAspect)
+            local l, r = unpack(ui.backdrop.texCoord)
+            h.truthy(math.abs((r - l) - wantKeep) < 0.001,
+                     "trimmed span must match the shipped canvas's aspect: got "
+                     .. tostring(r - l) .. ", wanted " .. tostring(wantKeep))
+        end)
+
         h.it("tiles the panel backing behind every opening, not just the screen", function()
             -- Codex's placement note: "tile behind contents, clipped to
             -- interior opening." At exactly g.screen the tile would sit
@@ -499,6 +529,8 @@ return function(h)
             local enabledPart = ns.Data.Art["button"]
             h.eq(slice.left:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file,
                  "re-enabling swaps the art back")
+            h.eq(slice.middle:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file)
+            h.eq(slice.right:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file)
         end)
 
         h.it("leaves a stretched button's art alone when button-disabled will not load", function()

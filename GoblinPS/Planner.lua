@@ -215,12 +215,26 @@ end
 -- l..r of its texture, so the cover-crop takes a centred sub-range of THAT,
 -- never of 0..1. Getting this backwards crops the padding instead of the art.
 --
+-- The part's own aspect has to come from `cw`/`ch`, the padded canvas
+-- make_art.py actually shipped -- NOT the pre-scale master PNG's size. l/r/t/b
+-- are fractions of that shipped canvas, so mixing them with the master's
+-- pixel size mixes two coordinate domains and crops the wrong amount while
+-- staying centred and in bounds, which is exactly why that is easy to miss.
+-- screen-backdrop's master is 1600x640 (aspect 2.5) but it ships at 512x205
+-- padded to 512x256 (aspect 2.4976): close, not equal, and the padding shifts
+-- it further still on a part whose canvas isn't square.
+--
 -- screen-backdrop is decorative scenery, not a map. Losing its sides is
--- intended.
-local function coverCrop(texture, part, partW, partH, boxW, boxH)
+-- intended. If the part carries no cw/ch (an older or hand-edited table),
+-- this leaves the texture's coordinates alone rather than compute a crop
+-- from nil.
+local function coverCrop(texture, part, boxW, boxH)
+    if not (part.cw and part.ch) then
+        return
+    end
     local span = part.r - part.l
     local tall = part.b - part.t
-    local partAspect = (partW * span) / (partH * tall)
+    local partAspect = (part.cw * span) / (part.ch * tall)
     local boxAspect = boxW / boxH
     if partAspect > boxAspect then
         -- The art is wider than the opening: keep a centred slice of width.
@@ -311,7 +325,7 @@ function Planner.ApplyLayout(mode)
             W.PlaceRect(ui.backdrop, f, g.screen)
             local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
             if backdropPart then
-                coverCrop(ui.backdrop, backdropPart, 1600, 640,
+                coverCrop(ui.backdrop, backdropPart,
                           (g.screen.right - g.screen.left) * f:GetWidth(),
                           (g.screen.bottom - g.screen.top) * f:GetHeight())
             end

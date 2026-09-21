@@ -140,6 +140,12 @@ function Widgets.Stretch3(parent, name, capFraction, capAspect)
     local function piece(l, r)
         local t = parent:CreateTexture(nil, "ARTWORK")
         if not t:SetTexture(path) then
+            -- Only some pieces failing is possible in principle (they share
+            -- one path today, but a future part could give caps and middle
+            -- different files), and an unhidden, unanchored leftover region
+            -- is exactly the kind of thing "a missing texture must leave a
+            -- working control" is supposed to rule out.
+            t:Hide()
             return nil
         end
         t:SetTexCoord(l, r, part.t, part.b)
@@ -179,8 +185,16 @@ local function reslice(slice, part)
     -- SetTexture takes hold of the region even when it reports failure (a
     -- missing file draws blank, it does not keep the old picture), so a
     -- half-failed swap has to be put back by hand rather than left alone.
+    -- All three calls are made unconditionally, not `and`-chained: today the
+    -- three pieces always share one path and so always succeed or fail
+    -- together, but the moment caps and middle come from different files, an
+    -- `and` chain would short-circuit after the first failure and never even
+    -- attempt the rest.
     local prevLeft, prevMiddle, prevRight = slice.left:GetTexture(), slice.middle:GetTexture(), slice.right:GetTexture()
-    if not (slice.left:SetTexture(path) and slice.middle:SetTexture(path) and slice.right:SetTexture(path)) then
+    local okLeft = slice.left:SetTexture(path)
+    local okMiddle = slice.middle:SetTexture(path)
+    local okRight = slice.right:SetTexture(path)
+    if not (okLeft and okMiddle and okRight) then
         slice.left:SetTexture(prevLeft)
         slice.middle:SetTexture(prevMiddle)
         slice.right:SetTexture(prevRight)
