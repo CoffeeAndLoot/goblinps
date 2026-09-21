@@ -69,7 +69,12 @@ function SelfTest.Run(say)
     for _, check in ipairs(ns.API.SelfCheck()) do
         report(check.present, "api " .. check.name)
     end
-    say("flight paths learned: " .. ns.Core.KnownCount())
+    -- Name the character the paths are filed under. With no name the store is
+    -- a throwaway table and nothing learned would survive a reload, which must
+    -- be loud rather than read as "learned: 0".
+    local who = ns.API.CharacterKey()
+    report(who ~= nil, "character key " .. tostring(who))
+    say("flight paths learned: " .. ns.Core.KnownCount() .. (who and (" for " .. who) or ""))
 
     say(failed == 0 and "Self-test passed." or ("Self-test: " .. failed .. " failed."))
     return failed == 0

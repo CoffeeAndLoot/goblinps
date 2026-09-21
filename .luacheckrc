@@ -8,7 +8,7 @@ globals = {
 }
 read_globals = {
     "print",
-    "UnitFactionGroup", "GetBindLocation", "UnitLevel",
+    "UnitFactionGroup", "GetBindLocation", "UnitLevel", "UnitName", "GetRealmName",
     "GetPlayerFacing", "UnitOnTaxi",
     "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint",
     "CreateFrame", "Enum",

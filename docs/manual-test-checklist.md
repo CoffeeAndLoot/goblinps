@@ -359,6 +359,21 @@ turns that test red. That is the prompt to update this table, not a bug.
 - [ ] Teldrassil still needs the boat; a Darnassus character leaves by "the
       Darnassus gate"
 
+## Flight paths survive a reload
+
+Fixed 2026-09-21. This build writes per-character saves and never loads
+them, so learned paths were forgotten on every reload until a flight master's
+map taught them again. They now live in the account-wide save under the
+character's name.
+
+- [ ] Open a flight master's map, then `/reload`, then open `/gps` **without**
+      visiting a flight master: it says "Flight paths known: N", not "No
+      flight paths yet"
+- [ ] `/gps selftest` prints "flight paths learned: N for <Name>-<Realm>"
+      naming this character, and reports `ok` for the character key
+- [ ] Log in a second character: it knows none of the first one's paths
+- [ ] Log back into the first: its paths are still there
+
 ## Planner window art (plan 6)
 
 First run in the client 2026-09-21, in front of a plain sky set up so any gap

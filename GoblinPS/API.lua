@@ -27,6 +27,19 @@ function API.Level()
     return UnitLevel and UnitLevel("player") or nil
 end
 
+-- "Name-Realm" for the character logged in, or nil when the client cannot say
+-- yet. The key flight paths are filed under in the account-wide save. Both
+-- calls answered in the client 2026-09-21 ("Coffee Issues", "Classic Beta PvE
+-- 2") -- note a name can hold a space on this build.
+function API.CharacterKey()
+    local name = UnitName and UnitName("player")
+    local realm = GetRealmName and GetRealmName()
+    if type(name) ~= "string" or name == "" or type(realm) ~= "string" or realm == "" then
+        return nil
+    end
+    return name .. "-" .. realm
+end
+
 -- Which way the player faces, in radians: 0 north, growing counter-clockwise.
 -- Documented Nilable, and it has no answer in some places, so callers must
 -- cope with nil by hiding the arrow rather than pointing it somewhere wrong.

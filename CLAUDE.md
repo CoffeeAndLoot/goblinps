@@ -170,13 +170,24 @@ commit; re-read files before editing.
   dead on build 1.60.1.69913 (false for every node, verified in game), so the
   only truthful moment is `TAXIMAP_OPENED`, when `C_TaxiMap.GetAllTaxiNodes`
   marks each node current, reachable or unreachable. `Known.Learn` adds the
-  flyable ones to `GoblinPSCharDB.known` (per character). That store only
-  ever grows and is never edited by hand or by any other code path. If a
-  later build fixes `isUndiscovered`, switch back to the live read.
+  flyable ones to `GoblinPSDB.known["Name-Realm"]` -- the **account-wide**
+  save, one table per character, keyed by `API.CharacterKey()`. That store
+  only ever grows and is never edited by hand or by any other code path. If
+  a later build fixes `isUndiscovered`, switch back to the live read.
 - **On this build, an API being present says nothing about whether it
   answers.** Two so far return nothing useful for every input:
   `isUndiscovered` (false for every node) and `C_Map.GetMapLevels` (no range
-  for any of the 60 zones). Both are present, both are documented, and
+  for any of the 60 zones). A third is a whole feature:
+  **`## SavedVariablesPerCharacter` is written and never loaded.** Verified
+  2026-09-21: the client rewrites the per-character file on every reload, and
+  right after the reload that table is `nil` while the file on disk holds the
+  data. Every character tested has a two-word name, and the account folder
+  holds two realm directories side by side (`70/` for saves,
+  `Classic Beta PvE 2/` with the names cut off at the space), so the cause is
+  likely in how this beta names per-character folders -- but that is a
+  guess, and the fix does not depend on it: keep per-character data in the
+  account-wide save, under the character's key. GoblinPS declares no
+  per-character variable at all. Both are present, both are documented, and
   `/gps selftest` reports both `ok` — because `ok` there means the function
   exists, not that it works. So: any probe that reads an API across many
   inputs must **count its answers and say plainly when there are none**,

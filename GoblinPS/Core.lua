@@ -14,17 +14,30 @@ Core.Say = say
 
 -- ---- saved variables; looked up lazily because they load after this file ----
 
--- This character's discovered flight paths, learned at flight masters.
-local function knownStore()
-    GoblinPSCharDB = GoblinPSCharDB or {}
-    GoblinPSCharDB.known = GoblinPSCharDB.known or {}
-    return GoblinPSCharDB.known
-end
-
 -- Account-wide preferences.
 local function prefs()
     GoblinPSDB = Prefs.Init(GoblinPSDB)
     return GoblinPSDB
+end
+
+-- This character's discovered flight paths, learned at flight masters, kept in
+-- the ACCOUNT-wide save under "Name-Realm". Not in per-character
+-- SavedVariables: verified in the client 2026-09-21, this build writes those
+-- to disk and never loads them back, so every reload forgot every path until a
+-- flight master's map taught them again. See Prefs.lua.
+local function knownStore()
+    local key = API.CharacterKey()
+    if not key then
+        -- The client cannot yet say who is logged in. Hand back a table that
+        -- is never saved rather than file paths under a key that is not this
+        -- character's.
+        return {}
+    end
+    local all = prefs().known
+    if type(all[key]) ~= "table" then
+        all[key] = {}
+    end
+    return all[key]
 end
 
 function Core.KnownCount() return Known.Count(knownStore()) end

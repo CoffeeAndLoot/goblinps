@@ -19,6 +19,23 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
   folders; not confirmed by the client).
 - No flying. Ground mounts and the built-in transport network only. Blizzard
   intends to grow the game "horizontally" rather than by expansions.
+- **`SavedVariablesPerCharacter` is written and never loaded** (verified in
+  game 2026-09-21, character "Coffee Issues" on realm "Classic Beta PvE 2").
+  After a `/reload`, before any GoblinPS window opened,
+  `/run print(GoblinPSCharDB, GoblinPSDB)` printed `nil` for the
+  per-character table and a table for the account-wide one -- while the
+  per-character file on disk, rewritten by that same reload, held the two
+  learned flight paths. The account-wide save round-trips; the per-character
+  one does not. The account folder holds two realm directories created in the
+  same minute: `70/` (where every per-character save is written, Blizzard's
+  own included, under folders like `Coffee-Issues`) and
+  `Classic Beta PvE 2/` (holding only `AddOns.txt`, under folders cut off at
+  the space: `Coffee`). Every character tested has a two-word name, so the
+  likely cause is how this beta names per-character folders -- **unconfirmed**,
+  and nothing depends on it. GoblinPS now keeps learned flight paths in the
+  account-wide save under `"Name-Realm"` and declares no per-character
+  variable. That makes three things on this client that are present and do
+  not work.
 - **`C_Map.GetMapLevels` is DEAD on this build** (verified in game
   2026-09-20). `/gps probe zones` asked it for all 60 zones and it answered
   for **none**. It is present — `/gps selftest` reports it `ok` — and it is

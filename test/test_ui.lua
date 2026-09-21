@@ -21,6 +21,8 @@ return function(h)
     local level = 60 -- mounted, so ground steps say Ride
     ---@type number|nil, boolean, function[]
     local facing, onTaxi, tripCallbacks = 0, false, {}
+    -- Who is logged in, and the nodes an open flight master's map reports.
+    local character, openNodes, taxiCallbacks = "Tester-Test Realm", {}, {}
     -- What the client claims each zone's level range is, for /gps probe zones.
     -- All four cases the command has to tell apart: Westland (1) matches
     -- Data.Zones, Northland (4) disagrees with it, Isle (3) and Eastland (2)
@@ -42,8 +44,9 @@ return function(h)
         PlayerMapPosition = function() return where.map, where.mx, where.my end,
         HearthBindName = function() return nil end,
         TaxiNodes = function() return {} end,
-        OpenTaxiNodes = function() return {} end,
-        OnTaxiMapOpened = function() end,
+        OpenTaxiNodes = function() return openNodes end,
+        OnTaxiMapOpened = function(callback) taxiCallbacks[#taxiCallbacks + 1] = callback end,
+        CharacterKey = function() return character end,
         OnLogin = function(callback) loginCallbacks[#loginCallbacks + 1] = callback end,
         PlayerFacing = function() return facing end,
         OnTaxi = function() return onTaxi end,
@@ -58,7 +61,10 @@ return function(h)
                             "Widgets", "Planner", "Dash", "MinimapButton", "SelfTest", "Core" }) do
         assert(loadfile("GoblinPS/" .. file .. ".lua"))("GoblinPS", ns)
     end
-    GoblinPSDB, GoblinPSCharDB = nil, { known = { [1] = true, [2] = true, [4] = true } }
+    -- Flight paths live in the account-wide save, one table per character.
+    -- GoblinPSCharDB is nil because that is exactly what the client hands back:
+    -- verified 2026-09-21, it writes the per-character save and never loads it.
+    GoblinPSDB, GoblinPSCharDB = { known = { [character] = { [1] = true, [2] = true, [4] = true } } }, nil
 
     local Planner = ns.Planner
     local W = ns.Widgets
@@ -1946,6 +1952,51 @@ return function(h)
             end)
             ns.Data.Art.malformed = nil
             h.truthy(ok, err)
+        end)
+    end)
+
+    h.describe("remembering flight paths", function()
+        -- A reload as this client performs it: the account-wide save comes
+        -- back through a real serialise-and-load, the per-character one does
+        -- not come back at all.
+        local function reload()
+            local function copy(t)
+                if type(t) ~= "table" then return t end
+                local out = {}
+                for k, v in pairs(t) do out[k] = copy(v) end
+                return out
+            end
+            GoblinPSDB, GoblinPSCharDB = copy(GoblinPSDB), nil
+        end
+
+        h.it("learns at a flight master into the account-wide save, under this character", function()
+            openNodes = { { nodeID = 3, name = "Gamma", flyable = true } }
+            h.eq(#taxiCallbacks, 1, "Core listens for the flight master's map")
+            taxiCallbacks[1]()
+            openNodes = {}
+            h.truthy(GoblinPSDB.known and GoblinPSDB.known[character] and GoblinPSDB.known[character][3],
+                     "the new path is filed under this character in the account save")
+            h.eq(ns.Core.KnownCount(), 4)
+        end)
+
+        h.it("still knows them after a reload that drops the per-character save", function()
+            -- Seen in the client 2026-09-21: right after a reload the planner
+            -- said "No flight paths yet" while the save on disk held two, and
+            -- only a flight master's map brought them back -- because this
+            -- build writes per-character saves and never loads them.
+            reload()
+            h.eq(ns.Core.KnownCount(), 4, "a reload must not forget what a flight master taught")
+            h.eq(GoblinPSCharDB, nil, "and nothing relies on the per-character save coming back")
+        end)
+
+        h.it("keeps each character's flight paths apart", function()
+            -- Discovery is per character in the game, so a new character on
+            -- the same account knows none of the first one's paths.
+            character = "Other-Test Realm"
+            h.eq(ns.Core.KnownCount(), 0, "a second character starts with nothing")
+            character = "Tester-Test Realm"
+            h.eq(ns.Core.KnownCount(), 4, "and the first keeps its own")
+            GoblinPSDB.known[character][3] = nil -- leave the fixture as the other tests found it
         end)
     end)
 
