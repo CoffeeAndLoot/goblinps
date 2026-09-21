@@ -265,8 +265,20 @@ end
 -- tint, so this also repoints the slice at the shipped "<name>-disabled"
 -- part -- or leaves it showing whatever it already did if that part is
 -- missing or will not load.
+-- A button's label takes the colour of what it sits on: steel on the flat
+-- brass face, green on the dark glass of the shipped button art, dim whenever
+-- the button is disabled. Seen in the client 2026-09-21: Tall, Here and GO
+-- kept the steel meant for the brass face, dark text on dark glass, and could
+-- not be read.
+local function paintLabel(button, enabled)
+    if button.label then
+        button.label:SetTextColor(rgb(not enabled and "dim" or (button.slice and "green" or "steel")))
+    end
+end
+
 function Widgets.SetButtonEnabled(button, enabled)
     button:SetEnabled(enabled)
+    paintLabel(button, enabled)
     local r, g, b = rgb(enabled and "brass" or "dim")
     button.face:SetColorTexture(r, g, b, 1)
     local slice = button.slice
@@ -291,6 +303,7 @@ end
 -- Hover and pressed art for a three-sliced button. OnMouseUp goes back to
 -- hover, not to the plain part: the cursor is still on the button.
 function Widgets.WireButtonArt(button)
+    paintLabel(button, button:IsEnabled())
     button:SetScript("OnEnter", function(self) buttonState(self, "hover") end)
     button:SetScript("OnLeave", function(self) buttonState(self, nil) end)
     button:SetScript("OnMouseDown", function(self) buttonState(self, "pressed") end)

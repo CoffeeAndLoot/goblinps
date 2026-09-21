@@ -18,7 +18,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "images" / "parts"
@@ -206,6 +206,74 @@ def _camel(name):
     return head
 
 
+# How the frame's opening is measured. These are tolerances of the measurement,
+# not coordinates: a pixel counts as brass at alpha 16 and as solid brass above
+# 200; hairline seams are sealed by growing the brass SEAL pixels before the
+# fill; and each side of the opening is pushed outward, at most REACH pixels,
+# until the BAND pixels beyond it are SOLID percent solid brass.
+FRAME_BRASS, FRAME_SOLID = 16, 200
+SEAL, BAND, SOLID, REACH = 2, 3, 0.99, 60
+
+
+def frame_interior(layout, screen):
+    """The frame's clear opening, as fractions of its canvas.
+
+    The tiled panel backing draws UNDER the frame and must reach the brass on
+    every side. Seen in the client 2026-09-21: sized to the union of the
+    controls, which sits inset from the opening, it let the world show through
+    on the left, the right and the bottom. The opening is a property of the
+    frame art, like a part's canvas size, so it is measured from the frame's
+    own alpha rather than typed or borrowed from a preview script: a flood fill
+    from the middle of the screen, over pixels that are not brass, with
+    hairline seams sealed first so the fill cannot leak into the exterior.
+
+    The brass has a soft anti-aliased inner edge, so the filled box stops a
+    few pixels short of solid metal and the world would bleed through that
+    edge. Each side is pushed outward until what lies beyond it is solid brass;
+    the frame is drawn on top, so the overshoot is hidden.
+    """
+    frame = Image.open(SOURCE / ("planner-frame-%s.png" % layout)).convert("RGBA")
+    alpha = frame.getchannel("A")
+    width, height = frame.size
+    mask = alpha.point(lambda v: 255 if v >= FRAME_BRASS else 0)
+    mask = mask.filter(ImageFilter.MaxFilter(2 * SEAL + 1))
+    seed = (int((screen["left"] + screen["right"]) / 2 * width),
+            int((screen["top"] + screen["bottom"]) / 2 * height))
+    if mask.getpixel(seed) != 0:
+        raise SystemExit("planner-frame-%s: the middle of the screen is brass, not opening" % layout)
+    ImageDraw.floodfill(mask, seed, 128)
+    left, top, right, bottom = mask.point(lambda v: 255 if v == 128 else 0).getbbox()
+    if left <= SEAL or top <= SEAL or right >= width - SEAL or bottom >= height - SEAL:
+        raise SystemExit("planner-frame-%s: the opening's fill leaked through a seam to the "
+                         "canvas edge; raise SEAL" % layout)
+
+    def solid(box):
+        pixels = list(alpha.crop(box).getdata())
+        return sum(1 for value in pixels if value > FRAME_SOLID) / len(pixels)
+
+    def beyond(side, n):
+        return {"left": (left - n - BAND, top, left - n, bottom),
+                "right": (right + n, top, right + n + BAND, bottom),
+                "top": (left, top - n - BAND, right, top - n),
+                "bottom": (left, bottom + n, right, bottom + n + BAND)}[side]
+
+    tuck = {}
+    for side in ("left", "top", "right", "bottom"):
+        for n in range(REACH + 1):
+            if solid(beyond(side, n)) >= SOLID:
+                tuck[side] = n
+                break
+        else:
+            raise SystemExit("planner-frame-%s: no solid brass within %d px beyond the "
+                             "opening's %s edge" % (layout, REACH, side))
+    return {
+        "left": round((left - tuck["left"]) / width, 6),
+        "top": round((top - tuck["top"]) / height, 6),
+        "right": round((right + tuck["right"]) / width, 6),
+        "bottom": round((bottom + tuck["bottom"]) / height, 6),
+    }
+
+
 def planner_geometry_lua():
     """The planner's placement numbers, as plain fractions.
 
@@ -223,6 +291,8 @@ def planner_geometry_lua():
             if key == "canvas" or key in PLANNER_DROP:
                 continue
             box[_camel(key)] = dict(rect)
+        # Measured from the frame art, not read from the geometry file.
+        box["interior"] = frame_interior(layout, source["screen"])
         out[layout] = box
     strip = g["strip"]
     out["strip"] = {

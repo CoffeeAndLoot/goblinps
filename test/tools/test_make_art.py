@@ -246,5 +246,55 @@ class TestPlannerGeometry(unittest.TestCase):
         self.assertIn("nodeDiameter", g["strip"])
 
 
+
+class TestFrameInterior(unittest.TestCase):
+    """The tiled backing must reach the brass on every side.
+
+    Seen in the client 2026-09-21: the backing was sized to the union of the
+    controls, which sits inset from the frame's opening, so the world showed
+    through on the left, the right and the bottom. The opening is a property
+    of the frame art, so it is measured from the frame's own alpha.
+    """
+
+    def test_every_layout_has_an_interior_that_holds_its_panels(self):
+        g = make_art.planner_geometry_lua()
+        for mode in ("wide", "tall"):
+            box = g[mode]["interior"]
+            for key in ("screen", "sidePanel", "fromBox", "toBox", "goButton"):
+                inner = g[mode][key]
+                self.assertLessEqual(box["left"], inner["left"], "%s.%s" % (mode, key))
+                self.assertLessEqual(box["top"], inner["top"], "%s.%s" % (mode, key))
+                self.assertGreaterEqual(box["right"], inner["right"], "%s.%s" % (mode, key))
+                self.assertGreaterEqual(box["bottom"], inner["bottom"], "%s.%s" % (mode, key))
+
+    def test_the_interior_is_tucked_under_solid_brass_on_every_side(self):
+        """No world shows between the backing and the frame's inner edge."""
+        from PIL import Image
+        g = make_art.planner_geometry_lua()
+        for mode in ("wide", "tall"):
+            alpha = Image.open(make_art.SOURCE / ("planner-frame-%s.png" % mode)).convert("RGBA").getchannel("A")
+            w, h = alpha.size
+            box = g[mode]["interior"]
+            left, top = round(box["left"] * w), round(box["top"] * h)
+            right, bottom = round(box["right"] * w), round(box["bottom"] * h)
+            beyond = {"left": (left - 3, top, left, bottom), "right": (right, top, right + 3, bottom),
+                      "top": (left, top - 3, right, top), "bottom": (left, bottom, right, bottom + 3)}
+            for side, crop in beyond.items():
+                pixels = list(alpha.crop(crop).getdata())
+                solid = sum(1 for value in pixels if value > 200) / len(pixels)
+                self.assertGreaterEqual(solid, 0.99, "%s %s: only %.1f%% solid brass beyond the backing"
+                                        % (mode, side, 100 * solid))
+
+    def test_the_interior_never_escapes_the_frame(self):
+        """A flood fill that leaked through a seam would swallow the canvas."""
+        g = make_art.planner_geometry_lua()
+        for mode in ("wide", "tall"):
+            box = g[mode]["interior"]
+            self.assertGreater(box["left"], 0.02, mode)
+            self.assertGreater(box["top"], 0.02, mode)
+            self.assertLess(box["right"], 0.98, mode)
+            self.assertLess(box["bottom"], 0.98, mode)
+
+
 if __name__ == "__main__":
     unittest.main()

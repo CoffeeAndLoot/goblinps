@@ -527,16 +527,13 @@ return function(h)
         end)
 
         h.it("keeps the tiled backing off the chassis's own ornament", function()
-            -- boundingBox unioned EVERY rect in the geometry, and the two
-            -- plates are riveted to the chassis -- the brass crest at the top,
-            -- the rail at the bottom -- rather than set into the opening. So
-            -- the tile stretched over both, and planner-panel is fully opaque
-            -- and drawn on artLayer at "BACKGROUND" AFTER frameArt on that
-            -- same frame and layer, which means over it: the inner brass
-            -- border on all four sides, both corner lamps and the bottom rail
-            -- all disappeared under it. The artist's note for this part reads
-            -- "tile behind contents, clipped to interior opening; no exterior
-            -- background".
+            -- The two plates are riveted to the chassis -- the brass crest at
+            -- the top, the rail at the bottom -- rather than set into the
+            -- opening. The artist's note for this part reads "tile behind
+            -- contents, clipped to interior opening; no exterior background".
+            -- The chassis is now drawn over the tile, so this checks the tile's
+            -- own extent: it must stop at the opening, not climb onto the
+            -- plates, while still backing every opening inside it.
             ns.Planner.Toggle()
             local ui = ns.Planner.Debug()
             h.truthy(ui.panelArt, "the panel backing exists")
@@ -560,6 +557,92 @@ return function(h)
                 end
             end
             ns.Planner.ApplyLayout("wide")
+        end)
+
+        h.it("fills the frame's whole opening with the backing, drawn under the brass", function()
+            -- Seen in the client 2026-09-21 against a plain sky: the backing
+            -- was sized to the union of the controls, which sits inset from
+            -- the frame's opening, so the world showed through on the left,
+            -- the right and the bottom. It must fill the opening make_art.py
+            -- measures from the frame's alpha -- and it can only do that if
+            -- the chassis is drawn OVER it, because that box deliberately
+            -- tucks a few pixels under the brass on every side.
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            for _, mode in ipairs({ "wide", "tall" }) do
+                ns.Planner.ApplyLayout(mode)
+                local inner = ns.Data.ArtGeometry.planner[mode].interior
+                h.truthy(inner, mode .. ": the generated geometry carries the measured opening")
+                local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
+                local p1, p2 = ui.panelArt.points[1], ui.panelArt.points[2]
+                h.truthy(math.abs(p1[4] - inner.left * w) < 0.5,
+                         mode .. ": the backing's left edge is not at the opening, got " .. tostring(p1[4] / w))
+                h.truthy(math.abs(-p1[5] - inner.top * fh) < 0.5,
+                         mode .. ": the backing's top edge is not at the opening, got " .. tostring(-p1[5] / fh))
+                h.truthy(math.abs(p2[4] - inner.right * w) < 0.5,
+                         mode .. ": the backing's right edge is not at the opening, got " .. tostring(p2[4] / w))
+                h.truthy(math.abs(-p2[5] - inner.bottom * fh) < 0.5,
+                         mode .. ": the backing's bottom edge is not at the opening, got " .. tostring(-p2[5] / fh))
+            end
+            h.eq(ui.panelArt.parent, ui.frameArt.parent,
+                 "backing and chassis share one frame, so their draw layers decide the order")
+            local order = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4 }
+            h.truthy(order[ui.frameArt.drawLayer] > order[ui.panelArt.drawLayer],
+                     "the chassis must be drawn over the backing, not under it")
+            ns.Planner.ApplyLayout("wide")
+        end)
+
+        h.it("lets the plates carry their own lettering, not a second copy", function()
+            -- Both plates are drawn with their words in them: "GOBLINPS /
+            -- Goblin Positioning System" and "Time is money, friend." Seen in
+            -- the client 2026-09-21: the FontStrings drew "GoblinPS" and
+            -- "Accuracy not guaranteed" on top of that lettering. The text is
+            -- the fallback for a plate that did not load, nothing more.
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.titlePlate and ui.taglinePlate, "both plates loaded in the fixture")
+            h.falsy(ui.title:IsShown(), "the title plate already says GoblinPS")
+            h.falsy(ui.tagline:IsShown(), "the tagline plate already carries its line")
+        end)
+
+        h.it("keeps the title in text when its plate will not load", function()
+            local badPath = "Interface\\AddOns\\GoblinPS\\Media\\title-plate"
+            Fake.missingTextures[badPath] = true
+            local savedPlanner = ns.Planner
+            local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+            ns.Planner = savedPlanner
+            local ok, err = pcall(function()
+                FreshPlanner.Toggle()
+                local ui = FreshPlanner.Debug()
+                h.falsy(ui.titlePlate, "the plate failed, as arranged")
+                h.truthy(ui.title:IsShown(), "so the window still says what it is")
+                h.falsy(ui.tagline:IsShown(), "the tagline's own plate still loaded")
+                FreshPlanner.Toggle()
+            end)
+            Fake.missingTextures[badPath] = nil
+            assert(ok, err)
+        end)
+
+        h.it("labels a button on its shipped art in green, and dims it when disabled", function()
+            -- Seen in the client 2026-09-21: Tall, Here and GO kept the steel
+            -- label meant for the flat brass face -- dark text on the shipped
+            -- art's dark glass -- and could not be read.
+            local function is(button, name)
+                local want, got = W.COLOR[name], button.label.color
+                return got ~= nil and math.abs(got[1] - want[1]) < 1e-6
+                    and math.abs(got[2] - want[2]) < 1e-6 and math.abs(got[3] - want[3]) < 1e-6
+            end
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(is(ui.layoutButton, "green"), "Tall reads green on its glass")
+            h.truthy(is(ui.here, "green"), "Here reads green on its glass")
+            W.SetButtonEnabled(ui.go, false)
+            h.truthy(is(ui.go, "dim"), "a disabled GO is dim")
+            W.SetButtonEnabled(ui.go, true)
+            h.truthy(is(ui.go, "green"), "an enabled GO is green")
+            local plain = W.Button(UIParent, "x", 40, 20)
+            W.SetButtonEnabled(plain, true)
+            h.truthy(is(plain, "steel"), "with no art, the flat brass face keeps its steel label")
         end)
 
         h.it("gives a stretched control fixed end caps", function()

@@ -257,21 +257,15 @@ local ON_THE_CHASSIS = { titlePlate = true, taglinePlate = true }
 -- left and top, maximum right and bottom, over every key in `g` that has a
 -- `left` field (a rect; `canvas` is pixels, not a device fraction, and the
 -- circle keys have cx/cy/r instead, so both are skipped without naming
--- them) and is not ON_THE_CHASSIS. Used for the tiled panel backing, which
--- sits behind every opening rather than any one of them: at the screen's own
--- rect it would back the screen and leave the side panel on flat colour.
+-- them) and is not ON_THE_CHASSIS.
 --
--- The two plates have to come out by name. planner-panel is fully opaque and
--- is created on artLayer at "BACKGROUND" after frameArt on that same frame
--- and layer, so it draws OVER the chassis -- and unioning the plates in
--- stretched it across about 30% chassis in wide and 16% in tall, swallowing
--- the inner brass border, both corner lamps and the bottom rail. The artist's
--- note for this part reads "tile behind contents, clipped to interior
--- opening; no exterior background". Excluding them leaves about 8.6% in wide
--- (the crest's plate still overhangs the tile's top edge) and 0.0% in tall,
--- measured against each frame PNG's alpha. A real
--- `interior` rect would do better still, and belongs in a geometry delivery,
--- not invented here.
+-- Only the FALLBACK for the tiled panel backing now, used when the generated
+-- geometry has no `interior`. The real placement is `g.interior`: the frame's
+-- opening measured from its own alpha by tools/make_art.py. This union sits
+-- inset from that opening, and seen in the client 2026-09-21 it let the world
+-- show through on the left, the right and the bottom. The two plates stay
+-- excluded because they are riveted to the chassis rather than set into the
+-- opening.
 local function boundingBox(g)
     local box
     for key, rect in pairs(g) do
@@ -336,7 +330,11 @@ function Planner.ApplyLayout(mode)
         W.PlaceLine(ui.total, f, g.totalLine)
         W.PlaceLine(ui.hint, f, g.hintLine)
         if ui.panelArt then
-            W.PlaceRect(ui.panelArt, f, boundingBox(g))
+            -- The frame's opening, measured from its own alpha by make_art.py.
+            -- Seen in the client 2026-09-21: sized to the controls instead,
+            -- the backing stopped short of the brass and the world showed
+            -- through on the left, the right and the bottom.
+            W.PlaceRect(ui.panelArt, f, g.interior or boundingBox(g))
         end
         -- Every three-sliced control has just been re-anchored corner to
         -- corner, so its end caps were measured against the height it had
@@ -409,8 +407,11 @@ local function build()
     content:SetFrameLevel(base + 2)
 
     -- The window's own chassis. ApplyLayout swaps the texture between the two
-    -- frames, so create it empty here and let ApplyLayout fill it.
-    local frameArt = artLayer:CreateTexture(nil, "BACKGROUND")
+    -- frames, so create it empty here and let ApplyLayout fill it. It is on
+    -- "BORDER", one layer above the tiled backing on "BACKGROUND", so the
+    -- chassis is drawn OVER the backing: the backing's box tucks a few pixels
+    -- under the brass on every side, and only the frame on top hides that.
+    local frameArt = artLayer:CreateTexture(nil, "BORDER")
     frameArt:SetAllPoints(artLayer)
 
     -- The plates carry art but are NOT SetAllPoints to their parent: each sits
@@ -459,6 +460,12 @@ local function build()
     title:SetText("GoblinPS")
     local tagline = W.Text(content, "dim", "GameFontDisableSmall")
     tagline:SetText("Accuracy not guaranteed. No refunds.")
+    -- Both plates are drawn with their words in them -- "GOBLINPS / Goblin
+    -- Positioning System" and "Time is money, friend." -- so this text is the
+    -- fallback for a plate that did not load. Seen in the client 2026-09-21:
+    -- drawn anyway, it sat on top of the lettering.
+    title:SetShown(not titlePlate)
+    tagline:SetShown(not taglinePlate)
 
     local close = CreateFrame("Button", nil, content)
     close:RegisterForClicks("LeftButtonUp")

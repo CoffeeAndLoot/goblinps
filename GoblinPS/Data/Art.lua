@@ -127,6 +127,12 @@ ns.Data.ArtGeometry = {
                 ["right"] = 0.853516,
                 ["top"] = 0.78875
             },
+            ["interior"] = {
+                ["bottom"] = 0.9175,
+                ["left"] = 0.114258,
+                ["right"] = 0.886719,
+                ["top"] = 0.139375
+            },
             ["layoutButton"] = {
                 ["bottom"] = 0.1875,
                 ["left"] = 0.136719,
@@ -225,6 +231,12 @@ ns.Data.ArtGeometry = {
                 ["left"] = 0.1,
                 ["right"] = 0.675,
                 ["top"] = 0.788086
+            },
+            ["interior"] = {
+                ["bottom"] = 0.857422,
+                ["left"] = 0.08,
+                ["right"] = 0.919375,
+                ["top"] = 0.251953
             },
             ["layoutButton"] = {
                 ["bottom"] = 0.263672,

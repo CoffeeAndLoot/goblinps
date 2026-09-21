@@ -361,16 +361,27 @@ turns that test red. That is the prompt to update this table, not a bug.
 
 ## Planner window art (plan 6)
 
-Plan 6 has **not** been run in the client. This section is untested; the
-faults it lists are ones the branch fixed or narrowly avoided at the desk,
-not ones already seen on screen.
+First run in the client 2026-09-21, in front of a plain sky set up so any gap
+in the art shows. It found three faults, fixed in the commit after: the world
+showing between the panels and the frame on the left, right and bottom; the
+title and tagline drawn a second time as text over the plates' own lettering;
+and dark button labels on the art's dark glass. The rest of this section is
+still unconfirmed.
 
 - [ ] /gps opens a window wearing brass, not flat colour, in both shapes
 - [ ] The window is the art's shape, not stretched: the round lamps in the
       corners are round. If they are ovals, Planner.SIZE and the art's canvas
       have drifted apart
 - [ ] No coloured rectangle shows at the window's edges or corners
-- [ ] Title and tagline sit on their plates; neither draws on the brass
+- [ ] Title and tagline each read once, in the plates' own lettering --
+      "GOBLINPS / Goblin Positioning System" and "Time is money, friend." --
+      with no plain-text "GoblinPS" or "Accuracy not guaranteed" over them
+- [ ] Against a plain sky, nothing shows between the panels and the frame's
+      inner edge on any side, in both shapes. The backing fills the frame's
+      opening as measured from its own alpha and is tucked under the brass;
+      a sliver here means that measurement and the art have drifted apart
+- [ ] The labels on Tall, Here and GO are readable: green on the glass, dim
+      when the button is disabled
 - [ ] Close shuts the window; the gear says settings are not built yet
 - [ ] The title bar has exactly TWO buttons, a gear and a close -- if a
       third sits exactly on top of close, the tools_button alias got through
