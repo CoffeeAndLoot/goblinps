@@ -337,9 +337,12 @@ here because this is the task that touches them:**
    the addon, where the next person will wire it up.
 2. **`canvas` is in pixels.** It is the one exception to the file's 0..1 rule.
    A validator that does not special-case it rejects a correct file.
-3. **Key names lose their underscores on the way in**, matching how the dash's
-   geometry became `stepsText` and `etaText`: `from_box` becomes `fromBox`,
-   `close_button` becomes `close`, `total_line` becomes `total`. Do the
+3. **Key names are snake-case converted to camel-case and nothing else**,
+   matching how the dash's geometry became `stepsText` and `etaText`:
+   `from_box` becomes `fromBox`, `close_button` becomes `closeButton`,
+   `total_line` becomes `totalLine`. Nothing is stripped -- an earlier draft
+   dropped the trailing `_button` and `_line`, which turned `layout_button`
+   into `layout` and collided with a variable already called `mode`. Do the
    conversion in one place in the generator, not by hand.
 
 - [ ] **Step 1: Write the failing test**
