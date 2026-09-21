@@ -37,12 +37,18 @@ class TestTexCoords(unittest.TestCase):
 
 class TestPlan(unittest.TestCase):
     def test_every_dash_part_is_planned(self):
-        self.assertEqual({p.name for p in make_art.PARTS},
-                         {"dash-body", "dash-screen", "dash-compass",
-                          "arrow", "dash-eta-plate",
-                          "dash2-housing", "dash2-glass", "dash2-compass",
-                          "dash2-steps-screen", "dash2-eta-screen",
-                          "dash2-stop", "dash2-stop-hover", "dash2-stop-pressed"})
+        # A subset check, not equality: PARTS now also carries the planner's
+        # parts (see TestShipsThePlannerParts), and a later plan will add the
+        # route strip's. This test's job is only that the dash's own parts
+        # are still there, not that PARTS contains nothing else.
+        names = {p.name for p in make_art.PARTS}
+        self.assertTrue(
+            names.issuperset(
+                {"dash-body", "dash-screen", "dash-compass",
+                 "arrow", "dash-eta-plate",
+                 "dash2-housing", "dash2-glass", "dash2-compass",
+                 "dash2-steps-screen", "dash2-eta-screen",
+                 "dash2-stop", "dash2-stop-hover", "dash2-stop-pressed"}))
 
     def test_the_stacked_layers_share_one_canvas(self):
         stacked = [p for p in make_art.PARTS
@@ -131,6 +137,44 @@ class TestGeometryExport(unittest.TestCase):
         canvas_w = make_art.geometry()["canvas"][0]
         self.assertAlmostEqual(lua["compassCrop"]["share"],
                                (box[2] - box[0]) / canvas_w, places=12)
+
+
+class TestShipsThePlannerParts(unittest.TestCase):
+    def test_ships_the_planner_parts_at_their_source_aspect(self):
+        """A Part whose aspect differs from its PNG's distorts the art.
+
+        The frames are the whole window; a frame stretched by a few percent
+        is the fault that made the dash's first design render as an oval,
+        and it took a client run to see it.
+        """
+        from PIL import Image
+        import tools.make_art as make_art
+        wanted = {
+            "planner-frame-wide", "planner-frame-tall", "planner-panel",
+            "screen-backdrop", "title-plate", "tagline-plate", "input-box",
+            "dropdown-button", "button", "button-hover", "button-pressed",
+            "button-disabled", "close", "close-hover", "gear", "gear-hover",
+        }
+        by_name = {p.name: p for p in make_art.PARTS}
+        missing = wanted - set(by_name)
+        self.assertEqual(missing, set(), "these planner parts are not shipped")
+        for name in sorted(wanted):
+            part = by_name[name]
+            with Image.open(make_art.SOURCE / (name + ".png")) as im:
+                sw, sh = im.size
+            source = sw / sh
+            shipped = part.width / part.height
+            self.assertLess(
+                abs(source - shipped) / source, 0.005,
+                "{0}: source aspect {1:.4f} but shipped {2:.4f}".format(
+                    name, source, shipped))
+
+    def test_does_not_ship_the_strip_parts_yet(self):
+        """They belong to plan 7. A texture nothing draws is dead weight."""
+        import tools.make_art as make_art
+        names = {p.name for p in make_art.PARTS}
+        for name in ("node-current", "line-solid", "icon-walk"):
+            self.assertNotIn(name, names)
 
 
 class TestShippedCompass(unittest.TestCase):

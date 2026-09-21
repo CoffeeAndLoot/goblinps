@@ -64,6 +64,31 @@ PARTS += [
     Part("dash2-stop-pressed", 64, 64),
 ]
 
+# The planner window. The two frames are the whole window and ship at full
+# drawn size because brass detail shows when it is soft; screen-backdrop is
+# out-of-focus scenery behind text and ships small on purpose. Every width and
+# height here keeps its source PNG's aspect ratio: a frame stretched by a few
+# percent is what made the dash's first design render as an oval.
+# The strip's nodes, lines and icons are plan 7 and are not shipped yet.
+PARTS += [
+    Part("planner-frame-wide", 650, 416),
+    Part("planner-frame-tall", 384, 600),
+    Part("planner-panel", 256, 256),
+    Part("screen-backdrop", 512, 205),   # 1600/640 is 2.5; 512/205 is 2.4976
+    Part("title-plate", 256, 64),
+    Part("tagline-plate", 128, 32),
+    Part("input-box", 256, 32),
+    Part("dropdown-button", 32, 32),
+    Part("button", 128, 32),
+    Part("button-hover", 128, 32),
+    Part("button-pressed", 128, 32),
+    Part("button-disabled", 128, 32),
+    Part("close", 32, 32),
+    Part("close-hover", 32, 32),
+    Part("gear", 32, 32),
+    Part("gear-hover", 32, 32),
+]
+
 
 def next_power_of_two(n):
     """The smallest power of two that is at least n."""

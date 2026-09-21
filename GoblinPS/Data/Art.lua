@@ -19,6 +19,22 @@ ns.Data.Art = {
     ["dash2-stop"] = { file = "dash2-stop", l = 0, r = 1, t = 0, b = 1 },  -- 64x64 art on 64x64
     ["dash2-stop-hover"] = { file = "dash2-stop-hover", l = 0, r = 1, t = 0, b = 1 },  -- 64x64 art on 64x64
     ["dash2-stop-pressed"] = { file = "dash2-stop-pressed", l = 0, r = 1, t = 0, b = 1 },  -- 64x64 art on 64x64
+    ["planner-frame-wide"] = { file = "planner-frame-wide", l = 0, r = 0.634766, t = 0, b = 0.8125 },  -- 650x416 art on 1024x512
+    ["planner-frame-tall"] = { file = "planner-frame-tall", l = 0, r = 0.75, t = 0, b = 0.585938 },  -- 384x600 art on 512x1024
+    ["planner-panel"] = { file = "planner-panel", l = 0, r = 1, t = 0, b = 1 },  -- 256x256 art on 256x256
+    ["screen-backdrop"] = { file = "screen-backdrop", l = 0, r = 1, t = 0, b = 0.800781 },  -- 512x205 art on 512x256
+    ["title-plate"] = { file = "title-plate", l = 0, r = 1, t = 0, b = 1 },  -- 256x64 art on 256x64
+    ["tagline-plate"] = { file = "tagline-plate", l = 0, r = 1, t = 0, b = 1 },  -- 128x32 art on 128x32
+    ["input-box"] = { file = "input-box", l = 0, r = 1, t = 0, b = 1 },  -- 256x32 art on 256x32
+    ["dropdown-button"] = { file = "dropdown-button", l = 0, r = 1, t = 0, b = 1 },  -- 32x32 art on 32x32
+    ["button"] = { file = "button", l = 0, r = 1, t = 0, b = 1 },  -- 128x32 art on 128x32
+    ["button-hover"] = { file = "button-hover", l = 0, r = 1, t = 0, b = 1 },  -- 128x32 art on 128x32
+    ["button-pressed"] = { file = "button-pressed", l = 0, r = 1, t = 0, b = 1 },  -- 128x32 art on 128x32
+    ["button-disabled"] = { file = "button-disabled", l = 0, r = 1, t = 0, b = 1 },  -- 128x32 art on 128x32
+    ["close"] = { file = "close", l = 0, r = 1, t = 0, b = 1 },  -- 32x32 art on 32x32
+    ["close-hover"] = { file = "close-hover", l = 0, r = 1, t = 0, b = 1 },  -- 32x32 art on 32x32
+    ["gear"] = { file = "gear", l = 0, r = 1, t = 0, b = 1 },  -- 32x32 art on 32x32
+    ["gear-hover"] = { file = "gear-hover", l = 0, r = 1, t = 0, b = 1 },  -- 32x32 art on 32x32
 }
 
 ns.Data.ArtGeometry = {
