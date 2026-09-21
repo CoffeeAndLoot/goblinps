@@ -258,19 +258,56 @@ def geometry_holds():
     return problems
 
 
-# Keys whose content is drawn straight onto the frame with nothing of its own
-# behind it -- the map, the scrollable step list, the search overlay, the
-# route strip and the two live-text line slots -- so they must land on the
-# frame's real cut-out, or the text prints on brass. Plates (title_plate,
-# tagline_plate) and controls (the buttons and the from/to boxes) each carry
-# their own opaque sprite that covers whatever the frame looks like beneath
-# them -- a name plate riveted to the brass crest, a button mounted on the
-# console -- so checking transparency under those would flag art that is
-# working exactly as drawn. Measured by hand: title_plate and tagline_plate
-# sit almost entirely on brass in both layouts, and layout_button sits on
-# brass in wide only; the six keys below sit at 0% opaque in both.
+# Every rectangular key in planner-geometry.json is in exactly one of the two
+# lists below, and a key in neither is a failure. It used to be a silence: the
+# interior list was consulted and everything else skipped, so a seventh key
+# added to the file got neither a pass nor a complaint. CLAUDE.md has the rule
+# this broke -- never let silence read as "nothing disagrees" -- and plan 7
+# adds the route strip's keys to this very file.
+#
+# INTERIOR: content drawn straight onto the frame with nothing of its own
+# behind it -- the screen, the scrollable step list, the search overlay, the
+# route strip, the two live-text line slots, and the from/to boxes and their
+# buttons. These must land on the frame's real cut-out or the text prints on
+# brass. Measured: every one of them sits at 0.0% opaque in both layouts,
+# except layout_button, which does so in tall only -- see the brass list.
 PLANNER_INTERIOR_KEYS = {"screen", "side_panel", "results_list", "strip_track",
-                          "total_line", "hint_line"}
+                         "total_line", "hint_line", "from_box", "to_box",
+                         "here_button", "go_button", "layout_button"}
+
+# BRASS: keys that sit on the frame's brass BY DESIGN, because each carries
+# its own opaque sprite that covers whatever is beneath it -- a name plate
+# riveted to the crest, a button mounted on it. Checking transparency under
+# these would flag art that is working exactly as drawn. Per layout, because
+# the wide art puts the layout button on the brass crest and the tall art does
+# not. Measured: title_plate 100.0% opaque in both, tagline_plate 99.2% wide
+# and 95.0% tall, layout_button 85.4% wide and 0.0% tall -- which is why tall's
+# layout_button is left in the interior list above and really is checked.
+PLANNER_BRASS_KEYS = {"wide": {"title_plate", "tagline_plate", "layout_button"},
+                      "tall": {"title_plate", "tagline_plate"}}
+
+PLANNER_FRAMES = {"wide": "planner-frame-wide.png", "tall": "planner-frame-tall.png"}
+
+
+def planner_keys_classified(g):
+    """Both directions of the allow-list, against the geometry as loaded.
+
+    A rectangular key in neither list is unclassified, and an addition must
+    not slip in silently. A key either list names that is not in the geometry
+    is a rename or a deletion, and that must not slip out silently either.
+    """
+    problems = []
+    for layout, brass in sorted(PLANNER_BRASS_KEYS.items()):
+        keys = g.get(layout, {})
+        rects = {key for key, value in keys.items()
+                 if isinstance(value, dict) and "left" in value}
+        for key in sorted(rects - PLANNER_INTERIOR_KEYS - brass):
+            problems.append("{0}.{1} is in neither PLANNER_INTERIOR_KEYS nor "
+                            "PLANNER_BRASS_KEYS: say which it is".format(layout, key))
+        for key in sorted((PLANNER_INTERIOR_KEYS | brass) - set(keys)):
+            problems.append("{0}.{1} is named by the allow-lists but is not in the "
+                            "geometry: renamed or dropped".format(layout, key))
+    return problems
 
 
 def planner_geometry_holds():
@@ -282,14 +319,13 @@ def planner_geometry_holds():
     import json
     with open(PARTS / "planner-geometry.json", encoding="utf-8") as handle:
         g = json.load(handle)
-    problems = []
-    frames = {"wide": "planner-frame-wide.png", "tall": "planner-frame-tall.png"}
-    for layout, filename in frames.items():
+    problems = planner_keys_classified(g)
+    for layout, filename in PLANNER_FRAMES.items():
         im = Image.open(PARTS / filename).convert("RGBA")
         width, height = im.size
         alpha = im.split()[3]
         for key, rect in g[layout].items():
-            if key not in PLANNER_INTERIOR_KEYS:
+            if key not in PLANNER_INTERIOR_KEYS or key in PLANNER_BRASS_KEYS[layout]:
                 continue
             box = (int(rect["left"] * width), int(rect["top"] * height),
                    int(rect["right"] * width), int(rect["bottom"] * height))
