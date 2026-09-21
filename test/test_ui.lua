@@ -2121,6 +2121,25 @@ return function(h)
             Core.ClearPin()
         end)
 
+        h.it("replaces a running trip's saved destination when Start Route runs again", function()
+            -- The test above only proves SaveTrip from no trip running; the
+            -- spec also asks that Start Route replace a trip already going.
+            home()
+            local first = ns.Core.PlanRoute(ns.Search.Exact(ns.Data, "Delta", "H"))
+            h.truthy(first.result and #first.result.steps > 0, "sanity: a route to Delta")
+            Core.Go(first)
+            h.eq(Core.SavedTripName(), "Delta")
+
+            local second = ns.Core.PlanRoute(ns.Search.Exact(ns.Data, "Bravo", "H"))
+            h.truthy(second.result and #second.result.steps > 0, "sanity: a route to Bravo")
+            Core.Go(second)
+            h.eq(Core.SavedTripName(), "Bravo", "Start Route replaces the running trip's saved destination")
+
+            Core.ClearTrip()
+            ns.Dash.Stop()
+            Core.ClearPin()
+        end)
+
         local delta = ns.Search.Exact(ns.Data, "Delta", "H")
 
         -- A reload as this client performs it: the account-wide save comes
