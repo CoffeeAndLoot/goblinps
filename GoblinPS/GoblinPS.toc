@@ -22,6 +22,7 @@ Travel.lua
 Search.lua
 Graph.lua
 Route.lua
+Strip.lua
 Trip.lua
 Known.lua
 Prefs.lua

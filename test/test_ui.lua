@@ -68,7 +68,7 @@ return function(h)
         end,
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
     }
-    for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Trip", "Known", "Prefs",
+    for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Strip", "Trip", "Known", "Prefs",
                             "Widgets", "Planner", "Dash", "MinimapButton", "SelfTest", "Core" }) do
         assert(loadfile("GoblinPS/" .. file .. ".lua"))("GoblinPS", ns)
     end
