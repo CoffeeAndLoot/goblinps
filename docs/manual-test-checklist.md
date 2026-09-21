@@ -144,7 +144,7 @@ Restart the game first: the TOC changed.
 - [ ] Drag the window by its body: it follows the mouse from where you
       grabbed it, no jump, no Lua error
 - [x] `/gps selftest` ends "Self-test passed."; record any FAIL line here.
-      **2026-09-20: passed, and it answered the question plan 6 (the route
+      **2026-09-20: passed, and it answered the question plan 7 (the route
       strip) was waiting on.** All five dash textures reported `ok`, so this
       client loads the power-of-two TGAs `tools/make_art.py` writes from the
       PNG sources. The remaining 34 art parts can ship the same way; no BLP
@@ -358,6 +358,54 @@ turns that test red. That is the prompt to update this table, not a bug.
       crossing row is missing
 - [ ] Teldrassil still needs the boat; a Darnassus character leaves by "the
       Darnassus gate"
+
+## Planner window art (plan 6)
+
+Plan 6 has **not** been run in the client. This section is untested; the
+faults it lists are ones the branch fixed or narrowly avoided at the desk,
+not ones already seen on screen.
+
+- [ ] /gps opens a window wearing brass, not flat colour, in both shapes
+- [ ] The window is the art's shape, not stretched: the round lamps in the
+      corners are round. If they are ovals, Planner.SIZE and the art's canvas
+      have drifted apart
+- [ ] No coloured rectangle shows at the window's edges or corners
+- [ ] Title and tagline sit on their plates; neither draws on the brass
+- [ ] Close shuts the window; the gear says settings are not built yet
+- [ ] The title bar has exactly TWO buttons, a gear and a close -- if a
+      third sits exactly on top of close, the tools_button alias got through
+- [ ] The dropdown beside To opens the whole destination list without typing
+- [ ] The Wide/Tall button switches shape and both shapes are laid out; in
+      wide the button sits mostly on brass -- confirm it is visible and
+      clickable there, not only in tall (it was reparented once already to
+      fix an ambiguous draw order against that brass)
+- [ ] From, To and Here sit in their openings, and the end caps on the boxes
+      and buttons are not squashed or stretched
+- [ ] Toggle Wide/Tall and look at those end caps AGAIN. A cap sized for one
+      layout and left there is the fault this is watching for, and it only
+      shows after a switch: the controls change height between the two shapes.
+      If a cap is right in one shape and squashed or stretched in the other,
+      the height ApplyLayout hands Restretch3 is wrong for that layout
+- [ ] Type into From and To: the typed text AND the grey placeholder are both
+      readable against the `input-box` art. Only the client can answer this --
+      the art arrived after the text colours were chosen. If either washes
+      out, say which and against which part of the box
+- [ ] Hover a button and then hold the mouse down on it: the art lights
+      (`button-hover`) and then presses (`button-pressed`), and a disabled GO
+      does neither
+- [ ] Typing in either box drops the results list over the screen, and it
+      covers what it drops over rather than hiding behind it
+- [ ] The screen's scenery fills its opening without looking stretched;
+      losing the sides is intended, but the view should read as generous, not
+      as a narrow crop
+- [ ] With no destination or an unreachable one, GO reads as disabled from
+      its own art -- a duller `button-disabled` texture -- not from a colour
+      tint; if it looks the same lit and unlit, the art swap did not happen
+- [ ] The step list, total and amber hint sit in their openings, and a long
+      warning never covers GO
+- [ ] At UI scale 0.64 and 1.0 the window is legible and nothing overlaps
+- [ ] /gps selftest names the sixteen new textures; if one FAILS the window
+      must still be usable on its flat colours
 
 ## Dash unit (plans 4 and 5)
 

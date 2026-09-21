@@ -37,12 +37,18 @@ class TestTexCoords(unittest.TestCase):
 
 class TestPlan(unittest.TestCase):
     def test_every_dash_part_is_planned(self):
-        self.assertEqual({p.name for p in make_art.PARTS},
-                         {"dash-body", "dash-screen", "dash-compass",
-                          "arrow", "dash-eta-plate",
-                          "dash2-housing", "dash2-glass", "dash2-compass",
-                          "dash2-steps-screen", "dash2-eta-screen",
-                          "dash2-stop", "dash2-stop-hover", "dash2-stop-pressed"})
+        # A subset check, not equality: PARTS now also carries the planner's
+        # parts (see TestShipsThePlannerParts), and a later plan will add the
+        # route strip's. This test's job is only that the dash's own parts
+        # are still there, not that PARTS contains nothing else.
+        names = {p.name for p in make_art.PARTS}
+        self.assertTrue(
+            names.issuperset(
+                {"dash-body", "dash-screen", "dash-compass",
+                 "arrow", "dash-eta-plate",
+                 "dash2-housing", "dash2-glass", "dash2-compass",
+                 "dash2-steps-screen", "dash2-eta-screen",
+                 "dash2-stop", "dash2-stop-hover", "dash2-stop-pressed"}))
 
     def test_the_stacked_layers_share_one_canvas(self):
         stacked = [p for p in make_art.PARTS
@@ -133,6 +139,44 @@ class TestGeometryExport(unittest.TestCase):
                                (box[2] - box[0]) / canvas_w, places=12)
 
 
+class TestShipsThePlannerParts(unittest.TestCase):
+    def test_ships_the_planner_parts_at_their_source_aspect(self):
+        """A Part whose aspect differs from its PNG's distorts the art.
+
+        The frames are the whole window; a frame stretched by a few percent
+        is the fault that made the dash's first design render as an oval,
+        and it took a client run to see it.
+        """
+        from PIL import Image
+        import tools.make_art as make_art
+        wanted = {
+            "planner-frame-wide", "planner-frame-tall", "planner-panel",
+            "screen-backdrop", "title-plate", "tagline-plate", "input-box",
+            "dropdown-button", "button", "button-hover", "button-pressed",
+            "button-disabled", "close", "close-hover", "gear", "gear-hover",
+        }
+        by_name = {p.name: p for p in make_art.PARTS}
+        missing = wanted - set(by_name)
+        self.assertEqual(missing, set(), "these planner parts are not shipped")
+        for name in sorted(wanted):
+            part = by_name[name]
+            with Image.open(make_art.SOURCE / (name + ".png")) as im:
+                sw, sh = im.size
+            source = sw / sh
+            shipped = part.width / part.height
+            self.assertLess(
+                abs(source - shipped) / source, 0.005,
+                "{0}: source aspect {1:.4f} but shipped {2:.4f}".format(
+                    name, source, shipped))
+
+    def test_does_not_ship_the_strip_parts_yet(self):
+        """They belong to plan 7. A texture nothing draws is dead weight."""
+        import tools.make_art as make_art
+        names = {p.name for p in make_art.PARTS}
+        for name in ("node-current", "line-solid", "icon-walk"):
+            self.assertNotIn(name, names)
+
+
 class TestShippedCompass(unittest.TestCase):
     """The crop arithmetic is covered above; this measures what actually shipped.
 
@@ -159,6 +203,47 @@ class TestShippedCompass(unittest.TestCase):
                                msg="the ring is off centre left to right; it would orbit as it turns")
         self.assertAlmostEqual(cy, (h - 1) / 2, delta=0.5,
                                msg="the ring is off centre top to bottom; it would orbit as it turns")
+
+
+class TestPlannerGeometry(unittest.TestCase):
+    def test_planner_geometry_reaches_the_addon_whole(self):
+        """Both layouts, the same keys, and every number still normalised."""
+        import tools.make_art as make_art
+        g = make_art.planner_geometry_lua()
+        self.assertIn("wide", g)
+        self.assertIn("tall", g)
+        self.assertEqual(set(g["wide"]) - {"canvas"}, set(g["tall"]) - {"canvas"})
+        self.assertEqual(g["wide"]["canvas"], {"w": 1600, "h": 1024})
+        self.assertEqual(g["tall"]["canvas"], {"w": 1024, "h": 1600})
+        for layout in ("wide", "tall"):
+            for key, box in g[layout].items():
+                if key == "canvas":
+                    continue
+                for edge, value in box.items():
+                    self.assertGreaterEqual(value, 0.0, "{0}.{1}.{2}".format(layout, key, edge))
+                    self.assertLessEqual(value, 1.0, "{0}.{1}.{2}".format(layout, key, edge))
+
+    def test_planner_geometry_drops_the_tools_alias(self):
+        """tools_button is close_button under another name.
+
+        Codex shipped it for schema compatibility and said plainly: never draw
+        it twice. A key that must not be instantiated has no business reaching
+        the addon, where somebody will wire it to a second button sitting
+        exactly on top of Close.
+        """
+        import tools.make_art as make_art
+        g = make_art.planner_geometry_lua()
+        self.assertNotIn("toolsButton", g["wide"])
+        self.assertIn("closeButton", g["wide"])
+
+    def test_planner_geometry_names_are_camel_case(self):
+        import tools.make_art as make_art
+        g = make_art.planner_geometry_lua()
+        for key in g["wide"]:
+            self.assertNotIn("_", key, "{0} still carries the file's underscores".format(key))
+        self.assertIn("fromBox", g["wide"])
+        self.assertIn("strip", g)
+        self.assertIn("nodeDiameter", g["strip"])
 
 
 if __name__ == "__main__":

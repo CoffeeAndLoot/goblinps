@@ -61,6 +61,7 @@ return function(h)
     GoblinPSDB, GoblinPSCharDB = nil, { known = { [1] = true, [2] = true, [4] = true } }
 
     local Planner = ns.Planner
+    local W = ns.Widgets
 
     h.describe("Widgets.ChatColor", function()
         h.it("matches the formula for the palette entry, in chat and in the window", function()
@@ -69,6 +70,67 @@ return function(h)
             local expect = ("|cff%02x%02x%02x"):format(
                 math.floor(dim[1] * 255 + 0.5), math.floor(dim[2] * 255 + 0.5), math.floor(dim[3] * 255 + 0.5))
             h.eq(ns.Widgets.ChatColor("dim"), expect)
+        end)
+    end)
+
+    h.describe("the shared placement helpers", function()
+        local function device(w, h2)
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(w, h2)
+            return f
+        end
+
+        h.it("places a rectangle corner to corner from the device's top left", function()
+            local f = device(200, 100)
+            local t = f:CreateTexture(nil, "ARTWORK")
+            W.PlaceRect(t, f, { left = 0.1, top = 0.2, right = 0.6, bottom = 0.7 })
+            h.eq(#t.points, 2, "two corners fully place a region")
+            h.eq(t.points[1][1], "TOPLEFT")
+            h.eq(t.points[1][3], "TOPLEFT", "offsets are from the device's corner")
+            h.truthy(math.abs(t.points[1][4] - 20) < 0.01, "left 0.1 of 200")
+            h.truthy(math.abs(t.points[1][5] + 20) < 0.01, "top 0.2 of 100, downward")
+            h.eq(t.points[2][1], "BOTTOMRIGHT")
+            h.truthy(math.abs(t.points[2][4] - 120) < 0.01, "right 0.6 of 200")
+            h.truthy(math.abs(t.points[2][5] + 70) < 0.01, "bottom 0.7 of 100")
+        end)
+
+        h.it("hangs a line on its rect's centre, letting the font set the height", function()
+            -- The artist's *_line rects are a few pixels tall: slots to sit on,
+            -- not boxes to fit in. Anchoring one corner to corner crushes the
+            -- text into a box it cannot fit.
+            local f = device(200, 100)
+            local fs = W.Text(f, "green")
+            W.PlaceLine(fs, f, { left = 0.1, top = 0.4, right = 0.9, bottom = 0.44 })
+            h.eq(#fs.points, 2, "two horizontal anchors, so it still truncates")
+            h.eq(fs.points[1][1], "LEFT")
+            h.eq(fs.points[2][1], "RIGHT")
+            h.truthy(math.abs(fs.points[1][5] + 42) < 0.01, "centre of 0.40..0.44 of 100")
+            h.eq(fs.points[1][5], fs.points[2][5], "both ends sit on one line")
+        end)
+
+        h.it("makes a circle square and sizes it from the device's width", function()
+            -- A radius measured against two different axes stops being a
+            -- circle. Width, always, on both layouts.
+            local f = device(200, 100)
+            local t = f:CreateTexture(nil, "ARTWORK")
+            W.PlaceCircle(t, f, { cx = 0.5, cy = 0.25, r = 0.1 })
+            h.eq(t:GetWidth(), t:GetHeight(), "a circle is drawn on a square")
+            h.truthy(math.abs(t:GetWidth() - 40) < 0.01, "2 * 0.1 * 200")
+            h.eq(t.points[1][1], "CENTER")
+            h.truthy(math.abs(t.points[1][4] - 100) < 0.01)
+            h.truthy(math.abs(t.points[1][5] + 25) < 0.01)
+        end)
+
+        h.it("never reads a size from a frame that only inherits one", function()
+            -- The fault that reached the client on 2026-09-20. A frame sized
+            -- by SetAllPoints has no resolved size until the layout pass, so
+            -- every fraction would be multiplied by nothing.
+            local f = device(200, 100)
+            local child = CreateFrame("Frame", nil, f)
+            child:SetAllPoints(f)
+            local fs = W.Text(child, "green")
+            W.PlaceLine(fs, f, { left = 0.1, top = 0.4, right = 0.9, bottom = 0.44 })
+            h.truthy(fs.points[1][4] > 0, "measured the device, not the child")
         end)
     end)
 
@@ -291,6 +353,460 @@ return function(h)
             SlashCmdList.GOBLINPS("")
             h.truthy(ui.frame:IsShown())
             h.truthy(Planner.Debug() == ui)
+        end)
+
+        h.it("keeps the window at the art's exact aspect ratio", function()
+            -- 1600x1024 is 25:16 and 1024x1600 is 16:25. The old 660x400 and
+            -- 390x600 were 1.65 and 0.65, so the wide frame would have drawn
+            -- about 6% too wide -- the fault that made the dash's first design
+            -- render as an oval, which took a client run to see.
+            local g = ns.Data.ArtGeometry.planner
+            for _, mode in ipairs({ "wide", "tall" }) do
+                local size = ns.Planner.SIZE[mode]
+                local canvas = g[mode].canvas
+                h.truthy(math.abs(size[1] / size[2] - canvas.w / canvas.h) < 0.001,
+                         mode .. " must keep the art's aspect ratio")
+            end
+        end)
+
+        h.it("carries no art of its own on the window frame", function()
+            -- Widgets.Panel lays two opaque textures on the frame it makes and
+            -- returns only the frame, so nothing can hide them. The planner
+            -- art has transparent margins; an unhideable rectangle behind it
+            -- boxes in a window that is not a rectangle. Fixed once on the
+            -- dash already.
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.eq(#ui.frame.regions, 0,
+                 "the window frame must own no regions; the fallback is its own frame")
+            h.truthy(ui.flat, "and the fallback frame exists")
+        end)
+
+        h.it("hides the flat fallback once the frame art loads", function()
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.frameArt, "the frame art loaded in the test fixture")
+            h.falsy(ui.flat:IsShown(), "so the coloured rectangle goes")
+        end)
+
+        h.it("stacks the art under the content", function()
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.content:GetFrameLevel() > ui.artLayer:GetFrameLevel(),
+                     "nothing the player reads is ever behind the chassis")
+            -- The results list rides above the screen and the side panel on
+            -- its STRATA, not on its level. Its level (base + 3) only TIES
+            -- with theirs -- they are children of content, one above it by
+            -- default -- so a test asserting the level proves nothing about
+            -- what actually carries the overlay. DIALOG does.
+            h.eq(ui.results:GetFrameStrata(), "DIALOG",
+                 "the search overlay covers what it drops over")
+            h.truthy(ui.results:GetFrameLevel() <= ui.screen:GetFrameLevel(),
+                     "and its level does not: at best it ties with the panels it covers")
+        end)
+
+        h.it("places the chrome from the geometry, in real pixels", function()
+            -- Pin the position, not just the size: a test that checks how big
+            -- a thing is cannot tell you it is in the wrong place.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w = ui.frame:GetWidth()
+            for _, name in ipairs({ "close", "gear" }) do
+                local button, circ = ui[name], g[name .. "Button"]
+                h.truthy(button, name .. " is missing")
+                h.truthy(math.abs(button:GetWidth() - circ.r * 2 * w) < 1,
+                         name .. " is sized from geometry." .. name .. "Button.r")
+                h.truthy(math.abs(button.points[1][4] - circ.cx * w) < 1,
+                         name .. " sits at geometry." .. name .. "Button.cx, got "
+                         .. tostring(button.points[1][4]))
+            end
+            h.truthy(math.abs(ui.titlePlate.points[1][4] - g.titlePlate.left * w) < 1,
+                     "the title plate starts where the geometry says")
+        end)
+
+        h.it("draws the screen's scenery where nothing opaque can cover it", function()
+            -- The fault this pins: the backdrop was created on artLayer and
+            -- placed at exactly g.screen -- directly beneath the `screen`
+            -- panel, whose two colour fills are fully opaque and four frame
+            -- levels higher. Byte-identical rects, so the scenery was drawn,
+            -- cropped correctly, and never once seen. Every test on the
+            -- branch passed because they all asked where it was and how big,
+            -- and both were right. So ask the mechanism instead: whose frame
+            -- is it on, at what layer, and is anything opaque over it there.
+            local ORDER = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.backdrop, "the backdrop texture exists")
+            h.truthy(ui.backdrop.parent == ui.screen,
+                     "the scenery belongs to the screen it fills, not to a frame behind it")
+            h.eq(ui.backdrop.drawLayer, "ARTWORK",
+                 "art over colours: above the panel's fills, below the text drawn on it")
+            for _, r in ipairs(ui.screen.regions) do
+                if r ~= ui.backdrop then
+                    local opaque = r.colorTexture and r.colorTexture[4] >= 1
+                    h.falsy(opaque and ORDER[r.drawLayer or "ARTWORK"] >= ORDER[ui.backdrop.drawLayer],
+                            "a fully opaque fill at or above the backdrop's layer would hide it, "
+                            .. "layer " .. tostring(r.drawLayer))
+                end
+            end
+        end)
+
+        h.it("covers the screen with the backdrop without distorting it", function()
+            -- screen-backdrop is 2.5:1 scenery and the screen opening is not.
+            -- Stretching it to fit would squash the mountains; the answer is
+            -- to crop the overflow, centred, inside the part's own texture
+            -- coordinates.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.backdrop, "the backdrop texture exists")
+            local l, r = unpack(ui.backdrop.texCoord)
+            local part = ns.Data.Art["screen-backdrop"]
+            h.truthy(l >= part.l - 0.0001 and r <= part.r + 0.0001,
+                     "the cover-crop stays inside the part's own padding crop")
+            h.truthy(math.abs((l - part.l) - (part.r - r)) < 0.0001,
+                     "the crop is centred: equal slivers off each side")
+            h.truthy(r - l < part.r - part.l,
+                     "2.5:1 scenery in a wider-than-tall-but-not-2.5 opening loses width")
+        end)
+
+        h.it("crops the backdrop by the shipped canvas's aspect, not the master PNG's", function()
+            -- screen-backdrop's master PNG is 1600x640 (aspect 2.5), but it
+            -- ships at 512x205 padded to a 512x256 canvas (aspect 2.4976).
+            -- Close, not equal -- and using the master's pixel size instead
+            -- of the shipped canvas's still lands a crop that is centred and
+            -- inside bounds (the test above stays green either way), just
+            -- the wrong SIZE: it trims about 15% a side instead of about 7%.
+            -- Centredness cannot catch that; only the magnitude can.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local part = ns.Data.Art["screen-backdrop"]
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
+            local boxW = (g.screen.right - g.screen.left) * w
+            local boxH = (g.screen.bottom - g.screen.top) * fh
+            local span = part.r - part.l
+            local tall = part.b - part.t
+            -- The correct domain: part.cw/part.ch are the padded canvas's own
+            -- pixel size (what l/r/t/b are fractions OF), never the pre-scale
+            -- master's.
+            local partAspect = (part.cw * span) / (part.ch * tall)
+            local boxAspect = boxW / boxH
+            local wantKeep = span * (boxAspect / partAspect)
+            local l, r = unpack(ui.backdrop.texCoord)
+            h.truthy(math.abs((r - l) - wantKeep) < 0.001,
+                     "trimmed span must match the shipped canvas's aspect: got "
+                     .. tostring(r - l) .. ", wanted " .. tostring(wantKeep))
+        end)
+
+        h.it("tiles the panel backing behind every opening, not just the screen", function()
+            -- Codex's placement note: "tile behind contents, clipped to
+            -- interior opening." At exactly g.screen the tile would sit
+            -- right where screen-backdrop goes and never be seen, while the
+            -- side panel next to it kept its flat colour.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local frameW, frameH = ui.frame:GetWidth(), ui.frame:GetHeight()
+            h.truthy(ui.panelArt, "the panel backing exists")
+            local leftFrac = ui.panelArt.points[1][4] / frameW
+            local topFrac = -ui.panelArt.points[1][5] / frameH
+            local rightFrac = ui.panelArt.points[2][4] / frameW
+            local bottomFrac = -ui.panelArt.points[2][5] / frameH
+            for _, rect in ipairs({ g.screen, g.sidePanel }) do
+                h.truthy(leftFrac <= rect.left + 0.001, "covers the rect's left")
+                h.truthy(topFrac <= rect.top + 0.001, "covers the rect's top")
+                h.truthy(rightFrac >= rect.right - 0.001, "covers the rect's right")
+                h.truthy(bottomFrac >= rect.bottom - 0.001, "covers the rect's bottom")
+            end
+        end)
+
+        h.it("keeps the tiled backing off the chassis's own ornament", function()
+            -- boundingBox unioned EVERY rect in the geometry, and the two
+            -- plates are riveted to the chassis -- the brass crest at the top,
+            -- the rail at the bottom -- rather than set into the opening. So
+            -- the tile stretched over both, and planner-panel is fully opaque
+            -- and drawn on artLayer at "BACKGROUND" AFTER frameArt on that
+            -- same frame and layer, which means over it: the inner brass
+            -- border on all four sides, both corner lamps and the bottom rail
+            -- all disappeared under it. The artist's note for this part reads
+            -- "tile behind contents, clipped to interior opening; no exterior
+            -- background".
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.panelArt, "the panel backing exists")
+            for _, mode in ipairs({ "wide", "tall" }) do
+                ns.Planner.ApplyLayout(mode)
+                local g = ns.Data.ArtGeometry.planner[mode]
+                local w, frameH = ui.frame:GetWidth(), ui.frame:GetHeight()
+                local top = -ui.panelArt.points[1][5] / frameH
+                local bottom = -ui.panelArt.points[2][5] / frameH
+                h.truthy(top > g.titlePlate.top + 0.001,
+                         mode .. ": the tile climbed onto the brass crest, top is " .. tostring(top))
+                h.truthy(bottom < g.taglinePlate.bottom - 0.001,
+                         mode .. ": the tile reached the bottom rail, bottom is " .. tostring(bottom))
+                -- Shrinking it must not cost the openings it exists to back.
+                local left = ui.panelArt.points[1][4] / w
+                local right = ui.panelArt.points[2][4] / w
+                for _, rect in ipairs({ g.screen, g.sidePanel }) do
+                    h.truthy(left <= rect.left + 0.001 and top <= rect.top + 0.001
+                             and right >= rect.right - 0.001 and bottom >= rect.bottom - 0.001,
+                             mode .. ": the tile must still cover every opening")
+                end
+            end
+            ns.Planner.ApplyLayout("wide")
+        end)
+
+        h.it("gives a stretched control fixed end caps", function()
+            -- One button part draws at 65 px for Here and 135 for GO. A single
+            -- stretched texture squashes the caps at one width and stretches
+            -- them at the other.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            -- button.png is 768x192, so a quarter of its width is a 192x192
+            -- cap: aspect 1.
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            h.truthy(slice, "three-slice returns its pieces")
+            h.eq(slice.left:GetWidth(), slice.right:GetWidth(),
+                 "both caps draw at the same natural width")
+            h.truthy(slice.middle.points and #slice.middle.points >= 2,
+                     "the middle is anchored between the caps, so it takes the slack")
+        end)
+
+        h.it("sizes a three-slice's end caps from the height it is handed, never the frame's", function()
+            -- Restretch3 takes the height as an argument on purpose. Once
+            -- ApplyLayout has re-anchored a control corner to corner, that
+            -- control ONLY INHERITS its size, and this project's oldest rule
+            -- says never measure such a frame: GetHeight answers the stale
+            -- explicit size until the client's layout pass, and answers 0 if
+            -- there never was one. So the caller works the height out the same
+            -- way PlaceRect works its offsets out -- from the geometry and the
+            -- frame that really was given a size.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            h.eq(slice.left:GetWidth(), 40, "the cap starts at the build-time height")
+            W.Restretch3(f, 33.75)              -- the geometry's height, not the frame's 40
+            h.eq(slice.left:GetWidth(), 33.75, "the left cap takes the height it was handed")
+            h.eq(slice.right:GetWidth(), 33.75, "and so does the right")
+            h.falsy(W.Restretch3(CreateFrame("Frame", nil, UIParent), 20),
+                    "a control with no slice answers false rather than erroring")
+        end)
+
+        h.it("sizes every three-sliced control's caps from its own rect, in both layouts", function()
+            -- The fault this pins: Restretch3 was wired in correctly and
+            -- changed no number, because it measured the control -- which by
+            -- then only inherited its size. Every cap stayed at its build-time
+            -- width in both layouts: GO drew 24 where the wide geometry
+            -- implies 32.50 and the tall 33.75, `here` 20 against 30.06, the
+            -- two boxes 28.75 against 43.22, the layout button 18 against
+            -- 22.34. Asserting through ApplyLayout with nothing set by hand is
+            -- the only way to see that; a test that sets the height itself
+            -- proves only that ApplyLayout made the call.
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            for _, mode in ipairs({ "wide", "tall" }) do
+                ns.Planner.ApplyLayout(mode)
+                local g = ns.Data.ArtGeometry.planner[mode]
+                local frameH = ui.frame:GetHeight()
+                local checks = { { ui.layoutButton, g.layoutButton, "layoutButton" },
+                                 { ui.here, g.hereButton, "here" },
+                                 { ui.go, g.goButton, "go" },
+                                 { ui.fromBox, g.fromBox, "fromBox" },
+                                 { ui.toBox, g.toBox, "toBox" } }
+                for _, check in ipairs(checks) do
+                    local slice, rect, name = check[1].slice, check[2], check[3]
+                    h.truthy(slice, mode .. ": " .. name .. " carries no three-slice")
+                    local want = (rect.bottom - rect.top) * frameH * slice.capAspect
+                    for _, cap in ipairs({ { slice.left, "left" }, { slice.right, "right" } }) do
+                        h.truthy(math.abs(cap[1]:GetWidth() - want) < 0.01,
+                                 mode .. ": " .. name .. "'s " .. cap[2] .. " cap is "
+                                 .. tostring(cap[1]:GetWidth()) .. ", the geometry implies "
+                                 .. tostring(want))
+                    end
+                end
+            end
+            ns.Planner.ApplyLayout("wide")
+        end)
+
+        h.it("swaps a stretched button's art to button-disabled instead of only tinting the face", function()
+            -- SetButtonEnabled used to only tint button.face (BORDER), which
+            -- a three-slice now sits over on the ARTWORK layer -- so once
+            -- real art loads, a disabled control would still show its
+            -- enabled texture with no visible change at all.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            f.face = f:CreateTexture(nil, "BORDER")
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            h.truthy(f.slice == slice, "Stretch3 records its pieces on the frame it decorates")
+
+            W.SetButtonEnabled(f, false)
+            local disabledPart = ns.Data.Art["button-disabled"]
+            h.eq(slice.left:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. disabledPart.file,
+                 "disabled must not still be showing the enabled texture")
+            h.eq(slice.middle:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. disabledPart.file)
+            h.eq(slice.right:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. disabledPart.file)
+
+            W.SetButtonEnabled(f, true)
+            local enabledPart = ns.Data.Art["button"]
+            h.eq(slice.left:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file,
+                 "re-enabling swaps the art back")
+            h.eq(slice.middle:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file)
+            h.eq(slice.right:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file)
+        end)
+
+        h.it("lights a three-sliced button on hover and presses it while held", function()
+            -- button-hover and button-pressed shipped with this branch and
+            -- nothing drew them. reslice already existed for the disabled
+            -- swap, so the states cost four scripts.
+            local f = CreateFrame("Button", nil, UIParent)
+            f:SetSize(200, 40)
+            f.face = f:CreateTexture(nil, "BORDER")
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            W.WireButtonArt(f)
+            local function art(name)
+                return "Interface\\AddOns\\GoblinPS\\Media\\" .. ns.Data.Art[name].file
+            end
+
+            f.scripts.OnEnter(f)
+            h.eq(slice.left:GetTexture(), art("button-hover"), "the cursor lights it")
+            f.scripts.OnMouseDown(f)
+            h.eq(slice.middle:GetTexture(), art("button-pressed"), "holding it presses it")
+            f.scripts.OnMouseUp(f)
+            h.eq(slice.right:GetTexture(), art("button-hover"),
+                 "letting go with the cursor still on it goes back to lit, not to plain")
+            f.scripts.OnLeave(f)
+            h.eq(slice.left:GetTexture(), art("button"), "and leaving puts the plain art back")
+
+            W.SetButtonEnabled(f, false)
+            f.scripts.OnEnter(f)
+            f.scripts.OnMouseDown(f)
+            h.eq(slice.left:GetTexture(), art("button-disabled"),
+                 "a disabled button answers neither hover nor press")
+        end)
+
+        h.it("leaves a stretched button's art alone when button-disabled will not load", function()
+            -- A missing disabled state must never lose the button: keep
+            -- showing whatever the slice already showed.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            f.face = f:CreateTexture(nil, "BORDER")
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            local enabledPart = ns.Data.Art["button"]
+            local enabledPath = "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file
+
+            local badPath = "Interface\\AddOns\\GoblinPS\\Media\\" .. ns.Data.Art["button-disabled"].file
+            Fake.missingTextures[badPath] = true
+            W.SetButtonEnabled(f, false)
+            Fake.missingTextures[badPath] = nil
+            h.eq(slice.left:GetTexture(), enabledPath, "still showing the enabled art, not a failed swap")
+        end)
+
+        h.it("places every input, panel and footer line from the geometry", function()
+            ns.Planner.Toggle()
+            for _, mode in ipairs({ "wide", "tall" }) do
+                ns.Planner.ApplyLayout(mode)
+                local ui = ns.Planner.Debug()
+                local g = ns.Data.ArtGeometry.planner[mode]
+                local w = ui.frame:GetWidth()
+                local checks = {
+                    { ui.fromBox, g.fromBox, "fromBox" },
+                    { ui.toBox, g.toBox, "toBox" },
+                    { ui.here, g.hereButton, "hereButton" },
+                    { ui.screen, g.screen, "screen" },
+                    { ui.side, g.sidePanel, "sidePanel" },
+                    { ui.go, g.goButton, "goButton" },
+                }
+                for _, check in ipairs(checks) do
+                    local region, rect, name = check[1], check[2], check[3]
+                    h.truthy(region, mode .. ": " .. name .. " is missing")
+                    h.truthy(math.abs(region.points[1][4] - rect.left * w) < 1,
+                             mode .. ": " .. name .. " starts at its rect's left, got "
+                             .. tostring(region.points[1][4]))
+                end
+                -- The two footer lines are lines, so they carry two horizontal
+                -- anchors on one y, not four corners.
+                for _, fs in ipairs({ ui.total, ui.hint }) do
+                    h.eq(#fs.points, 2)
+                    h.eq(fs.points[1][5], fs.points[2][5], "both ends sit on one line")
+                end
+            end
+        end)
+
+        h.it("keeps working when not one texture loads", function()
+            -- Art is laid over colours. A beta patch that renames a file must
+            -- leave a window the player can still route with.
+            local restore = ns.Data.Art
+            ns.Data.Art = nil
+            local ok = pcall(function()
+                ns.Planner.Toggle()
+                ns.Planner.ApplyLayout("wide")
+            end)
+            ns.Data.Art = restore
+            h.truthy(ok, "building with no art at all must not error")
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.flat:IsShown(), "and the flat fallback comes back")
+        end)
+
+        h.it("keeps a working window when one named texture will not load", function()
+            -- The dash's tests fail exactly one part with Fake.missingTextures
+            -- while the rest load, which is a stricter check than nilling
+            -- ns.Data.Art wholesale above. screen-backdrop is an insert, not a
+            -- stacked layer, so its own failure must not take anything else
+            -- down with it.
+            local badPath = "Interface\\AddOns\\GoblinPS\\Media\\screen-backdrop"
+            Fake.missingTextures[badPath] = true
+            -- loadfile re-runs `ns.Planner = Planner` as a side effect; every
+            -- later test (and Core.lua's own slash handler) reaches the
+            -- planner through ns.Planner directly, so put the real one straight
+            -- back and drive this fresh copy only through its own local.
+            local savedPlanner = ns.Planner
+            local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+            ns.Planner = savedPlanner
+            local ok, err = pcall(function()
+                FreshPlanner.Toggle()
+                FreshPlanner.ApplyLayout("wide")
+            end)
+            Fake.missingTextures[badPath] = nil
+            h.truthy(ok, err)
+            local ui = FreshPlanner.Debug()
+            h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
+            h.falsy(ui.backdrop, "a texture that would not load must not be laid over the colour")
+            -- the rest of the window is still usable with the backdrop missing
+            Fake.Type(ui.toBox, "delt")
+            h.truthy(ui.results:IsShown(), "the control must still work")
+        end)
+
+        h.it("drops the results list over the search area, not under one box", function()
+            -- One shared list, spanning the search area: it serves whichever
+            -- box has focus and the art has one opening for it.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local w = ui.frame:GetWidth()
+            Fake.Type(ui.toBox, "delt")
+            h.truthy(ui.results:IsShown(), "typing opens the list")
+            h.eq(ui.results.points[1][2], ui.frame,
+                 "anchored to the window, not to the box that has focus")
+            h.truthy(math.abs(ui.results.points[1][4] - g.resultsList.left * w) < 1,
+                     "and it sits where the geometry says")
+            Fake.Click(ui.here) -- put the list away for the test that follows
+        end)
+
+        h.it("opens the whole list from the dropdown button", function()
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            h.truthy(ui.dropdown, "the socket beside To has a control in it")
+            Fake.Click(ui.dropdown)
+            h.truthy(ui.results:IsShown(), "browsing needs no typing")
+            Fake.Click(ui.dropdown)
+            h.falsy(ui.results:IsShown(), "and clicking again puts it away")
         end)
     end)
 

@@ -10,16 +10,46 @@ ns.Planner = Planner
 
 local W = ns.Widgets
 
-Planner.SIZE = { wide = { 660, 400 }, tall = { 390, 600 } }
+-- The window's rectangle on screen. The art is 1600x1024 and 1024x1600, so
+-- these keep those shapes exactly; everything inside is placed as a fraction
+-- of them, from the geometry the art tool generates. Nothing here is a
+-- measured guess.
+Planner.SIZE = { wide = { 650, 416 }, tall = { 384, 600 } }
 Planner.MAX_ROWS = 8 -- each step is two lines: the step, then its detail
 Planner.MAX_RESULTS = 8
-local PAD, HEADER, INPUTS, FOOTER, ROW, STEP_ROW = 10, 30, 26, 64, 18, 32
--- The wide layout's screen keeps this share of the window width; plan 3 (the
--- schematic map) will revisit it once the map needs room too.
-local SCREEN_SHARE = 0.42
+local ROW, STEP_ROW = 18, 32
 
 local ui          -- built on first open
 local state = {}  -- from = place or nil ("where you stand"), to = place, plan = Core.PlanRoute's answer
+
+local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
+
+-- The active layout's geometry, or nil when the generated table is absent.
+-- Gated on the geometry alone: whether the parts shipped is a different
+-- question, and answering it here would drop the whole layout to its fallback
+-- while a perfectly good geometry sat there unread.
+local function geo(mode)
+    local g = ns.Data.ArtGeometry and ns.Data.ArtGeometry.planner
+    return g and g[mode or ns.Core.Layout()]
+end
+
+-- Lay a shipped part over `parent`, cropping the power-of-two padding away.
+-- Returns nil when the part is missing or the texture will not load, and every
+-- caller uses that: a missing texture must leave a working window.
+local function art(parent, name, layer)
+    local part = ns.Data.Art and ns.Data.Art[name]
+    if not part then
+        return nil
+    end
+    local t = parent:CreateTexture(nil, layer)
+    if not t:SetTexture(MEDIA .. part.file) then
+        t:Hide()
+        return nil
+    end
+    t:SetTexCoord(part.l, part.r, part.t, part.b)
+    t:SetAllPoints(parent)
+    return t
+end
 
 local function stepLine(i, step)
     local cost = ns.Route.FormatTime(step.seconds)
@@ -147,9 +177,6 @@ local function showResults(box)
         end
     end
     ui.results.owner = box
-    ui.results:ClearAllPoints()
-    ui.results:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 0, -2)
-    ui.results:SetSize(box:GetWidth(), math.min(#items, Planner.MAX_RESULTS) * ROW + 4)
     ui.results:Show()
 end
 
@@ -182,39 +209,174 @@ local function wireBox(box)
     end)
 end
 
+-- Cover `rect` (in device fractions) with a part whose own aspect differs,
+-- losing the overflow evenly off both sides rather than distorting the art.
+-- The crop composes with the part's padding crop: the part's artwork lives in
+-- l..r of its texture, so the cover-crop takes a centred sub-range of THAT,
+-- never of 0..1. Getting this backwards crops the padding instead of the art.
+--
+-- The part's own aspect has to come from `cw`/`ch`, the padded canvas
+-- make_art.py actually shipped -- NOT the pre-scale master PNG's size. l/r/t/b
+-- are fractions of that shipped canvas, so mixing them with the master's
+-- pixel size mixes two coordinate domains and crops the wrong amount while
+-- staying centred and in bounds, which is exactly why that is easy to miss.
+-- screen-backdrop's master is 1600x640 (aspect 2.5) but it ships at 512x205
+-- padded to 512x256 (aspect 2.4976): close, not equal, and the padding shifts
+-- it further still on a part whose canvas isn't square.
+--
+-- screen-backdrop is decorative scenery, not a map. Losing its sides is
+-- intended. If the part carries no cw/ch (an older or hand-edited table),
+-- this leaves the texture's coordinates alone rather than compute a crop
+-- from nil.
+local function coverCrop(texture, part, boxW, boxH)
+    if not (part.cw and part.ch) then
+        return
+    end
+    local span = part.r - part.l
+    local tall = part.b - part.t
+    local partAspect = (part.cw * span) / (part.ch * tall)
+    local boxAspect = boxW / boxH
+    if partAspect > boxAspect then
+        -- The art is wider than the opening: keep a centred slice of width.
+        local keep = span * (boxAspect / partAspect)
+        local trim = (span - keep) / 2
+        texture:SetTexCoord(part.l + trim, part.r - trim, part.t, part.b)
+    else
+        local keep = tall * (partAspect / boxAspect)
+        local trim = (tall - keep) / 2
+        texture:SetTexCoord(part.l, part.r, part.t + trim, part.b - trim)
+    end
+end
+
+-- The two keys that live ON the chassis rather than in its opening: the title
+-- plate is riveted to the brass crest, the tagline plate to the bottom rail.
+-- Everything else in the geometry sits in the cut-out.
+local ON_THE_CHASSIS = { titlePlate = true, taglinePlate = true }
+
+-- The union rect of every placed area in this layout's geometry: minimum
+-- left and top, maximum right and bottom, over every key in `g` that has a
+-- `left` field (a rect; `canvas` is pixels, not a device fraction, and the
+-- circle keys have cx/cy/r instead, so both are skipped without naming
+-- them) and is not ON_THE_CHASSIS. Used for the tiled panel backing, which
+-- sits behind every opening rather than any one of them: at the screen's own
+-- rect it would back the screen and leave the side panel on flat colour.
+--
+-- The two plates have to come out by name. planner-panel is fully opaque and
+-- is created on artLayer at "BACKGROUND" after frameArt on that same frame
+-- and layer, so it draws OVER the chassis -- and unioning the plates in
+-- stretched it across about 30% chassis in wide and 16% in tall, swallowing
+-- the inner brass border, both corner lamps and the bottom rail. The artist's
+-- note for this part reads "tile behind contents, clipped to interior
+-- opening; no exterior background". Excluding them leaves about 8.6% in wide
+-- (the crest's plate still overhangs the tile's top edge) and 0.0% in tall,
+-- measured against each frame PNG's alpha. A real
+-- `interior` rect would do better still, and belongs in a geometry delivery,
+-- not invented here.
+local function boundingBox(g)
+    local box
+    for key, rect in pairs(g) do
+        if key ~= "canvas" and not ON_THE_CHASSIS[key] and type(rect) == "table" and rect.left then
+            if not box then
+                box = { left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom }
+            else
+                box.left = math.min(box.left, rect.left)
+                box.top = math.min(box.top, rect.top)
+                box.right = math.max(box.right, rect.right)
+                box.bottom = math.max(box.bottom, rect.bottom)
+            end
+        end
+    end
+    return box
+end
+
 -- ---- layout: the only thing that differs between wide and tall ----
 
 function Planner.ApplyLayout(mode)
     if not ui then
         return
     end
-    local size = Planner.SIZE[mode] or Planner.SIZE.wide
+    mode = (mode == "tall") and "tall" or "wide"
+    local size = Planner.SIZE[mode]
     local f = ui.frame
+    -- The explicit size first, before anything reads it: every helper below
+    -- measures this frame, and a frame with no size measures 0.
     f:SetSize(size[1], size[2])
 
-    ui.screen:ClearAllPoints()
-    ui.side:ClearAllPoints()
-    local top = -(HEADER + INPUTS + PAD)
-    if mode == "tall" then
-        ui.screen:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, top)
-        ui.screen:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, top)
-        ui.screen:SetHeight(190)
-        ui.side:SetPoint("TOPLEFT", ui.screen, "BOTTOMLEFT", 0, -PAD)
-        ui.side:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -PAD, PAD)
+    local part = ns.Data.Art and ns.Data.Art["planner-frame-" .. mode]
+    if part and ui.frameArt:SetTexture(MEDIA .. part.file) then
+        ui.frameArt:SetTexCoord(part.l, part.r, part.t, part.b)
+        ui.frameArt:Show()
+        ui.flat:Hide()
     else
-        ui.screen:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, top)
-        ui.screen:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", PAD, PAD)
-        ui.screen:SetWidth(math.floor(size[1] * SCREEN_SHARE))
-        ui.side:SetPoint("TOPLEFT", ui.screen, "TOPRIGHT", PAD, 0)
-        ui.side:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -PAD, PAD)
+        ui.frameArt:Hide()
+        ui.flat:Show()
     end
+
+    local g = geo(mode)
+    if g then
+        if ui.titlePlate then
+            W.PlaceRect(ui.titlePlate, f, g.titlePlate)
+        end
+        if ui.taglinePlate then
+            W.PlaceRect(ui.taglinePlate, f, g.taglinePlate)
+        end
+        W.PlaceLine(ui.title, f, g.titlePlate)
+        W.PlaceLine(ui.tagline, f, g.taglinePlate)
+        W.PlaceCircle(ui.close, f, g.closeButton)
+        W.PlaceCircle(ui.gear, f, g.gearButton)
+        W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
+        W.PlaceRect(ui.layoutButton, f, g.layoutButton)
+        W.PlaceRect(ui.fromBox, f, g.fromBox)
+        W.PlaceRect(ui.toBox, f, g.toBox)
+        W.PlaceRect(ui.here, f, g.hereButton)
+        W.PlaceRect(ui.results, f, g.resultsList)
+        W.PlaceRect(ui.screen, f, g.screen)
+        W.PlaceRect(ui.side, f, g.sidePanel)
+        W.PlaceRect(ui.go, f, g.goButton)
+        W.PlaceLine(ui.total, f, g.totalLine)
+        W.PlaceLine(ui.hint, f, g.hintLine)
+        if ui.panelArt then
+            W.PlaceRect(ui.panelArt, f, boundingBox(g))
+        end
+        -- Every three-sliced control has just been re-anchored corner to
+        -- corner, so its end caps were measured against the height it had
+        -- before. The new height CANNOT be read off the control: it only
+        -- inherits its size now. Work it out from the same two things
+        -- PlaceRect used -- the control's own rect and this frame, which was
+        -- given an explicit size at the top of ApplyLayout.
+        --
+        -- Pairs, not a flat list: `ipairs` over controls would stop dead at
+        -- the first nil and silently leave every later control's caps stale,
+        -- and each control needs its own rect in any case.
+        for _, pair in ipairs({ { ui.layoutButton, g.layoutButton }, { ui.here, g.hereButton },
+                                { ui.go, g.goButton }, { ui.fromBox, g.fromBox },
+                                { ui.toBox, g.toBox } }) do
+            W.Restretch3(pair[1], (pair[2].bottom - pair[2].top) * f:GetHeight())
+        end
+        if ui.backdrop then
+            -- Placed by its parent, not by the geometry, but the crop still
+            -- needs the screen opening's pixel size.
+            local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
+            if backdropPart then
+                coverCrop(ui.backdrop, backdropPart,
+                          (g.screen.right - g.screen.left) * f:GetWidth(),
+                          (g.screen.bottom - g.screen.top) * f:GetHeight())
+            end
+        end
+    end
+
     ui.layoutButton.label:SetText(mode == "tall" and "Wide" or "Tall")
 end
 
 -- ---- construction ----
 
 local function build()
-    local f = W.Panel(UIParent, "body", "brass", 3)
+    -- Bare on purpose. A texture created on this frame could only be taken off
+    -- screen by hiding the frame, and the window art has transparent margins,
+    -- so an unhideable rectangle behind it boxes in a window that is not a
+    -- rectangle. The dash unit shipped that fault once already.
+    local f = CreateFrame("Frame", nil, UIParent)
+    f:SetSize(Planner.SIZE.wide[1], Planner.SIZE.wide[2])
     f:SetFrameStrata("HIGH")
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -229,44 +391,178 @@ local function build()
     f:SetScript("OnMouseDown", dismiss)
     f:Hide()
 
-    local stripe = f:CreateTexture(nil, "ARTWORK")
-    stripe:SetPoint("TOPLEFT", 3, -3)
-    stripe:SetPoint("TOPRIGHT", -3, -3)
-    stripe:SetHeight(4)
-    stripe:SetColorTexture(W.COLOR.hazard[1], W.COLOR.hazard[2], W.COLOR.hazard[3], 1)
+    local base = f:GetFrameLevel()
 
-    local title = W.Text(f, "amber", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", PAD, -11)
+    -- The flat colour is the fallback for art that will not load. It is its
+    -- own frame so it can be hidden as a unit the moment the real frame art
+    -- arrives.
+    local flat = W.Panel(f, "body", "brass", 3)
+    flat:SetAllPoints(f)
+    flat:SetFrameLevel(base)
+
+    local artLayer = CreateFrame("Frame", nil, f)
+    artLayer:SetAllPoints(f)
+    artLayer:SetFrameLevel(base + 1)
+
+    local content = CreateFrame("Frame", nil, f)
+    content:SetAllPoints(f)
+    content:SetFrameLevel(base + 2)
+
+    -- The window's own chassis. ApplyLayout swaps the texture between the two
+    -- frames, so create it empty here and let ApplyLayout fill it.
+    local frameArt = artLayer:CreateTexture(nil, "BACKGROUND")
+    frameArt:SetAllPoints(artLayer)
+
+    -- The plates carry art but are NOT SetAllPoints to their parent: each sits
+    -- in its own rect, which ApplyLayout places. That is the one difference
+    -- from `art()` above, and it is why they cannot use it.
+    local function plate(name)
+        local part = ns.Data.Art and ns.Data.Art[name]
+        if not part then
+            return nil
+        end
+        local t = artLayer:CreateTexture(nil, "ARTWORK")
+        if not t:SetTexture(MEDIA .. part.file) then
+            t:Hide()
+            return nil
+        end
+        t:SetTexCoord(part.l, part.r, part.t, part.b)
+        return t
+    end
+    local titlePlate = plate("title-plate")
+    local taglinePlate = plate("tagline-plate")
+
+    -- The interior backing, genuinely tiled. That works only because this part
+    -- ships unpadded: a 512x512 source at 256x256 is already a power of two,
+    -- so its crop is the whole texture. Tiling a PADDED part would repeat the
+    -- transparent padding along with the picture, which is why every other
+    -- part in this window is stretched instead. check_art.py flags this one as
+    -- tiling, meaning its four edges were drawn to meet.
+    --
+    -- SetHorizTile and SetVertTile are both present on build 1.60.1.69913
+    -- (SimpleTextureBaseAPIDocumentation.lua) and Blizzard's own UI calls them.
+    local panelArt = artLayer:CreateTexture(nil, "BACKGROUND")
+    local panelPart = ns.Data.Art and ns.Data.Art["planner-panel"]
+    local whole = panelPart and panelPart.l == 0 and panelPart.r == 1
+                  and panelPart.t == 0 and panelPart.b == 1
+    if whole and panelArt:SetTexture(MEDIA .. panelPart.file, "REPEAT", "REPEAT") then
+        panelArt:SetHorizTile(true)
+        panelArt:SetVertTile(true)
+    elseif panelPart and panelArt:SetTexture(MEDIA .. panelPart.file) then
+        -- Padded after all: stretch rather than repeat the padding.
+        panelArt:SetTexCoord(panelPart.l, panelPart.r, panelPart.t, panelPart.b)
+    else
+        panelArt:Hide()
+    end
+
+    local title = W.Text(content, "amber", "GameFontNormalLarge")
     title:SetText("GoblinPS")
-    local tagline = W.Text(f, "dim", "GameFontDisableSmall")
-    tagline:SetPoint("LEFT", title, "RIGHT", 8, -1)
+    local tagline = W.Text(content, "dim", "GameFontDisableSmall")
     tagline:SetText("Accuracy not guaranteed. No refunds.")
 
-    local close = W.Button(f, "X", 20, 18, function()
+    local close = CreateFrame("Button", nil, content)
+    close:RegisterForClicks("LeftButtonUp")
+    close:SetScript("OnClick", function()
         dismiss()
         f:Hide()
     end)
-    close:SetPoint("TOPRIGHT", -PAD, -10)
-    local layoutButton = W.Button(f, "Tall", 44, 18, function()
+    local closeArt = art(close, "close", "ARTWORK")
+    if not closeArt then
+        W.Fill(close, "ARTWORK", "hazard")
+    end
+    local closeHover = ns.Data.Art and ns.Data.Art["close-hover"]
+    if closeHover then
+        close:SetHighlightTexture(MEDIA .. closeHover.file, "ADD")
+    end
+
+    -- The art has a socket beside the To box and the geometry places it, but
+    -- no such control exists today: the results list only appears while you
+    -- type. An empty socket reads as a fault, and a way to browse every
+    -- destination without knowing its name is worth having, so the button
+    -- opens the same list with an empty query.
+    local dropdown = CreateFrame("Button", nil, content)
+    dropdown:RegisterForClicks("LeftButtonUp")
+    dropdown:SetScript("OnClick", function()
+        if ui.results:IsShown() and ui.results.owner == ui.toBox then
+            hideResults()
+        else
+            showResults(ui.toBox)
+        end
+    end)
+    local dropdownArt = art(dropdown, "dropdown-button", "ARTWORK")
+    if not dropdownArt then
+        W.Fill(dropdown, "ARTWORK", "steel")
+    end
+
+    -- The gear opens settings, which is a later plan. It is drawn and placed
+    -- now because the art has a socket for it and an empty socket reads as a
+    -- fault; it says so when clicked rather than doing nothing.
+    local gear = CreateFrame("Button", nil, content)
+    gear:RegisterForClicks("LeftButtonUp")
+    gear:SetScript("OnClick", function()
+        ns.Core.Say("Settings are not built yet.")
+    end)
+    local gearArt = art(gear, "gear", "ARTWORK")
+    if not gearArt then
+        W.Fill(gear, "ARTWORK", "steel")
+    end
+    local gearHover = ns.Data.Art and ns.Data.Art["gear-hover"]
+    if gearHover then
+        gear:SetHighlightTexture(MEDIA .. gearHover.file, "ADD")
+    end
+
+    -- The three plain buttons all draw the same "button" part at a width the
+    -- geometry, not this code, decides: 65 pixels for Here in the wide layout
+    -- and 135 for GO in the tall one. A single stretched texture would
+    -- squash those end caps at one width and stretch them at the other, so
+    -- each gets its own three-slice art on top of its flat fallback.
+    local BUTTON_CAP, BUTTON_CAP_ASPECT = 0.25, 1.0
+
+    local layoutButton = W.Button(content, "Tall", 44, 18, function()
         dismiss()
         Planner.ApplyLayout(ns.Core.ToggleLayout())
     end)
-    layoutButton:SetPoint("RIGHT", close, "LEFT", -6, 0)
+    W.Stretch3(layoutButton, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
+    W.WireButtonArt(layoutButton)
 
-    local fromBox = W.EditBox(f, 150, 20, "From: where you stand")
-    fromBox:SetPoint("TOPLEFT", PAD, -(HEADER + 4))
-    local toBox = W.EditBox(f, 170, 20, "To: city, zone or flight stop")
-    toBox:SetPoint("LEFT", fromBox, "RIGHT", 6, 0)
-    local here = W.Button(f, "Here", 40, 20, function()
+    local fromBox = W.EditBox(content, 150, 20, "From: where you stand")
+    local toBox = W.EditBox(content, 170, 20, "To: city, zone or flight stop")
+    local here = W.Button(content, "Here", 40, 20, function()
         dismiss()
         state.from = nil
         ui.fromBox:SetText("")
         W.UpdatePlaceholder(ui.fromBox)
         replan()
     end)
-    here:SetPoint("LEFT", toBox, "RIGHT", 6, 0)
+    W.Stretch3(here, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
+    W.WireButtonArt(here)
 
-    local screen = W.Panel(f, "screen", "steel", 2)
+    -- input-box.png is 1024x128, so 0.18 of its width is a 184x128 cap.
+    local CAP, CAP_ASPECT = 0.18, 184 / 128
+    local fromSlice = W.Stretch3(fromBox, "input-box", CAP, CAP_ASPECT)
+    local toSlice = W.Stretch3(toBox, "input-box", CAP, CAP_ASPECT)
+
+    local screen = W.Panel(content, "screen", "steel", 2)
+
+    -- The scenery belongs to the screen, not to the art layer behind it.
+    -- W.Panel lays two fully opaque colour fills on the frame it makes, so a
+    -- backdrop on artLayer at the same rect was drawn, cropped correctly and
+    -- never once seen -- the same fault the window frame's own panel had, one
+    -- level down. On the screen at "ARTWORK" it sits above those two fills
+    -- (BACKGROUND and BORDER) and below the OVERLAY text drawn on it, which
+    -- is this project's standing art-over-colours pattern. The fills stay
+    -- exactly where they are and remain the fallback when the texture will
+    -- not load. It fills its parent, so ApplyLayout never places it: the
+    -- geometry already places the screen.
+    local backdrop = screen:CreateTexture(nil, "ARTWORK")
+    local backdropPart = ns.Data.Art and ns.Data.Art["screen-backdrop"]
+    if backdropPart and backdrop:SetTexture(MEDIA .. backdropPart.file) then
+        backdrop:SetAllPoints(screen)
+    else
+        backdrop:Hide()
+        backdrop = nil
+    end
+
     local notes = W.Text(screen, "dim")
     notes:SetPoint("TOPLEFT", 8, -8)
     notes:SetPoint("TOPRIGHT", -8, -8)
@@ -279,7 +575,7 @@ local function build()
     device:SetText("GoblinPS")
     device:SetAlpha(0.25)
 
-    local side = W.Panel(f, "steel", "steel", 1)
+    local side = W.Panel(content, "steel", "steel", 1)
     local rows = {}
     for i = 1, Planner.MAX_ROWS do
         local row = { left = W.Text(side, "green"), right = W.Text(side, "dim", nil, "RIGHT"),
@@ -292,8 +588,6 @@ local function build()
         rows[i] = row
     end
     local hint = W.Text(side, "amber")
-    hint:SetPoint("BOTTOMLEFT", 8, FOOTER - 18)
-    hint:SetPoint("BOTTOMRIGHT", -8, FOOTER - 18)
     local go = W.Button(side, "GO", 56, 24, function()
         dismiss()
         replan()
@@ -305,13 +599,13 @@ local function build()
             ui.frame:Hide()
         end
     end)
-    go:SetPoint("BOTTOMRIGHT", -8, 8)
+    W.Stretch3(go, "button", BUTTON_CAP, BUTTON_CAP_ASPECT)
+    W.WireButtonArt(go)
     local total = W.Text(side, "green", "GameFontNormal")
-    total:SetPoint("BOTTOMLEFT", 8, 12)
-    total:SetPoint("RIGHT", go, "LEFT", -8, 0)
 
-    local results = W.Panel(f, "steel", "brass", 1)
+    local results = W.Panel(content, "steel", "brass", 1)
     results:SetFrameStrata("DIALOG")
+    results:SetFrameLevel(base + 3)
     results:EnableMouse(true)
     results:Hide()
     results.rows = {}
@@ -330,9 +624,12 @@ local function build()
         results.rows[i] = row
     end
 
-    ui = { frame = f, fromBox = fromBox, toBox = toBox, screen = screen, side = side, rows = rows,
+    ui = { frame = f, artLayer = artLayer, content = content, flat = flat, frameArt = frameArt,
+           titlePlate = titlePlate, taglinePlate = taglinePlate, title = title, tagline = tagline,
+           close = close, gear = gear, dropdown = dropdown, backdrop = backdrop, panelArt = panelArt,
+           fromBox = fromBox, toBox = toBox, screen = screen, side = side, rows = rows,
            hint = hint, total = total, go = go, here = here, known = known, results = results,
-           layoutButton = layoutButton, notes = notes }
+           layoutButton = layoutButton, notes = notes, fromSlice = fromSlice, toSlice = toSlice }
     wireBox(fromBox)
     wireBox(toBox)
     f:SetScript("OnHide", hideResults)

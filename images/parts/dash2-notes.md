@@ -1,5 +1,11 @@
 # Dash 2 art handoff
 
+Transparency correction: removed a baked checkerboard in the enclosed gap
+between the left hose and bezel near nine o'clock (source bounds x117–165,
+y374–444). The source housing, authoring export, shipped housing TGA and
+assembled proofs were rebuilt. `_dash2-gap-magenta.png` and
+`_dash2-gap-white.png` show the corrected gap against contrasting backgrounds.
+
 The round dash with the red stop button and attached lower CRT is now split into aligned, transparent RGBA layers. This is artwork only; it has not been verified in game.
 
 ## Source files

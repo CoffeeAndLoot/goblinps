@@ -1,6 +1,6 @@
 # Build log
 
-How plans 2 to 5 were actually built, kept because the commits say *what*
+How plans 2 to 6 were actually built, kept because the commits say *what*
 changed and these say *why*. Nothing here is current documentation: the design
 is `docs/superpowers/specs/2026-09-19-goblinps-design.md` and the plans are in
 `docs/superpowers/plans/`. Read those first; read this when you want to know
@@ -33,6 +33,15 @@ is reused by later plans; this copy is the permanent one.
   review rather than by tests, every one because a reviewer ran the code
   instead of reading it. `progress.md` holds the eleven rulings made while
   it executed, including why the compass had to read `Trip.ROTATION_SIGN`.
+- `2026-09-20-planner-art/final-review.md` — plan 6's whole-branch review,
+  with `fix-brief.md` and `fix-report.md` beside it. One Critical: the planner
+  screen's scenery was drawn, cropped correctly, and **invisible**, because an
+  opaque panel sat at the same rectangle two frame levels above it — the same
+  fault the branch had just fixed one level up, reproduced one level down. Its
+  closing line is the lesson: nothing on that branch asserted a texture was
+  *visible*, only where it was and how big. `progress.md` holds 23 rulings,
+  including the two places my own ruling R18 walked past the bug it was
+  standing next to.
 - `2026-09-20-dash-second-design/final-review.md` — plan 5's whole-branch
   review, with `fix-brief.md`, `fix-report.md` and `re-review.md` beside it.
   Three Important findings, all of them things the tests could not see: an
