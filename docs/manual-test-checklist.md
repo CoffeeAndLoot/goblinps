@@ -445,6 +445,8 @@ GoblinPS. Re-run them after each beta update, starting with the marker test:
 means saves load again. The plan 7 resume items above are blocked the same
 way.
 
+- [ ] The four screen lines (names, total, amber line, idle status) read
+      clearly over the scenery now that the screen has no dark edge
 - [ ] Log in or `/reload`: chat says "No flight paths known this session:
       open any flight master's map." Open one, `/reload` again: while saves
       do not load, the line comes back; once they load, it stays quiet

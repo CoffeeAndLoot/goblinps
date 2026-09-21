@@ -277,11 +277,10 @@ end
 
 -- Buttons go grey and stop answering clicks; SetEnabled exists on Button.
 -- `button.face` is the fallback: tinted here so it still shows the state
--- when no art loaded at all. When a three-slice sits over it (Stretch3
--- records `button.slice`), that art is opaque and would otherwise hide the
--- tint, so this also repoints the slice at the shipped "<name>-disabled"
--- part -- or leaves it showing whatever it already did if that part is
--- missing or will not load.
+-- when no art loaded at all. When a three-slice loaded (Stretch3 records
+-- `button.slice` and hides the face), the tint is never seen, so this also
+-- repoints the slice at the shipped "<name>-disabled" part -- or leaves it
+-- showing whatever it already did if that part is missing or will not load.
 -- A button's label takes the colour of what it sits on: steel on the flat
 -- brass face, green on the dark glass of the shipped button art, dim whenever
 -- the button is disabled. Seen in the client 2026-09-21: Tall, Here and GO
