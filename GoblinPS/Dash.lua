@@ -109,14 +109,6 @@ local function build()
         local point, _, relativePoint, x, y = self:GetPoint(1)
         ns.Core.SavePosition("dash", point, relativePoint, x, y)
     end)
-    -- Escape hides this frame (it is in UISpecialFrames) without calling
-    -- Dash.Stop, and there is no other way to reopen it: without this, the
-    -- trip would keep ticking, replanning and even finishing behind a
-    -- window nobody can see. OnHide is the one place both Escape and the
-    -- Stop button end up, so ending the trip here covers both.
-    f:SetScript("OnHide", function()
-        state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
-    end)
     f:Hide()
 
     local base = f:GetFrameLevel()
@@ -250,10 +242,10 @@ local function build()
     end
 
     -- A real button in the housing's socket, with the three caps the artist
-    -- drew. It ends the trip exactly as Escape does. With no explicit level
-    -- it would default to one above `f`, level with `artLayer` and so under
-    -- the housing and content that now cover the whole device, so it is
-    -- pinned above all of them.
+    -- drew. It is the one way a trip ends now that Escape does not touch the
+    -- dash. With no explicit level it would default to one above `f`, level
+    -- with `artLayer` and so under the housing and content that now cover
+    -- the whole device, so it is pinned above all of them.
     local stop = CreateFrame("Button", nil, f)
     stop:SetFrameLevel(base + 4)
     if g then
@@ -316,8 +308,6 @@ local function build()
            content = content, destination = destination, distance = distance,
            steps = steps, eta = eta, stop = stop, stopNormal = stopNormal,
            stopPressed = stopPressed, stopHover = stopHover }
-    ns.Core.CloseOnEscape(f, "GoblinPSDash")
-
     local since = 0
     f:SetScript("OnUpdate", function(_, elapsed)
         since = since + elapsed
@@ -329,37 +319,68 @@ local function build()
     ns.API.OnTripEvent(function(kind) Dash.Tick(kind) end)
 end
 
+local function ensureBuilt()
+    if ui then
+        return
+    end
+    build()
+    local p = ns.Core.Position("dash")
+    ui.frame:ClearAllPoints()
+    if p then
+        ui.frame:SetPoint(p.point, UIParent, p.relativePoint, p.x, p.y)
+    else
+        ui.frame:SetPoint("CENTER", UIParent, "CENTER", -260, 0)
+    end
+end
+
 -- Begin a trip. A plan with no steps is not a trip, and opens nothing.
 function Dash.Start(plan)
-    if not ui then
-        build()
-        local p = ns.Core.Position("dash")
-        ui.frame:ClearAllPoints()
-        if p then
-            ui.frame:SetPoint(p.point, UIParent, p.relativePoint, p.x, p.y)
-        else
-            ui.frame:SetPoint("CENTER", UIParent, "CENTER", -260, 0)
-        end
-    end
+    ensureBuilt()
     local steps = plan and plan.result and plan.result.steps or {}
     if #steps == 0 then
         return
     end
     -- `banner` resets with the rest: a second Start before the next tick
     -- would otherwise open the new trip under the old one's "Recalculating...",
-    -- with all three step lines blanked behind it.
-    state.plan, state.index, state.best, state.banner = plan, 1, nil, nil
+    -- with all three step lines blanked behind it. A resume in progress is
+    -- replaced too: a new route takes over from wherever it was waiting.
+    state.plan, state.index, state.best, state.banner, state.resume = plan, 1, nil, nil, nil
     Dash.Refresh()
     ui.frame:Show()
 end
 
--- Hide is the one action that ends a trip: the OnHide script above clears
--- state, so Stop and Escape (which only hides the frame, via UISpecialFrames)
--- both end up ending the trip the same way.
+-- Stop is the one action that ends a trip. Nothing else does -- not Escape,
+-- not hiding the interface, not arriving, not a reload -- so it is also the
+-- one place the saved trip and our map pin are cleared.
 function Dash.Stop()
+    state.plan, state.index, state.best, state.banner, state.resume = nil, nil, nil, nil, nil
+    ns.Core.ClearTrip()
+    ns.Core.ClearPin()
     if ui then
         ui.frame:Hide()
     end
+end
+
+-- Carry on with a trip saved before a reload or a logout. Every route starts
+-- where you stand, so resuming is planning again -- as soon as the client can
+-- say where that is.
+function Dash.Resume(place)
+    ensureBuilt()
+    state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
+    state.resume = place
+    ui.steps[1]:SetText("Resuming your trip to " .. ns.Search.ShortName(place.name) .. "...")
+    ui.steps[2]:SetText("")
+    ui.steps[3]:SetText("")
+    ui.destination:SetText("")
+    ui.distance:SetText("")
+    ui.eta:SetText("")
+    ui.arrow:Hide()
+    ui.frame:Show()
+end
+
+-- Where the running trip, or the one resuming, is headed.
+function Dash.Destination()
+    return state.plan and state.plan.to or state.resume
 end
 
 Dash.TICK = 0.5        -- seconds between checks; every frame is jitter, not accuracy
@@ -396,13 +417,54 @@ local function finish()
     ui.distance:SetText("")
     ui.eta:SetText("")
     ui.arrow:Hide()
+    -- There is nowhere left to point. The trip is not over -- only Stop ends
+    -- it -- but a pin on the spot you are standing on says nothing.
+    ns.Core.ClearPin()
     state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
+end
+
+-- One try at resuming. No position yet (still loading, or in an instance):
+-- keep waiting. A position but no route: say so and stop trying, but keep the
+-- saved trip -- only Stop ends a trip.
+local function tryResume()
+    if not ns.Core.Here() then
+        ui.distance:SetText("Waiting...")
+        return
+    end
+    local place = state.resume
+    state.resume = nil
+    local plan = ns.Core.PlanRoute(place)
+    local steps = plan.result and plan.result.steps
+    if not steps then
+        ui.steps[1]:SetText(plan.notes[#plan.notes] or ("No route found to " .. place.name .. "."))
+        ui.distance:SetText("") -- clear whatever the waiting state left showing
+        return
+    end
+    if #steps == 0 then
+        finish()
+        return
+    end
+    state.plan, state.index, state.best, state.banner = plan, 1, nil, nil
+    Dash.Refresh()
+    ns.Core.PinStep(steps[1])
 end
 
 -- One look at where the player is against the step they are on. `event` is
 -- "tick", "zone" or "landed" and is handed straight to Trip.Check.
 function Dash.Tick(event)
-    if not ui or not state.plan then
+    -- A dash hidden by itself (only something other than Stop can do that
+    -- now) holds still. Hiding the whole interface (Alt+Z) does not: this
+    -- guard checks only the dash's own shown flag, and API.OnTripEvent still
+    -- calls Tick on zone changes and landings underneath it, so the trip
+    -- keeps up with you while the UI is out of sight.
+    if not ui or not ui.frame:IsShown() then
+        return
+    end
+    if state.resume then
+        tryResume()
+        return
+    end
+    if not state.plan then
         return
     end
     if state.banner then

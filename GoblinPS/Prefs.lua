@@ -4,6 +4,9 @@ local _, ns = ...
 -- destinations and window positions, plus `known`: each character's learned
 -- flight paths, as { ["Name-Realm"] = { [nodeID] = true } }. That store is
 -- owned by Known.lua and Core.lua; this file only guarantees it is a table.
+-- `trips`: each character's trip in progress, as
+-- { ["Name-Realm"] = { to = "<place name>" } }, owned by Core.lua,
+-- account-wide for the same reason as `known`.
 --
 -- It is account-wide, not per character, on purpose. Verified in the client
 -- 2026-09-21: build 1.60.1.69913 writes SavedVariablesPerCharacter to disk on
@@ -39,6 +42,7 @@ function Prefs.Init(db)
     end
     db.minimap.hide = db.minimap.hide == true
     db.known = type(db.known) == "table" and db.known or {}
+    db.trips = type(db.trips) == "table" and db.trips or {}
     -- The least the hearthstone must save to be worth its half-hour cooldown,
     -- in seconds. 0 means "always take the fastest route". A hostile or
     -- missing value falls back to the default rather than breaking planning.

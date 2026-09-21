@@ -1,6 +1,6 @@
 # Build log
 
-How plans 2 to 6 were actually built, kept because the commits say *what*
+How plans 2 to 7 were actually built, kept because the commits say *what*
 changed and these say *why*. Nothing here is current documentation: the design
 is `docs/superpowers/specs/2026-09-19-goblinps-design.md` and the plans are in
 `docs/superpowers/plans/`. Read those first; read this when you want to know
@@ -33,6 +33,14 @@ is reused by later plans; this copy is the permanent one.
   review rather than by tests, every one because a reviewer ran the code
   instead of reading it. `progress.md` holds the eleven rulings made while
   it executed, including why the compass had to read `Trip.ROTATION_SIGN`.
+- `2026-09-21-trips-survive/final-review.md` — plan 7's whole-branch review:
+  a trip ends only on Stop and survives Escape, a hidden interface, a reload
+  and a logout. One Important finding, and it was mine: the plan promised that
+  a pin the player drops mid-trip survives, but the game holds one waypoint
+  and GoblinPS moves it on every step. The one real bug -- a stale
+  "Waiting..." after a resume with no route -- sat in the one branch no test
+  covered. `progress.md` holds the rulings, including running against a
+  deliberately red art-tooling baseline while plan 8's geometry waited.
 - `2026-09-20-planner-art/final-review.md` — plan 6's whole-branch review,
   with `fix-brief.md` and `fix-report.md` beside it. One Critical: the planner
   screen's scenery was drawn, cropped correctly, and **invisible**, because an

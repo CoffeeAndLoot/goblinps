@@ -18,6 +18,9 @@ return function(h)
     assert(loadfile("GoblinPS/Data/Art.lua"))("GoblinPS", ns)
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
     local pins, loginCallbacks = {}, {}
+    -- The one user waypoint the client holds, as { map, x, y }, and how many
+    -- times it has been cleared.
+    local waypoint, waypointClears = nil, 0
     local level = 60 -- mounted, so ground steps say Ride
     ---@type number|nil, boolean, function[]
     local facing, onTaxi, tripCallbacks = 0, false, {}
@@ -53,7 +56,15 @@ return function(h)
         OnTripEvent = function(callback) tripCallbacks[#tripCallbacks + 1] = callback end,
         SetWaypoint = function(map, x, y)
             pins[#pins + 1] = { map, x, y }
+            waypoint = { map, x, y }
             return true
+        end,
+        ClearWaypoint = function()
+            waypoint = nil
+            waypointClears = waypointClears + 1
+        end,
+        WaypointIs = function(map, x, y)
+            return waypoint ~= nil and waypoint[1] == map and waypoint[2] == x and waypoint[3] == y
         end,
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
     }
@@ -1644,16 +1655,62 @@ return function(h)
         end)
 
         h.describe("the dash unit and Escape", function()
-            h.it("ends the trip like Stop does, so no hidden trip keeps ticking or replanning unseen", function()
+            h.it("stays off Escape's list, so Escape never ends a trip", function()
+                -- Escape is pressed constantly: to close bags, clear a target,
+                -- open the game menu. It used to close the dash and end the
+                -- trip with it. The dash is a heads-up display, like the
+                -- minimap, not a dialog.
+                Dash.Start(plan)
+                for _, name in ipairs(UISpecialFrames) do
+                    h.truthy(name ~= "GoblinPSDash", "the dash must not be on Escape's list")
+                end
+                Dash.Stop()
+            end)
+
+            h.it("keeps the trip when the dash is hidden some other way", function()
                 Dash.Start(plan)
                 local ui, state = Dash.Debug()
-                h.truthy(state.plan, "sanity: a trip is running")
-                ui.frame:Hide() -- what UISpecialFrames does on Escape; Dash never sees the key itself
-                h.falsy(state.plan, "the trip must not outlive the window it belongs to")
-                standAt(10, 0)
-                Dash.Tick("tick") -- must do nothing: no error, no resurrected trip
+                ui.frame:Hide()
+                h.truthy(state.plan, "hiding is not stopping")
+                -- But a hidden trip must not move on behind the player's back:
+                -- standing on the first step's target would advance it.
+                standAt(0, 0)
+                Dash.Tick("tick")
+                h.eq(state.index, 1, "nothing moves while the dash is hidden")
+                ui.frame:Show()
+                Dash.Tick("tick")
+                h.eq(state.index, 2, "and it picks up again once shown")
+                standAt(1000, 1100)
+                Dash.Stop()
+            end)
+
+            h.it("ends the trip on Stop, clearing the saved trip and our pin", function()
+                Dash.Start(plan)
+                ns.Core.SaveTrip(plan.to)
+                ns.Core.PinStep({ kind = "ride", to = { name = "Gate", map = 1, mx = 0.5, my = 0.5 } })
+                Dash.Stop()
+                local ui, state = Dash.Debug()
                 h.falsy(state.plan)
                 h.falsy(ui.frame:IsShown())
+                h.eq(ns.Core.SavedTripName(), nil, "a stopped trip does not come back after a reload")
+                h.eq(waypoint, nil, "our pin is cleared")
+            end)
+
+            h.it("clears our pin on arrival, and keeps saying Arrived", function()
+                local oneStep = { level = 60, to = plan.to, result = { seconds = 60, steps = {
+                    { kind = "ride", seconds = 60,
+                      to = { name = "the North Gate", c = 1, x = 0, y = 0, map = 1, mx = 0.5, my = 0.5 } },
+                } } }
+                Dash.Start(oneStep)
+                ns.Core.PinStep(oneStep.result.steps[1])
+                standAt(0, 0)
+                Dash.Tick("tick")
+                local ui = Dash.Debug()
+                h.eq(ui.steps[1]:GetText(), "Arrived.")
+                h.truthy(ui.frame:IsShown(), "Arrived. stays up until Stop")
+                h.eq(waypoint, nil, "the pin at the destination is cleared")
+                standAt(1000, 1100)
+                Dash.Stop()
             end)
         end)
 
@@ -1838,7 +1895,7 @@ return function(h)
                 h.truthy(state.plan)
                 Fake.Click(ui.stop)
                 h.falsy(ui.frame:IsShown())
-                h.falsy(state.plan, "clicking Stop ends the trip, as Escape does")
+                h.falsy(state.plan, "clicking Stop ends the trip")
             end)
 
             h.it("keeps a usable button when its art will not load", function()
@@ -1997,6 +2054,221 @@ return function(h)
             character = "Tester-Test Realm"
             h.eq(ns.Core.KnownCount(), 4, "and the first keeps its own")
             GoblinPSDB.known[character][3] = nil -- leave the fixture as the other tests found it
+        end)
+    end)
+
+    h.describe("the trip in progress", function()
+        local Core = ns.Core
+        local step = { kind = "ride", to = { name = "Gate", map = 1, mx = 0.5, my = 0.5 } }
+        -- These tests run at the end of the file, after tests that move the
+        -- player, and `standAt` is local to the dash block, out of reach here.
+        -- Anything that plans starts from where the file itself starts:
+        -- beside Alpha, in Westland.
+        local function home()
+            where.map, where.mx, where.my = 1, 0.89, 0.9
+        end
+
+        h.it("clears the map pin it set", function()
+            h.truthy(Core.PinStep(step))
+            local before = waypointClears
+            Core.ClearPin()
+            h.eq(waypoint, nil, "our pin is gone")
+            h.eq(waypointClears, before + 1)
+        end)
+
+        h.it("leaves a pin the player set in its place", function()
+            -- A waypoint dropped mid-trip is the player's. Ending the trip
+            -- must not take it with it.
+            Core.PinStep(step)
+            waypoint = { 9, 0.25, 0.75 }
+            local before = waypointClears
+            Core.ClearPin()
+            h.eq(waypointClears, before, "the player's pin was not ours to clear")
+            h.eq(waypoint[1], 9)
+            waypoint = nil
+        end)
+
+        h.it("forgets the pin once cleared, so a second clear touches nothing", function()
+            Core.PinStep(step)
+            Core.ClearPin()
+            waypoint = { 1, 0.5, 0.5 } -- the player puts one back on the very same spot
+            local before = waypointClears
+            Core.ClearPin()
+            h.eq(waypointClears, before, "nothing of ours is left to clear")
+            waypoint = nil
+        end)
+
+        h.it("saves the trip under this character, and only this one", function()
+            Core.SaveTrip({ name = "Delta" })
+            h.eq(Core.SavedTripName(), "Delta")
+            h.eq(GoblinPSDB.trips[character].to, "Delta", "in the account-wide save")
+            character = "Other-Test Realm"
+            h.eq(Core.SavedTripName(), nil, "another character has no trip")
+            character = "Tester-Test Realm"
+            Core.ClearTrip()
+            h.eq(Core.SavedTripName(), nil)
+        end)
+
+        h.it("saves the destination when a route starts", function()
+            -- Start Route is the one deliberate way to change destination.
+            home()
+            local plan = ns.Core.PlanRoute(ns.Search.Exact(ns.Data, "Delta", "H"))
+            h.truthy(plan.result and #plan.result.steps > 0, "sanity: a route to Delta")
+            Core.Go(plan)
+            h.eq(Core.SavedTripName(), "Delta")
+            Core.ClearTrip()
+            ns.Dash.Stop()
+            Core.ClearPin()
+        end)
+
+        h.it("replaces a running trip's saved destination when Start Route runs again", function()
+            -- The test above only proves SaveTrip from no trip running; the
+            -- spec also asks that Start Route replace a trip already going.
+            home()
+            local first = ns.Core.PlanRoute(ns.Search.Exact(ns.Data, "Delta", "H"))
+            h.truthy(first.result and #first.result.steps > 0, "sanity: a route to Delta")
+            Core.Go(first)
+            h.eq(Core.SavedTripName(), "Delta")
+
+            local second = ns.Core.PlanRoute(ns.Search.Exact(ns.Data, "Bravo", "H"))
+            h.truthy(second.result and #second.result.steps > 0, "sanity: a route to Bravo")
+            Core.Go(second)
+            h.eq(Core.SavedTripName(), "Bravo", "Start Route replaces the running trip's saved destination")
+
+            Core.ClearTrip()
+            ns.Dash.Stop()
+            Core.ClearPin()
+        end)
+
+        local delta = ns.Search.Exact(ns.Data, "Delta", "H")
+
+        -- A reload as this client performs it: the account-wide save comes
+        -- back through a real serialise-and-load, the per-character one does
+        -- not come back at all.
+        local function reload()
+            local function copy(t)
+                if type(t) ~= "table" then return t end
+                local out = {}
+                for k, v in pairs(t) do out[k] = copy(v) end
+                return out
+            end
+            GoblinPSDB, GoblinPSCharDB = copy(GoblinPSDB), nil
+        end
+
+        h.it("waits for a position before resuming, then plans from it", function()
+            home()
+            where.map = nil -- loading, or an instance: the client cannot say
+            ns.Dash.Resume(delta)
+            local ui, state = ns.Dash.Debug()
+            h.truthy(ui.frame:IsShown(), "the dash comes back straight away")
+            h.eq(ns.Dash.Destination(), delta)
+            ns.Dash.Tick("tick")
+            h.falsy(state.plan, "no position, no plan yet")
+            home()
+            ns.Dash.Tick("tick")
+            h.truthy(state.plan, "planned from where you stand")
+            h.eq(state.plan.to, delta)
+            h.eq(state.index, 1)
+            h.truthy(waypoint, "the first step is pinned")
+            ns.Dash.Stop()
+        end)
+
+        h.it("clears the stale Waiting... when a resume's position has no route", function()
+            -- M1 from the final review: tryResume's no-route branch wrote the
+            -- "No route found" line into steps[1] but never cleared
+            -- ui.distance, so "Waiting..." (set while the position was still
+            -- unknown) stuck around until Stop. This fixture's rough-route
+            -- fallback reaches every zone on its two continents, so there is
+            -- no real destination it cannot plan to; stub Core.PlanRoute for
+            -- this one test instead, and restore it straight after.
+            home()
+            Core.SaveTrip(delta)
+            local calls, realPlanRoute = 0, ns.Core.PlanRoute
+            ns.Core.PlanRoute = function()
+                calls = calls + 1
+                return { to = delta, notes = { "No route found to Delta." }, level = 60 }
+            end
+
+            where.map = nil -- loading, or an instance: the client cannot say
+            ns.Dash.Resume(delta)
+            ns.Dash.Tick("tick")
+            local ui, state = ns.Dash.Debug()
+            h.eq(ui.distance:GetText(), "Waiting...", "sanity: still waiting with no position")
+
+            home() -- position known now; the stub still finds no route
+            ns.Dash.Tick("tick")
+            ns.Dash.Tick("tick")
+            ns.Dash.Tick("tick")
+
+            ns.Core.PlanRoute = realPlanRoute
+            h.eq(calls, 1, "the planner is asked only once across several ticks")
+            h.eq(ui.steps[1]:GetText(), "No route found to Delta.")
+            h.eq(ui.distance:GetText(), "", "Waiting... must not outlive the no-route message")
+            h.falsy(state.plan, "no plan is running")
+            h.eq(Core.SavedTripName(), "Delta", "only Stop ends a trip")
+
+            ns.Dash.Stop()
+        end)
+
+        h.it("shows Arrived when you resume at the destination", function()
+            home()
+            local westland = ns.Search.Exact(ns.Data, "Westland", "H")
+            ns.Dash.Resume(westland) -- home() is in Westland
+            ns.Dash.Tick("tick")
+            local ui, state = ns.Dash.Debug()
+            h.eq(ui.steps[1]:GetText(), "Arrived.")
+            h.falsy(state.plan)
+            ns.Dash.Stop()
+        end)
+
+        h.it("resumes this character's saved trip at login", function()
+            home()
+            Core.SaveTrip(delta)
+            reload()
+            Core.ResumeTrip()
+            h.eq(ns.Dash.Destination() and ns.Dash.Destination().name, "Delta")
+            ns.Dash.Tick("tick")
+            local _, state = ns.Dash.Debug()
+            h.truthy(state.plan, "the trip is running again")
+            ns.Dash.Stop()
+        end)
+
+        h.it("resumes nothing for a character with no saved trip", function()
+            Core.SaveTrip(delta)
+            character = "Other-Test Realm"
+            ns.Dash.Stop() -- as a fresh login finds it
+            Core.ResumeTrip()
+            local ui = ns.Dash.Debug()
+            h.falsy(ui.frame:IsShown(), "another character's trip is not this one's")
+            character = "Tester-Test Realm"
+            Core.ClearTrip()
+        end)
+
+        h.it("drops a trip whose destination no longer exists, and says so", function()
+            GoblinPSDB.trips[character] = { to = "Atlantis" }
+            local from = #printed
+            Core.ResumeTrip()
+            h.eq(Core.SavedTripName(), nil, "the unresolvable trip is dropped")
+            local said = table.concat(printed, "\n", from + 1, #printed)
+            h.truthy(said:find("Couldn't resume your trip to Atlantis", 1, true),
+                     "never silently")
+        end)
+
+        h.it("opens the planner on the running trip's destination", function()
+            home()
+            local _, pstate = ns.Planner.Debug()
+            local pui = ns.Planner.Debug()
+            if pui and pui.frame:IsShown() then ns.Planner.Toggle() end
+            local keptTo = pstate and pstate.to
+            if pstate then pstate.to = nil end
+            ns.Dash.Resume(delta)
+            ns.Planner.Toggle()
+            pui, pstate = ns.Planner.Debug()
+            h.eq(pstate.to, delta, "the planner shows where the trip is going")
+            h.eq(pui.toBox:GetText(), "Delta")
+            ns.Planner.Toggle()
+            pstate.to = keptTo
+            ns.Dash.Stop()
         end)
     end)
 

@@ -59,6 +59,8 @@ green-dot ring; their art stays on disk.
 
 ## Plan 7 — a trip survives everything except Stop
 
+Built 2026-09-21 -- not yet run in the client.
+
 ### Behaviour
 
 - **Stop is the only thing that ends a trip.** Pressing it ends the trip,
@@ -72,8 +74,9 @@ green-dot ring; their art stays on disk.
   heads-up display like the minimap, not a dialog. The planner stays on
   Escape: closing the planner now loses nothing.
 - **Hiding the dash any other way only hides it.** Its `OnHide` no longer ends
-  the trip. While hidden it does not tick; it picks up where it was when shown
-  again.
+  the trip. A dash hidden by itself does not tick, and picks up where it was
+  when shown again; hiding the whole interface (Alt+Z) does not stop the
+  trip, since zone and landing events still reach it underneath.
 - **Start Route in the planner replaces the running trip.** That is the one
   deliberate way to change destination.
 - **Opening the planner mid-trip shows the trip's destination** when the
@@ -141,7 +144,10 @@ comes off that list.
 - Log out and back in mid-trip: the same.
 - Press Stop: the dash goes, the pin clears, and a `/reload` brings nothing
   back.
-- Drop your own map pin mid-trip, then arrive: your pin is still there.
+- On the last step, drop your own map pin, then arrive (or press Stop): it
+  is still there. (The game holds one user waypoint, which GoblinPS moves on
+  every advance and replan, so a pin dropped earlier would just be
+  overwritten -- by design, not a bug.)
 - Log in a second character: no trip.
 
 ---
@@ -295,6 +301,29 @@ Codex redraws `images/parts/planner-geometry.json` for this layout -- one
 layout, the same rules. Brief: `docs/art-parts-brief-planner-mockup.md`. It
 blocks only the drawing tasks: the removals, the parts and `Strip.lua` do not
 need it. The measured `interior` from 2026-09-21 carries over unchanged.
+
+**Delivered 2026-09-21** (`6ebb83c`), verified here: `wide` holds exactly the
+fourteen requested regions, `tall` is byte-identical to before, every value is
+in range, and every content rectangle sits at 0% opaque frame pixels. Four
+facts from Codex's handoff (`images/parts/QUESTIONS.md`) bind the drawing:
+
+1. `strip_track`'s left and right are the end badges' **centres**, not edges;
+   the screen already reserves the full sprite at each end. Do not inset twice.
+2. `line_thickness` is now **0.02** of canvas width and means the texture's
+   **full height, glow included**. Keep the texture's aspect, tile at that
+   scale, crop only the last tile, never stretch a line to a leg's length.
+3. `line-solid` and `line-dashed` tile cleanly -- their edges match byte for
+   byte (`_planner-line-seams.png`).
+4. Eleven stops fit at 113 px centre spacing against 96 px rings; names drop,
+   stops do not scroll. The total and warning have their own slots below the
+   names, the results list ends above both so the warning stays visible while
+   searching, and the idle status lines replace the strip rather than drawing
+   over it.
+
+Until plan 8 adapts it, the desk art tooling reports the new layout as
+mismatched: 8 Python tests and 6 `check_art.py` geometry checks fail, by
+design, naming the dropped keys. The addon is unaffected -- `Data/Art.lua` has
+not been regenerated from the new geometry.
 
 ---
 
