@@ -388,10 +388,12 @@ killed the route, and a reload or logout always lost it.
 
 ## Flight paths survive a reload
 
-Fixed 2026-09-21. This build writes per-character saves and never loads
-them, so learned paths were forgotten on every reload until a flight master's
-map taught them again. They now live in the account-wide save under the
-character's name.
+**Blocked by the client** (2026-09-21): build 1.60.1.69913 writes every
+addon's saves and loads none of them, so these fail today through no fault of
+GoblinPS. Re-run them after each beta update, starting with the marker test:
+`/run GoblinPSDB.test = 42`, `/reload`, `/run print(GoblinPSDB.test)` -- 42
+means saves load again. The plan 7 resume items above are blocked the same
+way.
 
 - [ ] Open a flight master's map, then `/reload`, then open `/gps` **without**
       visiting a flight master: it says "Flight paths known: N", not "No

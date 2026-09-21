@@ -93,6 +93,8 @@ GoblinPSDB.trips = { ["Name-Realm"] = { to = "Orgrimmar" } }
 Account-wide and keyed by `API.CharacterKey()`, because on build 1.60.1.69913
 `SavedVariablesPerCharacter` is written and never loaded (verified in game
 2026-09-21; see `docs/research/2026-09-19-api-and-data-findings.md`).
+Later the same day: this build loads no SavedVariables at all, account-wide
+included, so resume works only once a client build loads saves again.
 `Prefs.Init` guarantees `trips` is a table, as it does `known`. Two characters
 can each have their own trip underway.
 

@@ -8,12 +8,11 @@ local _, ns = ...
 -- { ["Name-Realm"] = { to = "<place name>" } }, owned by Core.lua,
 -- account-wide for the same reason as `known`.
 --
--- It is account-wide, not per character, on purpose. Verified in the client
--- 2026-09-21: build 1.60.1.69913 writes SavedVariablesPerCharacter to disk on
--- every reload and never loads it back -- right after a reload the
--- per-character table is nil while the file on disk holds the paths -- so
--- anything kept there is lost each session. The account-wide save
--- round-trips.
+-- It is account-wide, not per character, so one save holds every character.
+-- On build 1.60.1.69913 that choice buys nothing yet: verified in the client
+-- 2026-09-21, this build writes SavedVariables files on every reload and
+-- loads none of them back, account-wide or per character, GoblinPS's or any
+-- other addon's. Everything here lasts one session until Blizzard fixes it.
 --
 -- One other key shares the table without belonging to this file: `probe`, the
 -- dump from `/gps probe zones`, written and overwritten by Core.lua. It rides

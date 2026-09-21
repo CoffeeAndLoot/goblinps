@@ -45,7 +45,9 @@ The addon says so in amber where it matters;
 `docs/manual-test-checklist.md` lists what to walk. Plan 7, built 2026-09-21,
 made a trip end only on Stop: the dash comes off `UISpecialFrames`, hiding it
 no longer ends the trip, and the destination is saved by name in the
-account-wide `GoblinPSDB.trips` so a `/reload` or logout resumes it.
+account-wide `GoblinPSDB.trips` so a `/reload` or logout resumes it --
+once the client loads saves, which build 1.60.1.69913 does not (see the
+SavedVariables rule below).
 **Plan 7 has not been run in the client**, for the same reason as plan 6
 above: verified in source is not verified in game. Next: plan 8, the planner
 rebuilt to the mockup, with the route strip in place of today's From/To/
@@ -190,16 +192,18 @@ commit; re-read files before editing.
   answers.** Two so far return nothing useful for every input:
   `isUndiscovered` (false for every node) and `C_Map.GetMapLevels` (no range
   for any of the 60 zones). A third is a whole feature:
-  **`## SavedVariablesPerCharacter` is written and never loaded.** Verified
-  2026-09-21: the client rewrites the per-character file on every reload, and
-  right after the reload that table is `nil` while the file on disk holds the
-  data. Every character tested has a two-word name, and the account folder
-  holds two realm directories side by side (`70/` for saves,
-  `Classic Beta PvE 2/` with the names cut off at the space), so the cause is
-  likely in how this beta names per-character folders -- but that is a
-  guess, and the fix does not depend on it: keep per-character data in the
-  account-wide save, under the character's key. GoblinPS declares no
-  per-character variable at all. Both are present, both are documented, and
+  **SavedVariables are written and never loaded -- for every addon,
+  account-wide and per character.** Verified 2026-09-21: `GoblinPSDB.test =
+  42`, `/reload`, and the file on disk held 42 while the table read `nil`;
+  Wowhead Looter, a plain folder with no GoblinPS code, forgets its settings
+  the same way. An earlier check "proved" the account-wide save loaded by
+  seeing a table after a reload -- a table GoblinPS itself creates at
+  `PLAYER_LOGIN`. **A check must be able to fail**: plant a value only a
+  real load could bring back. Until a build fixes this, learned flight paths
+  and a trip in progress last one session; keep the account-wide save keyed
+  by `"Name-Realm"` (the right shape once loading works) and declare no
+  per-character variable. Do not build a persistence workaround on macros
+  or CVars. The APIs are present, documented, and
   `/gps selftest` reports both `ok` — because `ok` there means the function
   exists, not that it works. So: any probe that reads an API across many
   inputs must **count its answers and say plainly when there are none**,
