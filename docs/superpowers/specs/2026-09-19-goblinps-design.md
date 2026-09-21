@@ -1,15 +1,20 @@
 # GoblinPS design
 
-Status: **approved by the user on 2026-09-19.** Implemented in six plans
+Status: **approved by the user on 2026-09-19.** Implemented in seven plans
 under `docs/superpowers/plans/`: 1 routing core (done), 2 planner window
 (built), 3 ground crossings with walk-or-ride by level (built), 4 dash unit,
 first design (built and run in the client twice on 2026-09-20, which found
 and fixed an oval device -- a square texture stretched across a non-square
 frame -- and a compass hidden behind the brass, its stacked layers drawn at
 different sizes), 5 dash unit, second design (built around a redrawn art set
-after those in-game faults; not run in the client at all), 6 route strip.
-Each plan is written after the one before it has been used in game. Update
-this file whenever behaviour changes.
+after those in-game faults; not run in the client at all), 6 the planner's
+art (built; every position read from a generated geometry file, as plan 5
+was; not run in the client at all), 7 route strip. Plan 7 was split off from
+plan 6 because the strip draws inside the `screen` rectangle plan 6 places,
+and that placement has never been seen on screen -- laying the strip against
+coordinates nobody has looked at is the mistake that cost plan 4 two client
+runs and plan 5 one. Each plan is written after the one before it has been
+used in game. Update this file whenever behaviour changes.
 
 **What the product is** (the user, 2026-09-19, after trying a level-1
 character): a GPS. Point to point to point, with the arrow and the map pin on
@@ -99,6 +104,19 @@ The name is a Garmin joke: Goblin Positioning System. Slash command `/gps`.
    `GoblinPS/Data/Art.lua`, so `GoblinPS/Dash.lua` reads its layout from
    there instead of a hand-typed coordinate; a redrawn part only needs its
    geometry file corrected, never the Lua.
+   Plan 6 puts the planner window through the same pipeline:
+   `images/parts/planner-geometry.json` is the placement authority for the
+   window, stating every plate, box, button and circle as fractions of the
+   frame in both the wide and tall layouts (`canvas`, in pixels, is the one
+   exception). `tools/check_art.py` verifies it against the delivered PNGs'
+   actual pixels exactly as it does for the dash, and `tools/make_art.py`
+   copies it into `ns.Data.ArtGeometry.planner` inside the same generated
+   `GoblinPS/Data/Art.lua`, so `GoblinPS/Planner.lua` hand-types no
+   coordinate either. The geometry file's `tools_button` key is a
+   byte-identical alias of `close_button` in both layouts -- the artist drew
+   one socket, not two -- so `tools/make_art.py` drops it before it reaches
+   the generated table; the addon has no way to draw a second control on
+   top of Close.
    The schematic world map is **not being built.** The spike that proved it
    feasible is kept at `docs/research/schematic-spike/` in case a later
    version wants an overview panel; until then the generator's schematic

@@ -14,7 +14,7 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 5 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 6 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
 crossings). Plan 4, the dash unit's first design, ran in the client twice on
 2026-09-20: the round art rendered as an oval (a square texture stretched
@@ -27,7 +27,14 @@ hover and pressed states, every position read from a generated geometry
 file. Plan 5 ran in the client on 2026-09-20 and drew wrong: the compass
 and arrow sat off the device and every line of text was invisible, because
 build() read sizes from frames that only inherit them (`2a9e856`). The art,
-the stop button and the housing were right on the first try. `/gps` opens the planner;
+the stop button and the housing were right on the first try. Plan 6 re-clad
+the planner window the same way it redid the dash: sixteen art parts, a
+placement geometry file (`images/parts/planner-geometry.json`) copied into
+`GoblinPS/Data/Art.lua`, and `Planner.lua` now hand-types no coordinate.
+**Plan 6 has not been run in the client.** Do not write that it has: this
+project draws a hard line between verified in source and verified in game,
+and this branch's own history is faults that passed every desktop test and
+were only visible on screen. `/gps` opens the planner;
 `/gps to <place>` prints a route in chat, with ground travel going zone by
 zone through named crossings and walk-or-ride by level. GO closes the
 planner and opens the dash unit: an arrow pointing at the current step,
@@ -35,7 +42,7 @@ showing distance and time left, advancing when you arrive and replanning
 when you stray. What is still estimated is **data, not code**: crossing
 coordinates, the two mount speeds, `cross` times and some zone level ranges.
 The addon says so in amber where it matters;
-`docs/manual-test-checklist.md` lists what to walk. Next: plan 6, the route
+`docs/manual-test-checklist.md` lists what to walk. Next: plan 7, the route
 strip. A schematic world map was dropped on 2026-09-20 in favour of the strip;
 the spike that proved it feasible is kept at `docs/research/schematic-spike/`.
 The product is a GPS: point to point with an arrow, in game. The design is
@@ -66,12 +73,16 @@ GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber
                               # build (answers for no zone), so /gps probe zones can only report that
 GoblinPS/Travel.lua          # pure: walk or ride by level; the ONLY place mount levels and speeds live
                               # (levels 40/60 confirmed in game 2026-09-20; the two speeds are still assumed)
-GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates
-GoblinPS/Planner.lua         # the window; one set of widgets, ApplyLayout moves them
+GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard frame templates; owns the
+                              # shared placement helpers (PlaceRect, PlaceLine, PlaceCircle) and the Stretch3
+                              # three-slice stretcher that both windows read their geometry through
+GoblinPS/Planner.lua         # the window; one set of widgets, ApplyLayout moves them; no coordinate is
+                              # hand-typed here -- every position comes from ns.Data.ArtGeometry.planner
 GoblinPS/Dash.lua            # the small draggable device shown when GO closes the planner; arrow, distance, ETA
 GoblinPS/Data/Art.lua        # GENERATED: texture coordinates AND placement geometry (ns.Data.ArtGeometry) for
-                              # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json;
-                              # no coordinate is hand-typed in Dash.lua
+                              # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json
+                              # and images/parts/planner-geometry.json; no coordinate is hand-typed in Dash.lua
+                              # or Planner.lua
 GoblinPS/MinimapButton.lua, SelfTest.lua, Core.lua
 test/fake_frames.lua         # fake frame API: smoke-tests OUR window code, not Blizzard's
 tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
@@ -104,8 +115,13 @@ $env:LUA_PATH = "$HOME\.luarocks\share\lua\5.4\?.lua;$HOME\.luarocks\share\lua\5
 lua "$HOME\.luarocks\share\lua\5.4\luacheck\main.lua" GoblinPS test --no-color --no-cache
 ```
 
-lua-language-server batch check (run against the repo root so `.luarc.json`
-loads): `lua-language-server --check D:\goblinps --checklevel=Warning --check_out_path=<file.json>`
+lua-language-server batch check, **from PowerShell** (run against the repo
+root so `.luarc.json` loads): `lua-language-server --check D:\goblinps
+--checklevel=Warning --check_out_path=<file.json>`. Through Git Bash it
+silently mis-scopes the workspace root to the `GoblinPS/` subfolder, never
+loads `.luarc.json`, and reports over a hundred bogus "undefined global"
+warnings -- a false red tree, not a real one; do not go fix what those
+warnings name.
 
 Copy `.luacheckrc`, `.luarc.json` and the `test/` harness from `D:\looseEnds`
 when code starts; a new WoW global goes in both config files. Keep lint and
@@ -199,3 +215,28 @@ commit; re-read files before editing.
   loosen the rule. `test/test_crossings.lua` checks every row and that each
   continent's zones all connect. A crossing's name must read correctly
   whichever way you are going; the detail line gives the direction.
+- **A part's texture coordinates and its canvas dimensions must come from
+  the same place, and that place is the generated part entry.**
+  `tools/make_art.py` emits `cw` and `ch` -- the part's padded canvas's own
+  pixel size -- on every `Art.lua` row, because a part's `l/r/t/b` are
+  fractions of that padded shipped canvas, never of the master PNG. Passing
+  the master's 1600x640 alongside those fractions cropped the planner
+  screen's scenery 15.33% per side where 6.66% was intended -- under half
+  the intended picture, without crashing or distorting. Read `cw`/`ch` off
+  the part; never recompute a size or borrow one from source art.
+- **An art part that stacks shares its canvas; an art part that is an insert
+  does not.** The dash's five layers are one rectangle corner to corner. The
+  planner's `screen-backdrop` is the opposite: 2.5:1 scenery scaled to cover
+  its opening and centre-cropped, with the crop composed into the part's own
+  padding coordinates. Reading one rule as the other either distorts the art
+  or crops the padding instead of the picture.
+- **"Zero lint warnings" is not licence to silence one instead of fixing
+  it.** `.luacheckrc` carries per-file `max_line_length = false` for five
+  files, four of them generated -- nobody reads generated Lua, and line
+  length is a readability rule for humans, so that exemption is fine and
+  established. It covers exactly that: a rule that does not apply to
+  generated output. It is not a precedent for a future file. Do not add
+  `---@diagnostic disable`, a `luacheck:` exemption, or another
+  `max_line_length = false` entry to make a real warning on hand-written
+  code go away; fix the code, or, if the check itself is wrong, say so and
+  change the check.
