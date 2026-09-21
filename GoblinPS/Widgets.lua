@@ -119,9 +119,12 @@ end
 -- numbers in this plan; a squashed end cap is visible in one look, and the
 -- checklist asks for that look.
 --
--- Returns { left, middle, right }, or nil when the part is missing or will not
--- load -- and every caller uses that, because a missing texture must leave a
--- working control.
+-- Returns { left, middle, right, capFraction, name }, or nil when the part is
+-- missing or will not load -- and every caller uses that, because a missing
+-- texture must leave a working control. The table is also recorded as
+-- `parent.slice`, so a later caller that only has the frame (SetButtonEnabled,
+-- swapping in "button-disabled") can find and repoint the same three pieces
+-- without the builder having kept the return value around.
 function Widgets.Stretch3(parent, name, capFraction, capAspect)
     local part = ns.Data.Art and ns.Data.Art[name]
     if not part then
@@ -157,7 +160,38 @@ function Widgets.Stretch3(parent, name, capFraction, capAspect)
     right:SetWidth(width)
     middle:SetPoint("TOPLEFT", left, "TOPRIGHT", 0, 0)
     middle:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT", 0, 0)
-    return { left = left, middle = middle, right = right }
+    local slice = { left = left, middle = middle, right = right, capFraction = capFraction, name = name }
+    parent.slice = slice
+    return slice
+end
+
+-- Repoints an already-built three-slice's pieces at `part`, recomputing the
+-- same capFraction crop against part's own l/r/t/b. Used to swap "button" for
+-- "button-disabled" without rebuilding the pieces. Leaves the pieces exactly
+-- as they were -- still showing whatever they showed before this call -- when
+-- `part` is nil or its texture will not load, because a missing disabled
+-- state must never lose the button.
+local function reslice(slice, part)
+    if not part then
+        return false
+    end
+    local path = "Interface\\AddOns\\GoblinPS\\Media\\" .. part.file
+    -- SetTexture takes hold of the region even when it reports failure (a
+    -- missing file draws blank, it does not keep the old picture), so a
+    -- half-failed swap has to be put back by hand rather than left alone.
+    local prevLeft, prevMiddle, prevRight = slice.left:GetTexture(), slice.middle:GetTexture(), slice.right:GetTexture()
+    if not (slice.left:SetTexture(path) and slice.middle:SetTexture(path) and slice.right:SetTexture(path)) then
+        slice.left:SetTexture(prevLeft)
+        slice.middle:SetTexture(prevMiddle)
+        slice.right:SetTexture(prevRight)
+        return false
+    end
+    local span = part.r - part.l
+    local cap = span * slice.capFraction
+    slice.left:SetTexCoord(part.l, part.l + cap, part.t, part.b)
+    slice.middle:SetTexCoord(part.l + cap, part.r - cap, part.t, part.b)
+    slice.right:SetTexCoord(part.r - cap, part.r, part.t, part.b)
+    return true
 end
 
 function Widgets.Button(parent, text, width, height, onClick)
@@ -180,10 +214,21 @@ function Widgets.Button(parent, text, width, height, onClick)
 end
 
 -- Buttons go grey and stop answering clicks; SetEnabled exists on Button.
+-- `button.face` is the fallback: tinted here so it still shows the state
+-- when no art loaded at all. When a three-slice sits over it (Stretch3
+-- records `button.slice`), that art is opaque and would otherwise hide the
+-- tint, so this also repoints the slice at the shipped "<name>-disabled"
+-- part -- or leaves it showing whatever it already did if that part is
+-- missing or will not load.
 function Widgets.SetButtonEnabled(button, enabled)
     button:SetEnabled(enabled)
     local r, g, b = rgb(enabled and "brass" or "dim")
     button.face:SetColorTexture(r, g, b, 1)
+    local slice = button.slice
+    if slice then
+        local partName = enabled and slice.name or (slice.name .. "-disabled")
+        reslice(slice, ns.Data.Art and ns.Data.Art[partName])
+    end
 end
 
 function Widgets.EditBox(parent, width, height, placeholder)

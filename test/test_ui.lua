@@ -438,6 +438,29 @@ return function(h)
                      "2.5:1 scenery in a wider-than-tall-but-not-2.5 opening loses width")
         end)
 
+        h.it("tiles the panel backing behind every opening, not just the screen", function()
+            -- Codex's placement note: "tile behind contents, clipped to
+            -- interior opening." At exactly g.screen the tile would sit
+            -- right where screen-backdrop goes and never be seen, while the
+            -- side panel next to it kept its flat colour.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout("wide")
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local frameW, frameH = ui.frame:GetWidth(), ui.frame:GetHeight()
+            h.truthy(ui.panelArt, "the panel backing exists")
+            local leftFrac = ui.panelArt.points[1][4] / frameW
+            local topFrac = -ui.panelArt.points[1][5] / frameH
+            local rightFrac = ui.panelArt.points[2][4] / frameW
+            local bottomFrac = -ui.panelArt.points[2][5] / frameH
+            for _, rect in ipairs({ g.screen, g.sidePanel }) do
+                h.truthy(leftFrac <= rect.left + 0.001, "covers the rect's left")
+                h.truthy(topFrac <= rect.top + 0.001, "covers the rect's top")
+                h.truthy(rightFrac >= rect.right - 0.001, "covers the rect's right")
+                h.truthy(bottomFrac >= rect.bottom - 0.001, "covers the rect's bottom")
+            end
+        end)
+
         h.it("gives a stretched control fixed end caps", function()
             -- One button part draws at 65 px for Here and 135 for GO. A single
             -- stretched texture squashes the caps at one width and stretches
@@ -452,6 +475,47 @@ return function(h)
                  "both caps draw at the same natural width")
             h.truthy(slice.middle.points and #slice.middle.points >= 2,
                      "the middle is anchored between the caps, so it takes the slack")
+        end)
+
+        h.it("swaps a stretched button's art to button-disabled instead of only tinting the face", function()
+            -- SetButtonEnabled used to only tint button.face (BORDER), which
+            -- a three-slice now sits over on the ARTWORK layer -- so once
+            -- real art loads, a disabled control would still show its
+            -- enabled texture with no visible change at all.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            f.face = f:CreateTexture(nil, "BORDER")
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            h.truthy(f.slice == slice, "Stretch3 records its pieces on the frame it decorates")
+
+            W.SetButtonEnabled(f, false)
+            local disabledPart = ns.Data.Art["button-disabled"]
+            h.eq(slice.left:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. disabledPart.file,
+                 "disabled must not still be showing the enabled texture")
+            h.eq(slice.middle:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. disabledPart.file)
+            h.eq(slice.right:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. disabledPart.file)
+
+            W.SetButtonEnabled(f, true)
+            local enabledPart = ns.Data.Art["button"]
+            h.eq(slice.left:GetTexture(), "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file,
+                 "re-enabling swaps the art back")
+        end)
+
+        h.it("leaves a stretched button's art alone when button-disabled will not load", function()
+            -- A missing disabled state must never lose the button: keep
+            -- showing whatever the slice already showed.
+            local f = CreateFrame("Frame", nil, UIParent)
+            f:SetSize(200, 40)
+            f.face = f:CreateTexture(nil, "BORDER")
+            local slice = W.Stretch3(f, "button", 0.25, 1.0)
+            local enabledPart = ns.Data.Art["button"]
+            local enabledPath = "Interface\\AddOns\\GoblinPS\\Media\\" .. enabledPart.file
+
+            local badPath = "Interface\\AddOns\\GoblinPS\\Media\\" .. ns.Data.Art["button-disabled"].file
+            Fake.missingTextures[badPath] = true
+            W.SetButtonEnabled(f, false)
+            Fake.missingTextures[badPath] = nil
+            h.eq(slice.left:GetTexture(), enabledPath, "still showing the enabled art, not a failed swap")
         end)
 
         h.it("places every input, panel and footer line from the geometry", function()

@@ -234,6 +234,30 @@ local function coverCrop(texture, part, partW, partH, boxW, boxH)
     end
 end
 
+-- The union rect of every placed area in this layout's geometry: minimum
+-- left and top, maximum right and bottom, over every key in `g` that has a
+-- `left` field (a rect; `canvas` is pixels, not a device fraction, and the
+-- circle keys have cx/cy/r instead, so both are skipped without naming
+-- them). Used for the tiled panel backing, which sits behind every opening
+-- rather than any one of them -- placed at the screen's own rect it would
+-- sit exactly where screen-backdrop goes and never be seen.
+local function boundingBox(g)
+    local box
+    for key, rect in pairs(g) do
+        if key ~= "canvas" and type(rect) == "table" and rect.left then
+            if not box then
+                box = { left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom }
+            else
+                box.left = math.min(box.left, rect.left)
+                box.top = math.min(box.top, rect.top)
+                box.right = math.max(box.right, rect.right)
+                box.bottom = math.max(box.bottom, rect.bottom)
+            end
+        end
+    end
+    return box
+end
+
 -- ---- layout: the only thing that differs between wide and tall ----
 
 function Planner.ApplyLayout(mode)
@@ -281,7 +305,7 @@ function Planner.ApplyLayout(mode)
         W.PlaceLine(ui.total, f, g.totalLine)
         W.PlaceLine(ui.hint, f, g.hintLine)
         if ui.panelArt then
-            W.PlaceRect(ui.panelArt, f, g.screen)
+            W.PlaceRect(ui.panelArt, f, boundingBox(g))
         end
         if ui.backdrop then
             W.PlaceRect(ui.backdrop, f, g.screen)
