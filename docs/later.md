@@ -5,22 +5,14 @@ A thing here is not a commitment -- it is a note so it stops living in a chat
 log. When one graduates, it becomes a plan in `docs/superpowers/plans/` and
 comes off this list.
 
-- **Clear the map pin on arrival and on Stop.** Asked for 2026-09-21. The dash
-  moves Blizzard's single user waypoint forward at every step
-  (`Core.PinStep` -> `C_Map.SetUserWaypoint`, which replaces rather than
-  adds), but nothing ever removes it: after "Arrived." or the red stop
-  button, the last pin and its on-screen arrow stay on the map. The calls
-  exist on build 1.60.1.69913 -- `C_Map.ClearUserWaypoint` and
-  `C_Map.HasUserWaypoint`, both in `MapDocumentation.lua`, and Blizzard's
-  own `WaypointLocationDataProvider.lua` calls the clear -- and would go
-  through `API.lua` like every other client call. The one catch: **clear
-  only a pin that is still ours.** A player who drops their own waypoint
-  mid-trip must not lose it when the dash finishes, so remember the last
-  point `PinStep` set and compare it with `C_Map.GetUserWaypoint()` (also
-  present, `MayReturnNothing`) before clearing. Hook it into `finish()` and
-  into the stop path; Escape already routes through `OnHide`, which is the
-  one place both end up. Unverified in game: whether the client clears the
-  pin by itself when you reach it.
+- **The skull badge: mark the dangerous stop on the route strip.** Day 2,
+  decided 2026-09-21 while designing plan 8. `icon-warning` (the skull) is
+  drawn and waiting. The idea: at any stop in a zone above your level, the
+  skull replaces that stop's travel icon, so the strip shows exactly where the
+  risk is; the stop's tooltip still says how you get there, plus the level
+  range. Until then the warning lives where it always has -- in amber, in the
+  stop's tooltip and printed under the strip. It stays a warning, never a
+  reroute.
 - **Scrolling text on the dash unit**, like the LED/LCD displays on early car
   radios: when a line is too long for its opening, creep it sideways instead
   of truncating. Asked for 2026-09-20 after the first good client run showed
