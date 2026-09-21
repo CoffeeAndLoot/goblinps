@@ -658,6 +658,16 @@ function Planner.Toggle()
     if ui.frame:IsShown() then
         ui.frame:Hide()
     else
+        -- Opened mid-trip with nothing of its own picked: show where the trip
+        -- is going, so the planner knows where you're at.
+        if not state.to then
+            local trip = ns.Dash.Destination()
+            if trip then
+                state.to = trip
+                ui.toBox:SetText(trip.name)
+                W.UpdatePlaceholder(ui.toBox)
+            end
+        end
         ui.frame:Show()
         replan()
     end

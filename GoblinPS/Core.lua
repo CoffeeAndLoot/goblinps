@@ -177,6 +177,23 @@ function Core.ClearTrip()
     end
 end
 
+-- On login: carry on with this character's saved trip. The destination is
+-- looked up again by name; if a patch renamed it, drop the trip and say so --
+-- never silently.
+function Core.ResumeTrip()
+    local name = Core.SavedTripName()
+    if not name then
+        return
+    end
+    local place = Search.Exact(ns.Data, name, API.Faction())
+    if not place then
+        Core.ClearTrip()
+        say(("Couldn't resume your trip to %s: that place isn't in GoblinPS's data any more."):format(name))
+        return
+    end
+    ns.Dash.Resume(place)
+end
+
 -- Go: pin the first step, say what happened, and hand the plan to the dash
 -- unit, which takes over from here.
 function Core.Go(plan)
@@ -305,6 +322,7 @@ end)
 
 API.OnLogin(function()
     ns.MinimapButton.Initialize()
+    Core.ResumeTrip()
 end)
 
 local function slash(msg)

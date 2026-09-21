@@ -319,26 +319,32 @@ local function build()
     ns.API.OnTripEvent(function(kind) Dash.Tick(kind) end)
 end
 
+local function ensureBuilt()
+    if ui then
+        return
+    end
+    build()
+    local p = ns.Core.Position("dash")
+    ui.frame:ClearAllPoints()
+    if p then
+        ui.frame:SetPoint(p.point, UIParent, p.relativePoint, p.x, p.y)
+    else
+        ui.frame:SetPoint("CENTER", UIParent, "CENTER", -260, 0)
+    end
+end
+
 -- Begin a trip. A plan with no steps is not a trip, and opens nothing.
 function Dash.Start(plan)
-    if not ui then
-        build()
-        local p = ns.Core.Position("dash")
-        ui.frame:ClearAllPoints()
-        if p then
-            ui.frame:SetPoint(p.point, UIParent, p.relativePoint, p.x, p.y)
-        else
-            ui.frame:SetPoint("CENTER", UIParent, "CENTER", -260, 0)
-        end
-    end
+    ensureBuilt()
     local steps = plan and plan.result and plan.result.steps or {}
     if #steps == 0 then
         return
     end
     -- `banner` resets with the rest: a second Start before the next tick
     -- would otherwise open the new trip under the old one's "Recalculating...",
-    -- with all three step lines blanked behind it.
-    state.plan, state.index, state.best, state.banner = plan, 1, nil, nil
+    -- with all three step lines blanked behind it. A resume in progress is
+    -- replaced too: a new route takes over from wherever it was waiting.
+    state.plan, state.index, state.best, state.banner, state.resume = plan, 1, nil, nil, nil
     Dash.Refresh()
     ui.frame:Show()
 end
@@ -347,12 +353,34 @@ end
 -- not hiding the interface, not arriving, not a reload -- so it is also the
 -- one place the saved trip and our map pin are cleared.
 function Dash.Stop()
-    state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
+    state.plan, state.index, state.best, state.banner, state.resume = nil, nil, nil, nil, nil
     ns.Core.ClearTrip()
     ns.Core.ClearPin()
     if ui then
         ui.frame:Hide()
     end
+end
+
+-- Carry on with a trip saved before a reload or a logout. Every route starts
+-- where you stand, so resuming is planning again -- as soon as the client can
+-- say where that is.
+function Dash.Resume(place)
+    ensureBuilt()
+    state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
+    state.resume = place
+    ui.steps[1]:SetText("Resuming your trip to " .. ns.Search.ShortName(place.name) .. "...")
+    ui.steps[2]:SetText("")
+    ui.steps[3]:SetText("")
+    ui.destination:SetText("")
+    ui.distance:SetText("")
+    ui.eta:SetText("")
+    ui.arrow:Hide()
+    ui.frame:Show()
+end
+
+-- Where the running trip, or the one resuming, is headed.
+function Dash.Destination()
+    return state.plan and state.plan.to or state.resume
 end
 
 Dash.TICK = 0.5        -- seconds between checks; every frame is jitter, not accuracy
@@ -395,12 +423,44 @@ local function finish()
     state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
 end
 
+-- One try at resuming. No position yet (still loading, or in an instance):
+-- keep waiting. A position but no route: say so and stop trying, but keep the
+-- saved trip -- only Stop ends a trip.
+local function tryResume()
+    if not ns.Core.Here() then
+        ui.distance:SetText("Waiting...")
+        return
+    end
+    local place = state.resume
+    state.resume = nil
+    local plan = ns.Core.PlanRoute(place)
+    local steps = plan.result and plan.result.steps
+    if not steps then
+        ui.steps[1]:SetText(plan.notes[#plan.notes] or ("No route found to " .. place.name .. "."))
+        return
+    end
+    if #steps == 0 then
+        finish()
+        return
+    end
+    state.plan, state.index, state.best, state.banner = plan, 1, nil, nil
+    Dash.Refresh()
+    ns.Core.PinStep(steps[1])
+end
+
 -- One look at where the player is against the step they are on. `event` is
 -- "tick", "zone" or "landed" and is handed straight to Trip.Check.
 function Dash.Tick(event)
     -- Hidden (only something other than Stop can do that now): hold still,
     -- so a trip never replans or moves the map pin where nobody can see.
-    if not ui or not state.plan or not ui.frame:IsShown() then
+    if not ui or not ui.frame:IsShown() then
+        return
+    end
+    if state.resume then
+        tryResume()
+        return
+    end
+    if not state.plan then
         return
     end
     if state.banner then

@@ -2120,6 +2120,100 @@ return function(h)
             ns.Dash.Stop()
             Core.ClearPin()
         end)
+
+        local delta = ns.Search.Exact(ns.Data, "Delta", "H")
+
+        -- A reload as this client performs it: the account-wide save comes
+        -- back through a real serialise-and-load, the per-character one does
+        -- not come back at all.
+        local function reload()
+            local function copy(t)
+                if type(t) ~= "table" then return t end
+                local out = {}
+                for k, v in pairs(t) do out[k] = copy(v) end
+                return out
+            end
+            GoblinPSDB, GoblinPSCharDB = copy(GoblinPSDB), nil
+        end
+
+        h.it("waits for a position before resuming, then plans from it", function()
+            home()
+            where.map = nil -- loading, or an instance: the client cannot say
+            ns.Dash.Resume(delta)
+            local ui, state = ns.Dash.Debug()
+            h.truthy(ui.frame:IsShown(), "the dash comes back straight away")
+            h.eq(ns.Dash.Destination(), delta)
+            ns.Dash.Tick("tick")
+            h.falsy(state.plan, "no position, no plan yet")
+            home()
+            ns.Dash.Tick("tick")
+            h.truthy(state.plan, "planned from where you stand")
+            h.eq(state.plan.to, delta)
+            h.eq(state.index, 1)
+            h.truthy(waypoint, "the first step is pinned")
+            ns.Dash.Stop()
+        end)
+
+        h.it("shows Arrived when you resume at the destination", function()
+            home()
+            local westland = ns.Search.Exact(ns.Data, "Westland", "H")
+            ns.Dash.Resume(westland) -- home() is in Westland
+            ns.Dash.Tick("tick")
+            local ui, state = ns.Dash.Debug()
+            h.eq(ui.steps[1]:GetText(), "Arrived.")
+            h.falsy(state.plan)
+            ns.Dash.Stop()
+        end)
+
+        h.it("resumes this character's saved trip at login", function()
+            home()
+            Core.SaveTrip(delta)
+            reload()
+            Core.ResumeTrip()
+            h.eq(ns.Dash.Destination() and ns.Dash.Destination().name, "Delta")
+            ns.Dash.Tick("tick")
+            local _, state = ns.Dash.Debug()
+            h.truthy(state.plan, "the trip is running again")
+            ns.Dash.Stop()
+        end)
+
+        h.it("resumes nothing for a character with no saved trip", function()
+            Core.SaveTrip(delta)
+            character = "Other-Test Realm"
+            ns.Dash.Stop() -- as a fresh login finds it
+            Core.ResumeTrip()
+            local ui = ns.Dash.Debug()
+            h.falsy(ui.frame:IsShown(), "another character's trip is not this one's")
+            character = "Tester-Test Realm"
+            Core.ClearTrip()
+        end)
+
+        h.it("drops a trip whose destination no longer exists, and says so", function()
+            GoblinPSDB.trips[character] = { to = "Atlantis" }
+            local from = #printed
+            Core.ResumeTrip()
+            h.eq(Core.SavedTripName(), nil, "the unresolvable trip is dropped")
+            local said = table.concat(printed, "\n", from + 1, #printed)
+            h.truthy(said:find("Couldn't resume your trip to Atlantis", 1, true),
+                     "never silently")
+        end)
+
+        h.it("opens the planner on the running trip's destination", function()
+            home()
+            local _, pstate = ns.Planner.Debug()
+            local pui = ns.Planner.Debug()
+            if pui and pui.frame:IsShown() then ns.Planner.Toggle() end
+            local keptTo = pstate and pstate.to
+            if pstate then pstate.to = nil end
+            ns.Dash.Resume(delta)
+            ns.Planner.Toggle()
+            pui, pstate = ns.Planner.Debug()
+            h.eq(pstate.to, delta, "the planner shows where the trip is going")
+            h.eq(pui.toBox:GetText(), "Delta")
+            ns.Planner.Toggle()
+            pstate.to = keptTo
+            ns.Dash.Stop()
+        end)
     end)
 
     print = realPrint
