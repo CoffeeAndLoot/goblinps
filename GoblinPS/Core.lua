@@ -119,6 +119,10 @@ function Core.PlanRoute(to, from)
     return plan
 end
 
+-- The pin PinStep last set, as { map, x, y }, so that only our own pin is
+-- ever cleared: a waypoint the player drops mid-trip is theirs.
+local lastPin
+
 -- Blizzard's map pin and on-screen arrow for one step. Spec decision 3 puts
 -- the pin on the step you are ON, so the dash calls this again each time it
 -- advances, not only when GO is pressed. Quiet: only GO explains itself.
@@ -126,7 +130,51 @@ function Core.PinStep(step)
     if not step or step.kind == "hearth" or not step.to.map then
         return false
     end
-    return API.SetWaypoint(step.to.map, step.to.mx, step.to.my) and true or false
+    if API.SetWaypoint(step.to.map, step.to.mx, step.to.my) then
+        lastPin = { step.to.map, step.to.mx, step.to.my }
+        return true
+    end
+    return false
+end
+
+-- Clear the map pin, but only if it is still the one we set.
+function Core.ClearPin()
+    if lastPin and API.WaypointIs(lastPin[1], lastPin[2], lastPin[3]) then
+        API.ClearWaypoint()
+    end
+    lastPin = nil
+end
+
+-- ---- the trip in progress, which outlives a reload ----
+--
+-- Only the destination's name is saved: the player may be anywhere when they
+-- come back, and every route starts where they stand, so resuming is planning
+-- again. Account-wide, under this character, because this build never loads
+-- per-character saves. See Prefs.lua.
+
+local function tripSlot()
+    local key = API.CharacterKey()
+    return key and prefs().trips, key
+end
+
+function Core.SaveTrip(place)
+    local trips, key = tripSlot()
+    if trips and place and place.name then
+        trips[key] = { to = place.name }
+    end
+end
+
+function Core.SavedTripName()
+    local trips, key = tripSlot()
+    local trip = trips and trips[key]
+    return type(trip) == "table" and trip.to or nil
+end
+
+function Core.ClearTrip()
+    local trips, key = tripSlot()
+    if trips then
+        trips[key] = nil
+    end
 end
 
 -- Go: pin the first step, say what happened, and hand the plan to the dash
@@ -144,6 +192,7 @@ function Core.Go(plan)
         say("Can't put a map pin there. " .. Route.StepText(step) .. ".")
     end
     ns.Dash.Start(plan)
+    Core.SaveTrip(plan.to)
 end
 
 local function routeTo(text)

@@ -125,6 +125,31 @@ function API.SetWaypoint(map, x, y)
     return true
 end
 
+-- Remove the user waypoint. Present on build 1.60.1.69913
+-- (MapDocumentation.lua); Blizzard's own WaypointLocationDataProvider.lua
+-- calls it.
+function API.ClearWaypoint()
+    if C_Map and C_Map.ClearUserWaypoint then
+        C_Map.ClearUserWaypoint()
+    end
+end
+
+-- True when the user waypoint sits at this map and position. Blizzard's own
+-- map code reads a waypoint as `uiMapID` and `position.x` / `.y`, the same 0..1
+-- fractions SetWaypoint was handed, so a waypoint we set compares equal.
+function API.WaypointIs(map, x, y)
+    if not (C_Map and C_Map.GetUserWaypoint) then
+        return false
+    end
+    local point = C_Map.GetUserWaypoint()
+    if not (point and point.position) then
+        return false
+    end
+    return point.uiMapID == map
+        and math.abs(point.position.x - x) < 1e-4
+        and math.abs(point.position.y - y) < 1e-4
+end
+
 -- Calls back once, when the character is in the world and saved variables
 -- have loaded.
 function API.OnLogin(callback)

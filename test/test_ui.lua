@@ -18,6 +18,9 @@ return function(h)
     assert(loadfile("GoblinPS/Data/Art.lua"))("GoblinPS", ns)
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
     local pins, loginCallbacks = {}, {}
+    -- The one user waypoint the client holds, as { map, x, y }, and how many
+    -- times it has been cleared.
+    local waypoint, waypointClears = nil, 0
     local level = 60 -- mounted, so ground steps say Ride
     ---@type number|nil, boolean, function[]
     local facing, onTaxi, tripCallbacks = 0, false, {}
@@ -53,7 +56,15 @@ return function(h)
         OnTripEvent = function(callback) tripCallbacks[#tripCallbacks + 1] = callback end,
         SetWaypoint = function(map, x, y)
             pins[#pins + 1] = { map, x, y }
+            waypoint = { map, x, y }
             return true
+        end,
+        ClearWaypoint = function()
+            waypoint = nil
+            waypointClears = waypointClears + 1
+        end,
+        WaypointIs = function(map, x, y)
+            return waypoint ~= nil and waypoint[1] == map and waypoint[2] == x and waypoint[3] == y
         end,
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
     }
@@ -1997,6 +2008,71 @@ return function(h)
             character = "Tester-Test Realm"
             h.eq(ns.Core.KnownCount(), 4, "and the first keeps its own")
             GoblinPSDB.known[character][3] = nil -- leave the fixture as the other tests found it
+        end)
+    end)
+
+    h.describe("the trip in progress", function()
+        local Core = ns.Core
+        local step = { kind = "ride", to = { name = "Gate", map = 1, mx = 0.5, my = 0.5 } }
+        -- These tests run at the end of the file, after tests that move the
+        -- player, and `standAt` is local to the dash block, out of reach here.
+        -- Anything that plans starts from where the file itself starts:
+        -- beside Alpha, in Westland.
+        local function home()
+            where.map, where.mx, where.my = 1, 0.89, 0.9
+        end
+
+        h.it("clears the map pin it set", function()
+            h.truthy(Core.PinStep(step))
+            local before = waypointClears
+            Core.ClearPin()
+            h.eq(waypoint, nil, "our pin is gone")
+            h.eq(waypointClears, before + 1)
+        end)
+
+        h.it("leaves a pin the player set in its place", function()
+            -- A waypoint dropped mid-trip is the player's. Ending the trip
+            -- must not take it with it.
+            Core.PinStep(step)
+            waypoint = { 9, 0.25, 0.75 }
+            local before = waypointClears
+            Core.ClearPin()
+            h.eq(waypointClears, before, "the player's pin was not ours to clear")
+            h.eq(waypoint[1], 9)
+            waypoint = nil
+        end)
+
+        h.it("forgets the pin once cleared, so a second clear touches nothing", function()
+            Core.PinStep(step)
+            Core.ClearPin()
+            waypoint = { 1, 0.5, 0.5 } -- the player puts one back on the very same spot
+            local before = waypointClears
+            Core.ClearPin()
+            h.eq(waypointClears, before, "nothing of ours is left to clear")
+            waypoint = nil
+        end)
+
+        h.it("saves the trip under this character, and only this one", function()
+            Core.SaveTrip({ name = "Delta" })
+            h.eq(Core.SavedTripName(), "Delta")
+            h.eq(GoblinPSDB.trips[character].to, "Delta", "in the account-wide save")
+            character = "Other-Test Realm"
+            h.eq(Core.SavedTripName(), nil, "another character has no trip")
+            character = "Tester-Test Realm"
+            Core.ClearTrip()
+            h.eq(Core.SavedTripName(), nil)
+        end)
+
+        h.it("saves the destination when a route starts", function()
+            -- Start Route is the one deliberate way to change destination.
+            home()
+            local plan = ns.Core.PlanRoute(ns.Search.Exact(ns.Data, "Delta", "H"))
+            h.truthy(plan.result and #plan.result.steps > 0, "sanity: a route to Delta")
+            Core.Go(plan)
+            h.eq(Core.SavedTripName(), "Delta")
+            Core.ClearTrip()
+            ns.Dash.Stop()
+            Core.ClearPin()
         end)
     end)
 
