@@ -369,13 +369,20 @@ killed the route, and a reload or logout always lost it.
 - [ ] Alt+Z twice: the interface hides and comes back, and the trip carries on
 - [ ] `/reload` mid-trip: the dash comes back, replans from where you stand,
       and puts the map pin on the first step
+- [ ] Note whether the map pin from before the `/reload` is still on the map
+      right in the moment after the reload, before the dash replans (M4: our
+      record of "is this pin ours" lives only in memory and is gone after a
+      reload, so it cannot be cleared until the resumed trip pins again;
+      whether a user waypoint even survives a `/reload` at all is unknown)
 - [ ] Log out and back in mid-trip: the same
 - [ ] Press Stop: the dash goes, the map pin clears, and a `/reload` brings
       nothing back
 - [ ] Arrive: the dash says "Arrived." and stays up until Stop; the map pin
       at the destination clears
-- [ ] Drop your own map pin mid-trip, then arrive or press Stop: your pin is
-      still there
+- [ ] On the last step, drop your own map pin, then arrive (or press Stop):
+      it is still there (GoblinPS moves the one map pin on every advance and
+      replan, so a pin dropped earlier would just get overwritten -- that is
+      by design, not a bug)
 - [ ] Open `/gps` mid-trip: the search box shows the trip's destination
 - [ ] Log in a second character: no trip comes back for it
 

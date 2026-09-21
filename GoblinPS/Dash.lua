@@ -242,10 +242,10 @@ local function build()
     end
 
     -- A real button in the housing's socket, with the three caps the artist
-    -- drew. It ends the trip exactly as Escape does. With no explicit level
-    -- it would default to one above `f`, level with `artLayer` and so under
-    -- the housing and content that now cover the whole device, so it is
-    -- pinned above all of them.
+    -- drew. It is the one way a trip ends now that Escape does not touch the
+    -- dash. With no explicit level it would default to one above `f`, level
+    -- with `artLayer` and so under the housing and content that now cover
+    -- the whole device, so it is pinned above all of them.
     local stop = CreateFrame("Button", nil, f)
     stop:SetFrameLevel(base + 4)
     if g then
@@ -452,8 +452,11 @@ end
 -- One look at where the player is against the step they are on. `event` is
 -- "tick", "zone" or "landed" and is handed straight to Trip.Check.
 function Dash.Tick(event)
-    -- Hidden (only something other than Stop can do that now): hold still,
-    -- so a trip never replans or moves the map pin where nobody can see.
+    -- A dash hidden by itself (only something other than Stop can do that
+    -- now) holds still. Hiding the whole interface (Alt+Z) does not: this
+    -- guard checks only the dash's own shown flag, and API.OnTripEvent still
+    -- calls Tick on zone changes and landings underneath it, so the trip
+    -- keeps up with you while the UI is out of sight.
     if not ui or not ui.frame:IsShown() then
         return
     end

@@ -256,9 +256,12 @@ commit; re-read files before editing.
 - **Only Stop ends a trip.** Escape, hiding the interface, arriving and a
   reload must never end it or clear its save. The dash is not on
   `UISpecialFrames`, its `OnHide` does nothing to the trip, and `Dash.Stop` is
-  the one place the saved trip (`GoblinPSDB.trips["Name-Realm"]`) and the map
-  pin are cleared. It clears only a pin GoblinPS set: a waypoint the player
-  dropped mid-trip is theirs.
+  the one place the saved trip (`GoblinPSDB.trips["Name-Realm"]`) is cleared.
+  Stop and arrival both clear the map pin, and only a pin GoblinPS set. The
+  game holds one user waypoint, which GoblinPS moves on every advance, replan
+  and resume, so a waypoint the player drops mid-trip is theirs only until
+  the next move -- it survives ending the trip in general only if it was
+  dropped after GoblinPS's last move, typically on the trip's last step.
 - **"Zero lint warnings" is not licence to silence one instead of fixing
   it.** `.luacheckrc` carries per-file `max_line_length = false` for five
   files, four of them generated -- nobody reads generated Lua, and line

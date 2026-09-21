@@ -74,8 +74,9 @@ Built 2026-09-21 -- not yet run in the client.
   heads-up display like the minimap, not a dialog. The planner stays on
   Escape: closing the planner now loses nothing.
 - **Hiding the dash any other way only hides it.** Its `OnHide` no longer ends
-  the trip. While hidden it does not tick; it picks up where it was when shown
-  again.
+  the trip. A dash hidden by itself does not tick, and picks up where it was
+  when shown again; hiding the whole interface (Alt+Z) does not stop the
+  trip, since zone and landing events still reach it underneath.
 - **Start Route in the planner replaces the running trip.** That is the one
   deliberate way to change destination.
 - **Opening the planner mid-trip shows the trip's destination** when the
@@ -143,7 +144,10 @@ comes off that list.
 - Log out and back in mid-trip: the same.
 - Press Stop: the dash goes, the pin clears, and a `/reload` brings nothing
   back.
-- Drop your own map pin mid-trip, then arrive: your pin is still there.
+- On the last step, drop your own map pin, then arrive (or press Stop): it
+  is still there. (The game holds one user waypoint, which GoblinPS moves on
+  every advance and replan, so a pin dropped earlier would just be
+  overwritten -- by design, not a bug.)
 - Log in a second character: no trip.
 
 ---
