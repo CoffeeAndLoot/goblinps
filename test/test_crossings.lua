@@ -406,6 +406,16 @@ return function(h, loaded)
             -- 307 seconds longer on foot than the straight line, inside its ten
             -- minutes; the way by the Mor'shan Rampart passes Silverwing Grove.
             h.eq(table.concat(texts(r), " / "), "Walk to the Ashenvale-Felwood road / Walk to Splintertree Post")
+            -- The road is only touched: the walk turns back into Ashenvale, so
+            -- its line is Ashenvale's, not Felwood's level 48-55, and nothing
+            -- on the route is amber for a level 15.
+            local detail, warn = ns.Route.StepDetail(data, r.steps[1], 15)
+            h.eq(r.steps[1].turn, true)
+            h.eq(detail, "in Ashenvale · level 18-30")
+            h.eq(warn, false)
+            detail, warn = ns.Route.StepDetail(data, r.steps[2], 15)
+            h.eq(detail, "in Ashenvale · level 18-30")
+            h.eq(warn, false)
             for _, s in ipairs(r.steps) do
                 h.eq(s.danger, nil)
                 h.truthy(ns.Geo.SegmentDistance(s.from, s.to, silverwind) > silverwind.radius,
@@ -421,6 +431,66 @@ return function(h, loaded)
             local r = ns.Route.Plan(data, opts)
             h.eq(table.concat(texts(r), " / "), "Walk to Splintertree Post")
             h.eq(r.steps[1].danger, nil)
+        end)
+        local function hostileNamed(faction, name)
+            for _, enemy in ipairs(ns.Graph.Hostile(data, faction)) do
+                if enemy.name == name then
+                    return enemy
+                end
+            end
+        end
+        -- The final review, 2026-09-22: standing 145 yards from Silverwind
+        -- Refuge, the replan walked straight through its centre uncharged,
+        -- because where you stand excused the whole leg from the circle.
+        h.it("walks a Horde player at the edge of Silverwind Refuge out and round, never through it", function()
+            local sw = hostileNamed("H", "Silverwind Refuge")
+            local to = ns.Search.Exact(data, "Splintertree Post", "H")
+            local c, tx, ty = ns.Geo.ToWorld(data.Places, 1440, 0.423, 0.711)
+            local walker = ns.Travel.For(15)
+            -- Away from the town towards the Talondeep mouth, and away from it
+            -- on the far side from Splintertree Post.
+            local ways = { { tx - sw.x, ty - sw.y }, { sw.x - to.x, sw.y - to.y } }
+            -- About 710 seconds: out by the Talondeep mouth and round by the
+            -- north, against under five minutes straight through the town.
+            local seconds = { [145] = { 709, 710 }, [100] = { 717, 718 } }
+            for _, yards in ipairs({ 145, 100 }) do
+                for side, way in ipairs(ways) do
+                    local length = math.sqrt(way[1] * way[1] + way[2] * way[2])
+                    local from = { name = "You", c = c, x = sw.x + way[1] / length * yards,
+                                   y = sw.y + way[2] / length * yards, map = 1440 }
+                    local r = ns.Route.Plan(data, { faction = "H", known = {}, speed = walker.speed,
+                                                    walk = walker.walk, from = from, to = to })
+                    local label = yards .. " yards, side " .. side .. ": "
+                    h.eq(table.concat(texts(r), " / "), "Walk to the Talondeep Path / "
+                         .. "Walk to the Ashenvale-Felwood road / Walk to Splintertree Post", label)
+                    h.eq(math.floor(r.seconds + 0.5), seconds[yards][side], label)
+                    h.eq(r.cost, r.seconds, label .. "no penalty paid")
+                    for _, s in ipairs(r.steps) do
+                        local closest = ns.Geo.SegmentDistance(s.from, s.to, sw)
+                        h.eq(s.danger, nil, label .. ns.Route.StepText(s))
+                        h.truthy(closest > sw.radius or closest + 1 >= ns.Geo.Distance(s.from, sw),
+                                 label .. ns.Route.StepText(s) .. " goes nearer the town's centre")
+                    end
+                end
+            end
+        end)
+        -- The final review, 2026-09-22: a gate inside a circle was charged on
+        -- the way in and again on the way out, so the Alliance went from Brill
+        -- round by level-51 Western Plaguelands, 1136 seconds, to dodge
+        -- Undercity's circle twice.
+        h.it("charges an Alliance level 20 once for Undercity from Brill to The Sepulcher", function()
+            local walker = ns.Travel.For(20)
+            local from = ns.Search.Exact(data, "Brill", "A")
+            local r = ns.Route.Plan(data, { faction = "A", known = {}, speed = walker.speed, walk = walker.walk,
+                                            from = { name = "You", c = from.c, x = from.x, y = from.y,
+                                                     map = from.map, mx = from.mx, my = from.my },
+                                            to = place("Sepulcher", "A") })
+            h.eq(table.concat(texts(r), " / "), "Walk to the Tirisfal-Silverpine road / Walk to The Sepulcher")
+            h.eq(math.floor(r.seconds + 0.5), 412, "not round by the Plaguelands")
+            h.eq(math.floor(r.cost + 0.5), 412 + ns.Graph.HOSTILE_SECONDS, "one charge, not two")
+            h.eq(r.steps[1].danger and r.steps[1].danger.name, "Undercity")
+            h.truthy(ns.Route.StepDetail(data, r.steps[1], 20):find("passes Undercity (Horde)", 1, true))
+            h.eq(r.steps[2].danger, nil)
         end)
         h.it("counts the other side's flight masters and marked towns, and draws capitals wider", function()
             local function summary(faction)

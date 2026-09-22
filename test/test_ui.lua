@@ -1653,11 +1653,16 @@ return function(h)
             SlashCmdList.GOBLINPS("hearth")
             h.truthy(table.concat(printed, " ", from + 1, #printed):find("~12 min", 1, true))
         end)
-        h.it("zero means always take the fastest route, and says so plainly", function()
+        h.it("zero uses the stone whenever it is no slower, and says so plainly", function()
             local from = #printed
             SlashCmdList.GOBLINPS("hearth 0")
             h.eq(GoblinPSDB.hearthSaving, 0)
             h.truthy(table.concat(printed, " ", from + 1, #printed):find("however small", 1, true))
+            -- The bar compares real seconds with ties kept (plan 11), so the
+            -- help must not promise "the fastest route".
+            from = #printed
+            SlashCmdList.GOBLINPS("hearth")
+            h.truthy(table.concat(printed, " ", from + 1, #printed):find("0 uses it whenever it is no slower", 1, true))
         end)
         h.it("refuses nonsense without changing the setting", function()
             SlashCmdList.GOBLINPS("hearth 5")

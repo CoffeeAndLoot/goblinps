@@ -258,6 +258,29 @@ return function(h, loaded)
             h.eq(text, "into Northland · trolls on the bridge")
             h.eq(warn, true)
         end)
+        -- The final review, 2026-09-22: the Horde way round Silverwind Refuge
+        -- touches the Ashenvale-Felwood road and turns back into Ashenvale,
+        -- and its amber line said "into Felwood · level 48-55" to a level 15.
+        h.it("says in, not into, at a crossing the route only touches and turns back from", function()
+            local gate = { key = "x1", name = "the North Gate", zones = { 1, 4 } }
+            local graph = {
+                stops = { START = { key = "START", name = "You", map = 1 }, x1 = gate,
+                          DEST = { key = "DEST", name = "Hotel", map = 1 } },
+                edges = { START = { { to = "x1", kind = "ride", seconds = 60, copper = 0, zone = 1 } },
+                          x1 = { { to = "DEST", kind = "ride", seconds = 60, copper = 0, zone = 1 } } },
+            }
+            local turning = Route.Find(graph)
+            h.eq(turning.steps[1].turn, true)
+            local text, warn = Route.StepDetail(world, turning.steps[1], 5)
+            h.eq(text, "in Westland · level 1-10")
+            h.eq(warn, false)
+            graph.edges.x1[1].zone = 4
+            local going = Route.Find(graph)
+            h.falsy(going.steps[1].turn)
+            text, warn = Route.StepDetail(world, going.steps[1], 5)
+            h.eq(text, "into Northland · level 30-40")
+            h.eq(warn, true)
+        end)
         h.it("warns about a zone well above the character", function()
             local last = r.steps[#r.steps]
             local text, warn = Route.StepDetail(world, last, 5)

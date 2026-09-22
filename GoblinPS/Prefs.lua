@@ -85,7 +85,7 @@ function Prefs.Init(db)
     db.trips = type(db.trips) == "table" and db.trips or {}
     -- The least the hearthstone must save to be worth its cooldown (an hour on
     -- build 1.60.1.69913, shorter with a guild's Hasty Hearth perk), in
-    -- seconds. 0 means "always take the fastest route". A hostile or
+    -- seconds. 0 means "use it whenever it is no slower". A hostile or
     -- missing value falls back to the default rather than breaking planning.
     if type(db.hearthSaving) ~= "number" or db.hearthSaving < 0 then
         db.hearthSaving = Prefs.HEARTH_SAVING_DEFAULT

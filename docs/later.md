@@ -43,3 +43,4 @@ comes off this list.
   Search.Label/ShortName before scrolling, so a line only scrolls when it is
   genuinely long. (Left over from the marquee entry when plan 9 built the
   scrolling.)
+- **The dash says nothing when a replan brings in danger.** A replan that adds a 'passes X' leg or a hostile destination shows no warning on the dash (Dash.lua ~621); the player follows the dash, so a short banner would help.

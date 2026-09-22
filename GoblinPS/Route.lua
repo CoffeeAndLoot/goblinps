@@ -39,12 +39,20 @@ local function shortest(graph)
     return dist.DEST and prev or nil
 end
 
+-- Does the route only touch this one-ended crossing and turn back: a ride to
+-- it whose next step is a ride on in the same zone? Then it never enters the
+-- crossing's other zone, and its detail line must not say it does.
+local function turnsBack(s, nextStep)
+    return s.kind == "ride" and s.to.zones ~= nil and not s.through and nextStep ~= nil
+        and nextStep.kind == "ride" and not nextStep.through and nextStep.zone == s.zone
+end
+
 -- One "Fly to X" per flight master visit; drop rides too short to mention,
 -- but never the way through a tunnel (that step is the tunnel) and never a
 -- step past an enemy town (its warning must reach the player).
 local function tidy(raw)
     local steps = {}
-    for _, s in ipairs(raw) do
+    for i, s in ipairs(raw) do
         local last = steps[#steps]
         local tooShort = s.kind == "ride" and not s.through and not s.danger and s.seconds < Route.MIN_RIDE_SECONDS
         if last and last.kind == "fly" and s.kind == "fly" and last.to.key == s.from.key then
@@ -54,7 +62,8 @@ local function tidy(raw)
         elseif not tooShort then
             steps[#steps + 1] = { kind = s.kind, from = s.from, to = s.to, seconds = s.seconds,
                                   copper = s.copper, zone = s.zone, walk = s.walk, rough = s.rough,
-                                  through = s.through, danger = s.danger }
+                                  through = s.through, danger = s.danger,
+                                  turn = turnsBack(s, raw[i + 1]) or nil }
         end
     end
     return steps
@@ -64,7 +73,9 @@ end
 -- route: seconds is the real travel time, cost what the router minimised.
 -- A step is { kind, from = stop, to = stop, seconds, copper }; a ground step
 -- also carries zone, walk, rough, through (the passage of a two-ended
--- crossing) and danger ({ name, f }: the enemy town its straight line passes).
+-- crossing), danger ({ name, f }: the enemy town its straight line passes)
+-- and turn (true on a ride to a crossing the route only touches, going on in
+-- the same zone).
 function Route.Find(graph)
     local prev = shortest(graph)
     if not prev then
@@ -271,8 +282,11 @@ function Route.StepDetail(data, step, level)
     local gate = step.to.zones
     local zone = step.zone
     local text
-    -- The zone being entered: where a step through a tunnel comes out, or a gate's other side.
-    local entered = step.through and step.to.map or gate and (gate[1] == step.zone and gate[2] or gate[1])
+    -- The zone being entered: where a step through a tunnel comes out, or a
+    -- gate's other side -- unless the route only touches the gate and turns
+    -- back, when it stays in this zone.
+    local entered = step.through and step.to.map
+        or gate and not step.turn and (gate[1] == step.zone and gate[2] or gate[1])
     if entered then
         zone = entered
         text = "into " .. (places[zone] and places[zone].name or "the next zone")

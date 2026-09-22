@@ -399,7 +399,7 @@ local function slash(msg)
         if rest == "" or not minutes or minutes < 0 then
             say(("Hearthstone: used only when it saves at least %s."):format(
                 Route.FormatTime(Core.HearthSaving())))
-            say("/gps hearth <minutes>   change it; 0 always takes the fastest route")
+            say("/gps hearth <minutes>   change it; 0 uses it whenever it is no slower")
         else
             Core.SetHearthSaving(math.floor(minutes * 60 + 0.5))
             if minutes == 0 then

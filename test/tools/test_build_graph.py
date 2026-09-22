@@ -211,6 +211,22 @@ class TownFactions(unittest.TestCase):
                                  ("Durotar", "Valley Gate"): "", ("The Barrens", "Wailing Caverns"): "A"},
                          "guess and Notes are the owner's own and never read")
 
+    def test_reads_a_sheet_that_starts_with_a_byte_order_mark(self):
+        # Excel's "CSV UTF-8" re-save starts the file with one; read as plain
+        # utf-8 it glues itself to "zone" and the header is refused.
+        path = self.sheet("")
+        path.write_text(self.HEADER + "The Barrens,Far Watch Post,46,46.7,,H,\n", encoding="utf-8-sig", newline="")
+        self.assertEqual(path.read_bytes()[:3], b"\xef\xbb\xbf", "the test must plant a real BOM")
+        self.assertEqual(bg.read_town_factions(path), {("The Barrens", "Far Watch Post"): "H"})
+
+    def test_skips_a_row_with_neither_zone_nor_town(self):
+        # A spreadsheet leaves a row of bare commas after the last town.
+        marks = bg.read_town_factions(self.sheet(self.HEADER
+            + "The Barrens,Far Watch Post,46,46.7,,H,\n"
+            + ",,,,,,\n"
+            + " , ,,,,,\n"))
+        self.assertEqual(marks, {("The Barrens", "Far Watch Post"): "H"})
+
     def test_refuses_a_faction_it_does_not_know(self):
         with self.assertRaisesRegex(RuntimeError, "Far Watch Post in The Barrens: faction 'X'"):
             bg.read_town_factions(self.sheet(self.HEADER + "The Barrens,Far Watch Post,46,46.7,,X,\n"))

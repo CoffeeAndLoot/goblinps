@@ -360,36 +360,52 @@ return function(h, loaded)
             h.eq(e.danger, nil)
             h.truthy(near(e.cost, Graph.RideSeconds(west, east)))
         end)
-        h.it("exempts a leg that starts or ends inside the circle: you are there, or going there", function()
-            local gate = { name = "Keep Gate", c = 7, x = 5000, y = 5100, map = 20 }
-            h.eq(straight(vale(), "H", west, gate).danger, nil, "going there on purpose")
-            h.eq(straight(vale(), "H", gate, east).danger, nil, "leaving it")
+        -- Inside Keep's circle, 100 yards from it: north of it (towards East),
+        -- south of it (towards West) and to one side of the West-East line.
+        local northIn = { name = "North Yard", c = 7, x = 5000, y = 4900, map = 20 }
+        local southIn = { name = "South Yard", c = 7, x = 5000, y = 5100, map = 20 }
+        local sideIn = { name = "Side Yard", c = 7, x = 5100, y = 5000, map = 20 }
+        h.it("exempts a leg that ends inside the circle, or starts inside it and heads away", function()
+            h.eq(straight(vale(), "H", west, southIn).danger, nil, "going there on purpose")
+            h.eq(straight(vale(), "H", northIn, east).danger, nil, "leaving it outward")
+            h.eq(straight(vale(), "H", sideIn, east).danger, nil, "leaving it sideways, never nearer the centre")
         end)
-        h.it("exempts the hearthstone's inn and a stopover inside the circle too", function()
+        h.it("charges a leg that starts inside the circle and cuts through the town's centre", function()
+            -- Standing at the edge of a town, the replan that walks straight
+            -- through it is charged (final review, 2026-09-22).
+            local e = straight(vale(), "H", southIn, east)
+            h.eq(e.danger and e.danger.name, "Keep")
+            h.truthy(near(e.cost, Graph.RideSeconds(southIn, east) + 600))
+        end)
+        h.it("exempts the hearthstone's inn and a stopover inside the circle when the leg heads away", function()
             local w = vale()
-            -- world (5000, 5100), 100 yards from Keep
+            -- world (5100, 5000), 100 yards to one side of Keep
             w.Stopovers = { { name = "the keep yard", map = 20, mx = 0.5, my = 0.49 } }
-            local inn = { name = "Keep Inn", c = 7, x = 5000, y = 5100, map = 20 }
-            local g = Graph.Build(w, { faction = "H", known = {}, from = west, to = east, hearth = inn })
+            local g = Graph.Build(w, { faction = "H", known = {}, from = west, to = east, hearth = northIn })
             h.eq(edge(g, "HEARTH", "DEST").danger, nil, "you are there once the stone lands")
             h.eq(edge(g, "START", "s1").danger, nil, "the owner put the stopover there on purpose")
             h.eq(edge(g, "s1", "DEST").danger, nil)
+            g = Graph.Build(w, { faction = "H", known = {}, from = west, to = east, hearth = southIn })
+            h.eq(edge(g, "HEARTH", "DEST").danger.name, "Keep", "an inn is no licence to walk through the town")
         end)
-        h.it("charges a leg to or from a crossing inside the circle: a gate is on the way, not the goal", function()
+        h.it("charges a crossing inside the circle once: on the way in, not on the way out", function()
             local w = vale()
-            -- world (5000, 5100), 100 yards from Keep: a gate in the town's own wall
-            w.Crossings = { { a = 20, b = 21, name = "Keep Gate", map = 20, mx = 0.5, my = 0.49 } }
+            -- world (5000, 4900), 100 yards from Keep: a gate in the town's far wall
+            w.Crossings = { { a = 20, b = 21, name = "Keep Gate", map = 20, mx = 0.51, my = 0.5 } }
             local g = Graph.Build(w, { faction = "H", known = {}, from = west, to = east })
-            h.eq(edge(g, "START", "x1").danger.name, "Keep", "walking in to the gate")
-            h.eq(edge(g, "x1", "DEST").danger.name, "Keep", "and on out the far side")
+            h.eq(edge(g, "START", "x1").danger.name, "Keep", "walking in through the town to the gate")
+            h.eq(edge(g, "x1", "DEST").danger, nil, "and on out, away from it")
         end)
-        h.it("charges a leg from a flight master inside the circle", function()
+        h.it("charges a leg from a flight master inside the circle that cuts through the town", function()
             local w = vale()
-            -- the Horde's own flight master, 100 yards from the enemy's
-            w.Nodes[6] = { name = "Camp, Vale", f = "H", c = 7, x = 5000, y = 5100, map = 20, mx = 0.5, my = 0.49 }
-            local g = Graph.Build(w, { faction = "H", known = { [6] = true }, from = west, to = east })
-            h.eq(edge(g, "f6", "DEST").danger.name, "Keep")
-            h.eq(edge(g, "START", "f6").danger.name, "Keep")
+            -- the Horde's own flight masters, 100 yards either side of the enemy's:
+            -- Camp at world (5000, 5100), Post at (5000, 4900)
+            w.Nodes[6] = { name = "Camp, Vale", f = "H", c = 7, x = 5000, y = 5100, map = 20, mx = 0.49, my = 0.5 }
+            w.Nodes[7] = { name = "Post, Vale", f = "H", c = 7, x = 5000, y = 4900, map = 20, mx = 0.51, my = 0.5 }
+            local g = Graph.Build(w, { faction = "H", known = { [6] = true, [7] = true }, from = west, to = east })
+            h.eq(edge(g, "START", "f6").danger.name, "Keep", "a flight master is on the way, not the goal")
+            h.eq(edge(g, "f6", "DEST").danger.name, "Keep", "leaving it through the town")
+            h.eq(edge(g, "f7", "DEST").danger, nil, "leaving it away from the town")
         end)
         h.it("never charges a flight, a boat, the hearthstone or a tunnel's passage, even over the town", function()
             local w = vale()

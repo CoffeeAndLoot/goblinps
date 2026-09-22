@@ -242,19 +242,24 @@ def read_town_factions(path: Path) -> dict[tuple[str, str], str]:
 
     tools/town-factions.csv has a row per generated town: zone, town, x, y, guess,
     "faction (A/H/N)", Notes. Only zone, town and the faction column are read; guess and
-    Notes are the owner's own. A faction that is not A, H, N or blank raises."""
+    Notes are the owner's own. A faction that is not A, H, N or blank raises. A row with
+    neither zone nor town (the bare commas a spreadsheet leaves after the last row) is
+    skipped. utf-8-sig reads the byte order mark an Excel "CSV UTF-8" save starts with."""
     marks = {}
-    with path.open(encoding="utf-8", newline="") as fh:
+    with path.open(encoding="utf-8-sig", newline="") as fh:
         reader = csv.DictReader(fh)
         missing = [c for c in ("zone", "town", FACTION_COLUMN) if c not in (reader.fieldnames or ())]
         if missing:
             raise RuntimeError(f"{path.name}: missing columns {missing}")
         for row in reader:
+            zone, town = (row["zone"] or "").strip(), (row["town"] or "").strip()
+            if not zone and not town:
+                continue
             faction = (row[FACTION_COLUMN] or "").strip().upper()
             if faction not in ("", "A", "H", "N"):
-                raise RuntimeError(f"{path.name}: {row['town']} in {row['zone']}: "
+                raise RuntimeError(f"{path.name}: {town} in {zone}: "
                                    f"faction {row[FACTION_COLUMN]!r} is not A, H, N or blank")
-            marks[(row["zone"].strip(), row["town"].strip())] = faction
+            marks[(zone, town)] = faction
     return marks
 
 

@@ -581,10 +581,12 @@ tools/build_graph.py` and `/reload`.
       `/gps to splintertree post`: the route is "Walk to the Ashenvale-Felwood
       road", then "Walk to Splintertree Post", about 11 minutes, no longer
       the straight line through Silverwind Refuge (the way by the Mor'shan
-      Rampart passes Silverwing Grove, which you marked Alliance). Walk it
-      with the dash: say whether the two long legs across Ashenvale are
-      walkable, and whether anything attacks. If not, that is what a stopover
-      is for
+      Rampart passes Silverwing Grove, which you marked Alliance). No amber
+      line under the strip: the road is only touched, so hovering its badge
+      shows "in Ashenvale · level 18-30", not "into Felwood · level 48-55".
+      Walk it with the dash: say whether the two long legs across Ashenvale
+      are walkable, and whether anything attacks. If not, that is what a
+      stopover is for
 - [ ] Horde, from Sun Rock Retreat, `/gps to splintertree post`: down the
       Stonetalon pass, then the Mor'shan Rampart, then Splintertree Post, and
       not through the Talondeep Path any more
@@ -608,7 +610,11 @@ tools/build_graph.py` and `/reload`.
 - [ ] Walk toward Silverwind Refuge from outside and stop where its guards
       first come for you; `/gps where` there. Note the yards from the town's
       label (50.1, 66.2). The circle is 150 yards (`Graph.HOSTILE_RADIUS`) and
-      400 round a capital (`Graph.CAPITAL_RADIUS`); both are guesses
+      400 round a capital (`Graph.CAPITAL_RADIUS`); both are guesses. The
+      Undercity's 400-yard circle reaches the Tirisfal-Silverpine road (328
+      yards from its flight master), so an Alliance walk from Brill to The
+      Sepulcher is warned "passes Undercity (Horde)": check whether that road
+      is really in reach of its guards, or the capital circle is too wide
 - [ ] Once a stopover row is in `Data/Stopovers.lua` (measure it with
       `/gps where`, divide by 100, `/reload`): a route that passed the town
       bends through it, the step reads "Walk to <its name>", and the dash

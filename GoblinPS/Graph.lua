@@ -102,21 +102,24 @@ function Graph.HostileAt(data, faction, point)
     return nil
 end
 
--- Is this end of a leg one the player chose: where they stand (START), where
--- the hearthstone lands them (HEARTH), where they are going (DEST), or a
--- stopover the owner placed? Only such an end, inside a circle, excuses the
--- leg from it. A gate, a tunnel mouth or a flight master is only on the way:
--- exempting those let an Alliance walk go in at Orgrimmar's front gate and
--- out at its west gate unwarned (review, 2026-09-22).
+-- Is this the far end of a leg the player chose to go to: where they are
+-- going (DEST), or a stopover the owner placed? Only such an end, inside a
+-- circle, excuses the leg that arrives there. A gate, a tunnel mouth or a
+-- flight master is only on the way: exempting those let an Alliance walk go
+-- in at Orgrimmar's front gate and out at its west gate unwarned (review,
+-- 2026-09-22).
 local function chosen(stop)
-    return stop.key == "START" or stop.key == "HEARTH" or stop.key == "DEST" or stop.stopover == true
+    return stop.key == "DEST" or stop.stopover == true
 end
 
 -- The first of these hostile places (one continent's, in Graph.Hostile's
 -- order) that the straight leg p->q passes within its radius of, as
--- { name, f }; nil when none does. A place is ignored when a chosen end of
--- the leg is inside its circle: you are already there, or going there on
--- purpose.
+-- { name, f }; nil when none does. A place is ignored when:
+--   the leg starts inside its circle and heads away, never coming more than
+--     a yard nearer its centre than where it starts -- whatever the stop, so
+--     leaving a camp, an inn or a gate outward is free, but a replan from the
+--     edge of a town that cuts through it is not (final review, 2026-09-22);
+--   or the leg ends inside it at a chosen stop: you are going there on purpose.
 local function dangerOn(hostile, p, q)
     local Geo = ns.Geo
     local x0, x1 = math.min(p.x, q.x), math.max(p.x, q.x)
@@ -126,10 +129,13 @@ local function dangerOn(hostile, p, q)
         -- The box round the leg, widened by r, is a cheap no for most places:
         -- it halves what the test costs Graph.Build (measured 2026-09-22).
         local near = h.x >= x0 - r and h.x <= x1 + r and h.y >= y0 - r and h.y <= y1 + r
-        if near and Geo.SegmentDistance(p, q, h) <= r
-                and not (chosen(p) and Geo.Distance(p, h) <= r)
-                and not (chosen(q) and Geo.Distance(q, h) <= r) then
-            return { name = h.name, f = h.f }
+        if near then
+            local closest = Geo.SegmentDistance(p, q, h)
+            local start = Geo.Distance(p, h)
+            if closest <= r and not (start <= r and start <= closest + 1)
+                    and not (chosen(q) and Geo.Distance(q, h) <= r) then
+                return { name = h.name, f = h.f }
+            end
         end
     end
     return nil
