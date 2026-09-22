@@ -419,7 +419,10 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [x] The total under the strip reads like "~15 min · free"
       (2026-09-21: "~14 min · free")
 - [ ] Type in the box: the results list drops over the screen and the amber
-      line stays visible under it
+      line stays visible under it, and every row sits inside the list's
+      panel, none hanging below it
+      (seen failing in game 2026-09-21: typing "a" showed 8 rows and two,
+      Booty Bay and Brackenwall Village, hung below the panel)
 - [ ] Start Route closes the planner and opens the dash; `/gps` mid-trip
       shows the trip's destination in the box
 - [ ] `/gps selftest` lists the fifteen strip textures, all `ok`

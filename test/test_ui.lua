@@ -904,6 +904,42 @@ return function(h)
             Fake.MouseDown(GoblinPSPlanner) -- put the list away for the test that follows
         end)
 
+        h.it("keeps every result row inside the list's box", function()
+            -- Client report 2026-09-21: typing "a" dropped 8 rows and two of
+            -- them (Booty Bay, Brackenwall Village) hung below the list's
+            -- panel, because showResults() always filled all MAX_RESULTS
+            -- rows regardless of how tall the list's own box is.
+            -- ROW mirrors Planner.lua's private row-height constant (18px);
+            -- it has no other home to be read from.
+            -- No Toggle() here: it flips the window's own shown/hidden state,
+            -- which the tests after this one rely on to stay in step (Toggle
+            -- hiding the frame is what fires OnHide's hideResults for the
+            -- "opens the whole list from the dropdown button" test right
+            -- after this one). ApplyLayout has already run in this suite.
+            local ROW = 18
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local listHeight = (g.resultsList.bottom - g.resultsList.top) * ui.frame:GetHeight()
+            -- Real numbers at 416px: (109.69 - 4) / 18 floors to 5.
+            h.eq(ui.results.fit, 5, "5 rows fit the 416px-tall window's list")
+            Fake.Type(ui.toBox, "a") -- matches more than fit in the fake world
+            h.truthy(ui.results:IsShown())
+            local shown, hidden = 0, 0
+            for i, row in ipairs(ui.results.rows) do
+                if row:IsShown() then
+                    shown = shown + 1
+                    local bottom = 2 + i * ROW -- TOPLEFT offset (2 + (i-1)*ROW) plus the row's own height
+                    h.truthy(bottom <= listHeight,
+                              "row " .. i .. " bottom edge must stay inside the list's own height")
+                else
+                    hidden = hidden + 1
+                end
+            end
+            h.eq(shown, ui.results.fit, "exactly fit rows are shown")
+            h.eq(shown + hidden, Planner.MAX_RESULTS)
+            Fake.MouseDown(GoblinPSPlanner) -- put the list away for the test that follows
+        end)
+
         h.it("opens the whole list from the dropdown button", function()
             ns.Planner.Toggle()
             local ui = ns.Planner.Debug()

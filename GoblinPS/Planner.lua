@@ -15,6 +15,8 @@ local W = ns.Widgets
 Planner.SIZE = { 650, 416 }
 Planner.MAX_RESULTS = 8
 local ROW = 18
+-- The 2px inset the rows anchor with, top and bottom of the list's box.
+local ROW_INSET = 4
 
 local ui          -- built on first open
 local state = {}  -- to = place, plan = Core.PlanRoute's answer
@@ -261,11 +263,14 @@ local function pick(item)
     replan()
 end
 
--- Matches for the text; with an empty box, the recent destinations.
+-- Matches for the text; with an empty box, the recent destinations. Asks for
+-- only as many as the list's own box can show (ui.results.fit), not the
+-- pool size, so Enter still picks the first of what is actually on screen.
 local function candidates()
     local text = ui.toBox:GetText()
+    local fit = ui.results.fit or Planner.MAX_RESULTS
     if text ~= "" then
-        return ns.Search.Find(ns.Data, text, ns.Core.Faction(), Planner.MAX_RESULTS)
+        return ns.Search.Find(ns.Data, text, ns.Core.Faction(), fit)
     end
     local out = {}
     for _, name in ipairs(ns.Core.Recents()) do
@@ -280,8 +285,9 @@ local function showResults()
         hideResults()
         return
     end
+    local fit = ui.results.fit or Planner.MAX_RESULTS
     for i = 1, Planner.MAX_RESULTS do
-        local row, item = ui.results.rows[i], items[i]
+        local row, item = ui.results.rows[i], (i <= fit) and items[i] or nil
         row.item = item
         row:SetShown(item ~= nil)
         if item then
@@ -420,6 +426,7 @@ function Planner.ApplyLayout()
 
     local g = geo()
     if not g then
+        ui.results.fit = Planner.MAX_RESULTS
         return
     end
     if ui.titlePlate then
@@ -435,6 +442,14 @@ function Planner.ApplyLayout()
     W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
     W.PlaceRect(ui.toBox, f, g.toBox)
     W.PlaceRect(ui.results, f, g.resultsList)
+    -- How many of the MAX_RESULTS pooled rows actually fit the list's own
+    -- box -- worked out from the geometry and this frame's explicit size,
+    -- never from the list frame, which only inherits its size (see
+    -- PlaceRect above). Client report 2026-09-21: typing "a" dropped all
+    -- 8 rows and two (Booty Bay, Brackenwall Village) hung below the
+    -- list's panel, because showResults() always filled every pooled row.
+    ui.results.fit = math.max(1, math.min(Planner.MAX_RESULTS, math.floor(
+        ((g.resultsList.bottom - g.resultsList.top) * f:GetHeight() - ROW_INSET) / ROW)))
     W.PlaceRect(ui.screen, f, g.screen)
     W.PlaceRect(ui.go, f, g.goButton)
     W.PlaceLine(ui.total, f, g.totalLine)
@@ -692,6 +707,7 @@ local function build()
     results:EnableMouse(true)
     results:Hide()
     results.rows = {}
+    results.fit = Planner.MAX_RESULTS -- ApplyLayout narrows this once geometry is known
     for i = 1, Planner.MAX_RESULTS do
         local row = CreateFrame("Button", nil, results)
         row:SetHeight(ROW)
