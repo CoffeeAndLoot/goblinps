@@ -18,6 +18,11 @@ local W = ns.Widgets
 -- looked at in game: if a line is cramped or swims, this is the number to
 -- change, and nothing else moves with it.
 Dash.SIZE = { 288, 360 }
+-- How bright the arrow draws, as a multiplier on its art: 1 is the art as
+-- drawn, lower is darker. The owner asked for it "a bit" darker on
+-- 2026-09-22; a vertex colour can only darken, never brighten, so this is the
+-- one knob the code has on the arrow's brightness.
+Dash.ARROW_TINT = 0.85
 local MEDIA = "Interface\\AddOns\\GoblinPS\\Media\\"
 
 local ui              -- built on first Start
@@ -165,6 +170,7 @@ local function build()
     local arrowPart = ns.Data.Art and ns.Data.Art["arrow"]
     if arrowPart and arrow:SetTexture(MEDIA .. arrowPart.file) then
         arrow:SetTexCoord(arrowPart.l, arrowPart.r, arrowPart.t, arrowPart.b)
+        arrow:SetVertexColor(Dash.ARROW_TINT, Dash.ARROW_TINT, Dash.ARROW_TINT)
     else
         arrow:SetTexture("Interface\\Buttons\\WHITE8X8")
         arrow:SetVertexColor(unpack(W.COLOR.green))

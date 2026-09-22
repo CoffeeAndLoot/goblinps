@@ -313,6 +313,11 @@ are bounding boxes, they overlap generously, and a point can sit inside both
 and still be in the wrong gully. It only means nothing detectable is wrong from
 the desk. So the 50 still want walking eventually; these six want it first.
 
+Measured in game so far:
+
+- [x] the Mulgore pass (Mulgore and the Barrens): 41.8, 58.6 on The Barrens'
+      map, 2026-09-22. The guess on Mulgore's map was about 160 yd off.
+
 Regenerate this table after correcting rows:
 
 ```bash

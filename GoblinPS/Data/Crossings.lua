@@ -32,7 +32,7 @@ ns.Data.Crossings = {
     { a = 1457, b = 1438, name = "the Darnassus gate", map = 1438, mx = 0.365, my = 0.540 },     -- Darnassus, Teldrassil
     -- Kalimdor: zones
     { a = 1411, b = 1413, name = "the Southfury bridge", map = 1411, mx = 0.345, my = 0.425 },   -- Durotar, The Barrens
-    { a = 1413, b = 1412, name = "the Mulgore pass", map = 1412, mx = 0.685, my = 0.605 },  -- The Barrens, Mulgore
+    { a = 1413, b = 1412, name = "the Mulgore pass", map = 1413, mx = 0.418, my = 0.586 },  -- The Barrens, Mulgore; measured in game 2026-09-22 (the guess was ~160 yd off)
     { a = 1413, b = 1440, name = "the Mor'shan Rampart", map = 1413, mx = 0.485, my = 0.055 },   -- The Barrens, Ashenvale
     { a = 1413, b = 1442, name = "the Stonetalon pass", map = 1413, mx = 0.345, my = 0.280 },    -- The Barrens, Stonetalon Mountains
     { a = 1413, b = 1445, name = "the Dustwallow road", map = 1413, mx = 0.495, my = 0.785 }, -- The Barrens, Dustwallow Marsh
