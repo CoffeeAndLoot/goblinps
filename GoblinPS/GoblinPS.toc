@@ -13,6 +13,7 @@ Geo.lua
 Data\Places.lua
 Data\Nodes.lua
 Data\Flights.lua
+Data\Towns.lua
 Data\Links.lua
 Data\Inns.lua
 Data\Crossings.lua

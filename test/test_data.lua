@@ -130,6 +130,40 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("the towns table", function()
+        local towns, count = data.Towns, 0
+        for _ in pairs(towns or {}) do
+            count = count + 1
+        end
+
+        h.it("loads, generated from the game's AreaPOI table", function()
+            h.eq(count, 150, "207 on the two continents with a town icon; 9 event markers, 5 unplaced, 43 duplicates")
+        end)
+        h.it("puts every town inside its own zone's rectangle, with every field", function()
+            for id, t in pairs(towns) do
+                local p = data.Places[t.map]
+                h.truthy(p, "town " .. id .. " " .. tostring(t.name) .. " has no zone")
+                h.eq(t.c, p.c, t.name .. " is on its zone's continent")
+                h.truthy(p.x0 <= t.x and t.x <= p.x1 and p.y0 <= t.y and t.y <= p.y1,
+                         t.name .. " lies outside " .. p.name)
+                h.truthy(t.mx >= 0 and t.mx <= 1 and t.my >= 0 and t.my <= 1, t.name .. " map coords")
+                local c, x, y = ns.Geo.ToWorld(data.Places, t.map, t.mx, t.my)
+                h.truthy(c == t.c and math.abs(x - t.x) < 10 and math.abs(y - t.y) < 10,
+                         t.name .. ": its map coords and world coords are one point")
+                h.truthy(t.f == nil or t.f == "A" or t.f == "H", t.name .. " faction")
+            end
+        end)
+        h.it("never repeats a flight stop in the stop's own zone", function()
+            local stops = {}
+            for _, n in pairs(data.Nodes) do
+                stops[ns.Search.ShortName(n.name):lower():gsub("^the%s+", "") .. "@" .. n.map] = true
+            end
+            for _, t in pairs(towns) do
+                h.falsy(stops[t.name:lower():gsub("^the%s+", "") .. "@" .. t.map], t.name .. " is a flight stop")
+            end
+        end)
+    end)
+
     h.describe("a real route", function()
         h.it("takes a Horde character from Thunder Bluff to Undercity by zeppelin", function()
             local _, tb = findNode("Thunder Bluff")
