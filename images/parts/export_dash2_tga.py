@@ -152,6 +152,39 @@ def main():
         draw.line((x, y-7, x, y+7), fill=color, width=2)
     proof.save(ROOT / "_dash2-geometry-proof.png")
 
+    # Slots locate text centers; validate real glyphs at the addon's 288x360 size.
+    sample = assembled.copy()
+    glyphs = Image.new('L', (width, height))
+    glyph_draw = ImageDraw.Draw(glyphs)
+    sample_draw = ImageDraw.Draw(sample)
+    text_bounds = []
+    for key, words, runtime_size in (('destination_line', 'Sun Rock Retreat', 10),
+                                     ('distance_line', '583 yd', 16)):
+        left, top, right, bottom = rect(geometry[key])
+        position = ((left+right)/2, (top+bottom)/2)
+        sample_font = ImageFont.truetype(str(font_path), round(runtime_size * width/288))
+        glyph_draw.text(position, words, font=sample_font, fill=255, anchor='mm')
+        sample_draw.text(position, words, font=sample_font, fill='#a6ff9a', anchor='mm')
+        text_bounds.append(sample_draw.textbbox(position, words, font=sample_font, anchor='mm'))
+        ImageDraw.Draw(proof).text(position, words, font=sample_font, fill='#a6ff9a', anchor='mm')
+    require(text_bounds[0][3] < text_bounds[1][1], 'Sample text lines overlap')
+    proof.save(ROOT / '_dash2-geometry-proof.png')
+    text_pixels = np.array(glyphs) > 0
+    yy, xx = np.where(text_pixels)
+    require(((xx-gx)**2+(yy-gy)**2 < gr**2).all(), 'Sample text leaves glass')
+    for angle in range(0, 360, 5):
+        rotated_arrow = Image.new('RGBA', (width,height))
+        rotated_arrow.alpha_composite(arrow.rotate(angle, resample=Image.Resampling.BICUBIC), arrow_xy)
+        require(not (text_pixels & (np.array(rotated_arrow.getchannel('A')) > 0)).any(),
+                f'Sample text touches arrow at {angle} degrees')
+        rotated_compass = Image.new('RGBA', (width,height))
+        rotated_compass.alpha_composite(scratch.rotate(angle, resample=Image.Resampling.BICUBIC),
+                                       (round(cx)-scratch_radius, round(cy)-scratch_radius))
+        require(not (text_pixels & (np.array(rotated_compass.getchannel('A')) > 0)).any(),
+                f'Sample text touches compass at {angle} degrees')
+    sample.save(ROOT / '_dash2-text-placement.png')
+    sample.resize((288,360), Image.Resampling.LANCZOS).save(ROOT / '_dash2-text-runtime-proof.png')
+
     records = {}
     for name, image in images.items():
         padded_size = tuple(1 << (n-1).bit_length() for n in image.size)
