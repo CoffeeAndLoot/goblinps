@@ -2257,6 +2257,18 @@ return function(h)
                     h.eq(texture.texCoord[2], art.r)
                 end
             end)
+            h.it("draws the arrow a little darker than its art, and nothing else", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                local tint = ui.arrow.vertexColor
+                h.truthy(tint, "the arrow carries a tint")
+                h.truthy(Dash.ARROW_TINT < 1, "a tint below 1 darkens")
+                for i = 1, 3 do
+                    h.eq(tint[i], Dash.ARROW_TINT, "the same on every channel, so it darkens without changing hue")
+                end
+                h.eq(ui.compass.vertexColor, nil, "the compass keeps its own brightness")
+                h.eq(ui.glass.vertexColor, nil, "and so does the glass")
+            end)
             h.it("stacks the layers in the order the artist stated", function()
                 Dash.Start(plan)
                 local ui = Dash.Debug()
