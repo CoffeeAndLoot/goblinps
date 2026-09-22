@@ -3050,8 +3050,8 @@ return function(h)
         h.it("stacks its rows down the panel, every line bounded, nothing under Close", function()
             SlashCmdList.GOBLINPS("settings")
             local ui = Settings.Debug()
-            local labels = { "Hearthstone must save", "Ground arrival", "Flight arrival",
-                             "Boat, zeppelin, tram arrival", "Hearthstone arrival", "Scrolling text" }
+            local labels = { "Hearthstone must save", "Scrolling text", "Ground arrival", "Flight arrival",
+                             "Boat, zeppelin, tram arrival", "Hearthstone arrival" }
             h.eq(#ui.rows, #labels)
             local lastY = 0
             for i, row in ipairs(ui.rows) do
@@ -3069,7 +3069,7 @@ return function(h)
                 h.truthy(row.minus.points[1][2] == row.value, "and - just left of the value")
                 h.truthy(row.label.points[2][2] == row.minus, "the label stops short of -")
             end
-            local texts = { ui.title, ui.honest, ui.version, ui.tagline, ui.feedback, ui.rows[4].note }
+            local texts = { ui.title, ui.honest, ui.version, ui.tagline, ui.feedback, ui.rows[5].note }
             for _, row in ipairs(ui.rows) do
                 texts[#texts + 1] = row.label
                 texts[#texts + 1] = row.value
@@ -3114,7 +3114,7 @@ return function(h)
         h.it("steps the scrolling text through Off, Slow, Normal and Fast, and drives Core.Scroll", function()
             local ui = Settings.Debug()
             Fake.Click(ui.reset)
-            local row = ui.rows[6]
+            local row = ui.rows[2]
             h.eq(row.label:GetText(), "Scrolling text")
             h.eq(row.value:GetText(), "Normal")
             h.eq(ns.Core.Scroll(), "normal")
@@ -3138,6 +3138,18 @@ return function(h)
             h.eq(row.value:GetText(), "Normal")
         end)
 
+        h.it("ignores a scroll name not in the list, and a bad saved one cannot break the panel", function()
+            local ui = Settings.Debug()
+            Fake.Click(ui.reset)
+            ns.Core.SetScroll("warp")
+            h.eq(ns.Core.Scroll(), "normal", "SetScroll ignores a name not in Prefs.SCROLL")
+            GoblinPSDB.scroll = "warp" -- as if a save held one
+            local ok, err = pcall(Settings.Refresh)
+            h.truthy(ok, err)
+            h.eq(ui.rows[2].value:GetText(), "Normal", "a bad value reads as the default")
+            Fake.Click(ui.reset)
+        end)
+
         h.it("Reset to defaults puts all six back", function()
             local ui = Settings.Debug()
             Fake.Click(ui.reset)
@@ -3146,7 +3158,7 @@ return function(h)
                 h.eq(GoblinPSDB.arrive[key], range.default, key)
             end
             h.eq(GoblinPSDB.scroll, "normal")
-            local want = { "5 min", "40 yd", "150 yd", "800 yd", "300 yd", "Normal" }
+            local want = { "5 min", "Normal", "40 yd", "150 yd", "800 yd", "300 yd" }
             for i, row in ipairs(ui.rows) do
                 h.eq(row.value:GetText(), want[i], "row " .. i .. " shows its default")
             end
@@ -3170,7 +3182,7 @@ return function(h)
 
         h.it("an arrival change reaches Trip.Check: 30 yards out advances at 40, not at 20", function()
             local ui = Settings.Debug()
-            local ground = ui.rows[2]
+            local ground = ui.rows[3]
             Fake.Click(ground.minus)
             Fake.Click(ground.minus)
             h.eq(ground.value:GetText(), "20 yd")
@@ -3227,8 +3239,8 @@ return function(h)
             h.eq(ui.honest:GetText(),
                  "On this beta build, settings last until you reload: the client does not load saved data yet.")
             h.eq(ui.honest.wordWrap, true, "a sentence that long wraps inside the panel")
-            h.truthy(ui.rows[4].note:GetText():find("100 yd", 1, true), "the transport floor gives its reason")
-            h.eq(ui.rows[2].note, nil, "only the transport row carries a note")
+            h.truthy(ui.rows[5].note:GetText():find("100 yd", 1, true), "the transport floor gives its reason")
+            h.eq(ui.rows[3].note, nil, "only the transport row carries a note")
             Settings.Close()
         end)
     end)

@@ -505,6 +505,8 @@ function Dash.Scroll(elapsed)
                 shown = restart
             end
             line.marquee = ns.Marquee.New(restart, not step or line.fs:GetUnboundedStringWidth() <= line.slot, step)
+            -- The line's own copy, not the marquee's: off (nil) becomes Marquee.STEP inside the
+            -- marquee, so only this copy can see a change from off to on.
             line.step = step
         end
         local text = ns.Marquee.Advance(line.marquee, elapsed)

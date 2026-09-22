@@ -57,7 +57,12 @@ function Core.ArriveRadii() return Prefs.ArriveRadii(prefs()) end
 function Core.ResetSettings() Prefs.Reset(prefs()) end
 -- The dash's scrolling text: its name, and seconds per character (nil for off).
 function Core.Scroll() return prefs().scroll end
-function Core.SetScroll(name) prefs().scroll = name end
+-- A name not in Prefs.SCROLL is ignored: the panel could not have set it.
+function Core.SetScroll(name)
+    if Prefs.ScrollIndex(name) then
+        prefs().scroll = name
+    end
+end
 function Core.ScrollStep() return Prefs.SCROLL_STEP[prefs().scroll] end
 
 -- Escape closes a frame only through its global name.

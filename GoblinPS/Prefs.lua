@@ -58,13 +58,14 @@ Prefs.SCROLL = { "off", "slow", "normal", "fast" }
 Prefs.SCROLL_STEP = { slow = 0.3, normal = 0.2, fast = 0.12 }
 Prefs.SCROLL_DEFAULT = "normal"
 
-local function isScroll(name)
-    for _, known in ipairs(Prefs.SCROLL) do
+-- Where `name` sits in Prefs.SCROLL, or nil when it is not a speed at all.
+function Prefs.ScrollIndex(name)
+    for i, known in ipairs(Prefs.SCROLL) do
         if name == known then
-            return true
+            return i
         end
     end
-    return false
+    return nil
 end
 
 -- Returns db (or a new table) with every missing preference filled in.
@@ -101,7 +102,7 @@ function Prefs.Init(db)
         end
     end
     -- A name the panel could not have set was never the player's choice.
-    if not isScroll(db.scroll) then
+    if not Prefs.ScrollIndex(db.scroll) then
         db.scroll = Prefs.SCROLL_DEFAULT
     end
     return db

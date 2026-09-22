@@ -40,6 +40,8 @@ local function minutes(seconds)
     return math.floor(seconds / 60 + 0.5)
 end
 
+local SCROLL_NAMES = { off = "Off", slow = "Slow", normal = "Normal", fast = "Fast" }
+
 -- The six rows, top to bottom. Each reads and writes through Core in the
 -- unit it shows. ns.Core is looked up when a row is used: Core loads last.
 local ROWS = {
@@ -50,6 +52,15 @@ local ROWS = {
           ns.Planner.Replan()
       end,
       show = function(v) return v == 0 and "any" or (v .. " min") end },
+    -- The scrolling text is a list, not a number: the row steps through its
+    -- positions in Prefs.SCROLL and shows each by name. A saved value that
+    -- is not in the list reads as the default, so Refresh always has a number.
+    { label = "Scrolling text", range = { min = 1, max = #ns.Prefs.SCROLL, step = 1 },
+      get = function()
+          return ns.Prefs.ScrollIndex(ns.Core.Scroll()) or ns.Prefs.ScrollIndex(ns.Prefs.SCROLL_DEFAULT)
+      end,
+      set = function(i) ns.Core.SetScroll(ns.Prefs.SCROLL[i]) end,
+      show = function(i) return SCROLL_NAMES[ns.Prefs.SCROLL[i]] end },
 }
 local function arrival(key, label, hint)
     ROWS[#ROWS + 1] = { label = label, range = ns.Prefs.ARRIVE[key], note = hint,
@@ -62,22 +73,6 @@ arrival("fly", "Flight arrival")
 arrival("transport", "Boat, zeppelin, tram arrival",
         "No tighter than 100 yd: some dock positions are still estimates, and a trip could never arrive.")
 arrival("hearth", "Hearthstone arrival")
-
--- The scrolling text is a list, not a number: the row steps through its
--- positions in Prefs.SCROLL and shows each by name.
-local SCROLL_NAMES = { off = "Off", slow = "Slow", normal = "Normal", fast = "Fast" }
-ROWS[#ROWS + 1] = {
-    label = "Scrolling text", range = { min = 1, max = #ns.Prefs.SCROLL, step = 1 },
-    get = function()
-        for i, name in ipairs(ns.Prefs.SCROLL) do
-            if name == ns.Core.Scroll() then
-                return i
-            end
-        end
-    end,
-    set = function(i) ns.Core.SetScroll(ns.Prefs.SCROLL[i]) end,
-    show = function(i) return SCROLL_NAMES[ns.Prefs.SCROLL[i]] end,
-}
 
 -- Paint every value, grey out a button at its end, and fill the About box.
 -- Safe to call at any time; /gps hearth calls it so an open panel keeps up.
