@@ -1023,9 +1023,42 @@ return function(h)
                 FreshPlanner.Toggle()
                 local ui = FreshPlanner.Debug()
                 local g, w = ns.Data.ArtGeometry.planner.wide, ui.frame:GetWidth()
+                -- ROW_EDGE and LABEL_EDGE are local to Planner.lua; read the
+                -- same padding back off the anchors build() actually set,
+                -- rather than hand-typing it a second time.
+                local rowEdge = ui.results.rows[1].points[1][4]
+                local labelEdge = ui.results.rows[1].label.points[1][4]
+                local padding = 2 * (rowEdge + labelEdge)
+                local geomWidth = (g.resultsList.right - g.resultsList.left) * w
+                -- At this CHAR_WIDTH the unclamped hug really would overflow
+                -- the geometry, so the assertion below only passes because
+                -- the clamp did something -- not because the two numbers
+                -- always happened to agree.
+                h.truthy(ui.results.labelWidth + padding > geomWidth,
+                         "the unclamped hug would overflow the geometry at this CHAR_WIDTH")
+                local width = ui.results.points[2][4] - ui.results.points[1][4]
+                h.truthy(math.abs(width - geomWidth) < 1e-9, "capped at the geometry's width")
+                FreshPlanner.Toggle()
+            end)
+            ns.Planner, Fake.CHAR_WIDTH = savedPlanner, savedWidth
+            -- The fresh window took the global Escape name; give it back.
+            GoblinPSPlanner = Planner.Debug().frame
+            h.truthy(ok, err)
+        end)
+
+        h.it("falls back to the full geometry width when every label measures 0", function()
+            local savedPlanner, savedWidth = ns.Planner, Fake.CHAR_WIDTH
+            Fake.CHAR_WIDTH = 0
+            local ok, err = pcall(function()
+                local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+                ns.Planner = savedPlanner
+                FreshPlanner.Toggle()
+                local ui = FreshPlanner.Debug()
+                local g, w = ns.Data.ArtGeometry.planner.wide, ui.frame:GetWidth()
+                h.eq(ui.results.labelWidth, nil, "every label measuring 0 leaves labelWidth nil")
                 local width = ui.results.points[2][4] - ui.results.points[1][4]
                 h.truthy(math.abs(width - (g.resultsList.right - g.resultsList.left) * w) < 1e-9,
-                         "capped at the geometry's width")
+                         "the full geometry width when there is nothing to hug")
                 FreshPlanner.Toggle()
             end)
             ns.Planner, Fake.CHAR_WIDTH = savedPlanner, savedWidth
