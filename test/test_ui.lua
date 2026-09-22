@@ -67,9 +67,10 @@ return function(h)
             return waypoint ~= nil and waypoint[1] == map and waypoint[2] == x and waypoint[3] == y
         end,
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
+        AddOnVersion = function() return "2099.01.01" end,
     }
-    for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Strip", "Trip", "Known", "Prefs",
-                            "Widgets", "Planner", "Dash", "MinimapButton", "SelfTest", "Core" }) do
+    for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Strip", "Trip", "Marquee", "Known", "Prefs",
+                            "Widgets", "Planner", "Settings", "Dash", "MinimapButton", "SelfTest", "Core" }) do
         assert(loadfile("GoblinPS/" .. file .. ".lua"))("GoblinPS", ns)
     end
     -- Flight paths live in the account-wide save, one table per character.
@@ -983,6 +984,92 @@ return function(h)
             h.falsy(ui.go.enabled)
             FreshPlanner.Toggle()
         end)
+
+        -- The rows sit 2 px inside the list and each label 6 px inside its
+        -- row, on both sides: 16 px of insets, mirrored from Planner.lua's
+        -- ROW_EDGE and LABEL_EDGE. SLACK mirrors Planner.lua's own constant:
+        -- a few pixels past the widest label so client rounding never clips
+        -- the longest name into "...".
+        local INSETS = 16
+        local SLACK = 4
+        local function labelOf(item)
+            return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
+        end
+
+        h.it("draws the drop-down only a little wider than its longest name", function()
+            local ui = Planner.Debug()
+            Planner.ApplyLayout()
+            local g, w, fh = ns.Data.ArtGeometry.planner.wide, ui.frame:GetWidth(), ui.frame:GetHeight()
+            local widest = 0
+            for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
+                widest = math.max(widest, #labelOf(item) * Fake.CHAR_WIDTH)
+            end
+            h.eq(widest, 110, "Charlie  (flight stop) is the widest name the fake world offers")
+            local tl, br = ui.results.points[1], ui.results.points[2]
+            h.truthy(math.abs(tl[4] - g.resultsList.left * w) < 1e-9, "its left edge stays the geometry's")
+            h.truthy(math.abs(tl[5] + g.resultsList.top * fh) < 1e-9, "and its top")
+            h.truthy(math.abs(br[5] + g.resultsList.bottom * fh) < 1e-9, "and its bottom")
+            local width = br[4] - tl[4]
+            h.truthy(math.abs(width - (widest + INSETS + SLACK)) < 1e-9,
+                     "the widest name plus the rows' insets and slack")
+            h.truthy(width < (g.resultsList.right - g.resultsList.left) * w, "narrower than the geometry")
+            for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
+                h.truthy(#labelOf(item) * Fake.CHAR_WIDTH <= width - INSETS, labelOf(item) .. " still fits its row")
+            end
+        end)
+
+        h.it("never draws the drop-down wider than the geometry, however long the names", function()
+            local savedPlanner, savedWidth = ns.Planner, Fake.CHAR_WIDTH
+            Fake.CHAR_WIDTH = 100
+            local ok, err = pcall(function()
+                local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+                ns.Planner = savedPlanner
+                FreshPlanner.Toggle()
+                local ui = FreshPlanner.Debug()
+                local g, w = ns.Data.ArtGeometry.planner.wide, ui.frame:GetWidth()
+                -- ROW_EDGE and LABEL_EDGE are local to Planner.lua; read the
+                -- same padding back off the anchors build() actually set,
+                -- rather than hand-typing it a second time.
+                local rowEdge = ui.results.rows[1].points[1][4]
+                local labelEdge = ui.results.rows[1].label.points[1][4]
+                local padding = 2 * (rowEdge + labelEdge)
+                local geomWidth = (g.resultsList.right - g.resultsList.left) * w
+                -- At this CHAR_WIDTH the unclamped hug really would overflow
+                -- the geometry, so the assertion below only passes because
+                -- the clamp did something -- not because the two numbers
+                -- always happened to agree.
+                h.truthy(ui.results.labelWidth + padding > geomWidth,
+                         "the unclamped hug would overflow the geometry at this CHAR_WIDTH")
+                local width = ui.results.points[2][4] - ui.results.points[1][4]
+                h.truthy(math.abs(width - geomWidth) < 1e-9, "capped at the geometry's width")
+                FreshPlanner.Toggle()
+            end)
+            ns.Planner, Fake.CHAR_WIDTH = savedPlanner, savedWidth
+            -- The fresh window took the global Escape name; give it back.
+            GoblinPSPlanner = Planner.Debug().frame
+            h.truthy(ok, err)
+        end)
+
+        h.it("falls back to the full geometry width when every label measures 0", function()
+            local savedPlanner, savedWidth = ns.Planner, Fake.CHAR_WIDTH
+            Fake.CHAR_WIDTH = 0
+            local ok, err = pcall(function()
+                local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+                ns.Planner = savedPlanner
+                FreshPlanner.Toggle()
+                local ui = FreshPlanner.Debug()
+                local g, w = ns.Data.ArtGeometry.planner.wide, ui.frame:GetWidth()
+                h.eq(ui.results.labelWidth, nil, "every label measuring 0 leaves labelWidth nil")
+                local width = ui.results.points[2][4] - ui.results.points[1][4]
+                h.truthy(math.abs(width - (g.resultsList.right - g.resultsList.left) * w) < 1e-9,
+                         "the full geometry width when there is nothing to hug")
+                FreshPlanner.Toggle()
+            end)
+            ns.Planner, Fake.CHAR_WIDTH = savedPlanner, savedWidth
+            -- The fresh window took the global Escape name; give it back.
+            GoblinPSPlanner = Planner.Debug().frame
+            h.truthy(ok, err)
+        end)
     end)
 
     h.describe("the route strip", function()
@@ -1716,6 +1803,20 @@ return function(h)
                 h.eq(ui.steps[1]:GetText(), "Zeppelin to East Dock")
             end)
 
+            h.it("judges arrival by the player's own radius", function()
+                ns.Core.SetArrive("ride", 20)
+                Dash.Start(plan)
+                local _, state = Dash.Debug()
+                standAt(30, 0)
+                Dash.Tick("tick")
+                h.eq(state.index, 1, "30 yards out is not there at 20")
+                ns.Core.SetArrive("ride", 40)
+                Dash.Tick("tick")
+                h.eq(state.index, 2, "and is at 40")
+                ns.Core.ResetSettings()
+                h.eq(ns.Core.Arrive("ride"), 40)
+            end)
+
             h.it("moves Blizzard's pin onto each new step, not just the first", function()
                 Dash.Start(plan)
                 local _, state = Dash.Debug()
@@ -2326,6 +2427,89 @@ return function(h)
                 h.truthy(ok, err)
             end)
         end)
+
+        h.describe("the dash's scrolling text", function()
+            local Marquee = ns.Marquee
+            local LONG = "Far Distant Southern Crossing"
+            local function rideTo(name, seconds)
+                return { kind = "ride", seconds = seconds, to = { name = name, c = 1, x = 0, y = 0, map = 1 } }
+            end
+            local longPlan = {
+                level = 60,
+                to = ns.Search.Exact(ns.Data, "Westland", "H"),
+                result = { seconds = 400, steps = {
+                    rideTo(LONG, 200), rideTo("Delta", 100), rideTo("Another Far Distant Crossing", 100),
+                } },
+            }
+            local full = "Ride to " .. LONG
+
+            h.it("works out each line's opening from the geometry and the frame's own size", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                local g, w = ns.Data.ArtGeometry, ui.frame:GetWidth()
+                h.eq(w, Dash.SIZE[1], "measured on the frame given an explicit size")
+                local rects = { g.destination, g.distance, g.stepsText, g.stepsText, g.stepsText, g.etaText }
+                local lines = { ui.destination, ui.distance, ui.steps[1], ui.steps[2], ui.steps[3], ui.eta }
+                h.eq(#ui.lines, 6)
+                for i, line in ipairs(ui.lines) do
+                    h.truthy(line.fs == lines[i], "line " .. i .. " is the right FontString")
+                    h.truthy(math.abs(line.slot - (rects[i].right - rects[i].left) * w) < 1e-9,
+                             "line " .. i .. " slot is its rect's width times the dash's")
+                end
+            end)
+
+            h.it("scrolls a line too long for its opening, and holds a short one still", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                Dash.Scroll(0)
+                h.eq(ui.steps[1]:GetText(), full, "it starts at its start")
+                Dash.Scroll(Marquee.HOLD - 0.1)
+                h.eq(ui.steps[1]:GetText(), full, "and holds there")
+                Dash.Scroll(0.11)
+                h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full, "then drops its first character")
+                Dash.Scroll(Marquee.STEP)
+                h.eq(ui.steps[1]:GetText(), full:sub(3) .. Marquee.GAP .. full)
+                h.eq(ui.steps[2]:GetText(), "Ride to Delta", "a line that fits never moves")
+                h.eq(ui.destination:GetText(), LONG:sub(3) .. Marquee.GAP .. LONG, "the glass scrolls too")
+            end)
+
+            h.it("judges fit by the opening, never by the FontString's own width", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                -- Widths that would flip both answers if the code read them:
+                -- the long line "wide enough", the short one "too narrow".
+                ui.steps[1].width, ui.steps[2].width = 10000, 1
+                Dash.Scroll(Marquee.HOLD + 0.01)
+                ui.steps[1].width, ui.steps[2].width = nil, nil
+                h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full)
+                h.eq(ui.steps[2]:GetText(), "Ride to Delta")
+            end)
+
+            h.it("restarts a line from its start when its text changes", function()
+                Dash.Start(longPlan)
+                local ui, state = Dash.Debug()
+                Dash.Scroll(Marquee.HOLD + 3 * Marquee.STEP)
+                h.truthy(ui.steps[1]:GetText() ~= full, "well into the first name")
+                state.index = 3
+                Dash.Refresh()
+                Dash.Scroll(Marquee.STEP)
+                h.eq(ui.steps[1]:GetText(), "Ride to Another Far Distant Crossing",
+                     "a new step starts at its beginning and holds, never mid-name")
+                state.index = 1
+                Dash.Refresh()
+            end)
+
+            h.it("rides the dash's own OnUpdate, with no timer of its own", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                standAt(5000, 5000) -- far from every target: the tick in the same frame moves nothing on
+                ui.frame.scripts.OnUpdate(ui.frame, 0)
+                ui.frame.scripts.OnUpdate(ui.frame, Marquee.HOLD + 0.01)
+                h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full, "the frame's OnUpdate drove it")
+                h.eq(ui.steps[2]:GetText(), "Ride to Delta")
+                Dash.Stop()
+            end)
+        end)
     end
 
     h.describe("the fake frames model what the dash needs", function()
@@ -2345,6 +2529,13 @@ return function(h)
             h.eq(t.vertexColor[1], 1)
             t:SetDrawLayer("OVERLAY")
             h.eq(t.drawLayer, "OVERLAY")
+        end)
+        h.it("a FontString measures the text it holds, not the width it was given", function()
+            local f = CreateFrame("Frame")
+            local fs = f:CreateFontString(nil, "OVERLAY")
+            fs:SetWidth(1)
+            fs:SetText("Abcd")
+            h.eq(fs:GetUnboundedStringWidth(), 4 * Fake.CHAR_WIDTH)
         end)
     end)
 
@@ -2650,6 +2841,263 @@ return function(h)
             ns.Planner.Toggle()
             pstate.to = keptTo
             ns.Dash.Stop()
+        end)
+    end)
+
+    h.describe("the settings panel", function()
+        local Settings = ns.Settings
+        local function openPlanner()
+            if not Planner.Debug().frame:IsShown() then
+                Planner.Toggle()
+            end
+            return Planner.Debug()
+        end
+        -- What the client does on Escape: hide every shown frame UISpecialFrames names.
+        local function pressEscape()
+            for _, name in ipairs(UISpecialFrames) do
+                local frame = _G[name]
+                if frame and frame:IsShown() then
+                    frame:Hide()
+                end
+            end
+        end
+
+        h.it("opens from the gear, centred over the planner and one strata above it", function()
+            local pui = openPlanner()
+            Fake.Click(pui.gear)
+            local ui = Settings.Debug()
+            h.truthy(ui.frame:IsShown())
+            h.eq(#ui.frame.points, 1)
+            local p = ui.frame.points[1]
+            h.eq(p[1], "CENTER")
+            h.truthy(p[2] == pui.frame, "centred on the planner, not the screen")
+            h.eq(p[3], "CENTER")
+            h.eq(p[4], 0)
+            h.eq(p[5], 0)
+            h.eq(pui.frame:GetFrameStrata(), "HIGH")
+            h.eq(ui.frame:GetFrameStrata(), "DIALOG")
+            h.eq(ui.frame:GetWidth(), Settings.SIZE[1])
+            h.eq(ui.frame:GetHeight(), Settings.SIZE[2])
+            Fake.Click(pui.gear)
+            h.falsy(ui.frame:IsShown(), "the gear puts it away again")
+        end)
+
+        h.it("outranks the drop-down list on their shared DIALOG strata", function()
+            -- Both the settings panel and the results list are DIALOG
+            -- strata; level is what breaks the tie within one strata.
+            -- Client report 2026-09-22: the panel defaulted to the
+            -- planner's own frame level while the list sat at the
+            -- planner's level + 3, so the list could be reopened over an
+            -- open panel and cover it, taking its clicks.
+            openPlanner()
+            Fake.Click(Planner.Debug().gear)
+            h.truthy(Settings.Debug().frame:IsShown())
+            h.eq(Settings.Debug().frame:GetFrameStrata(), Planner.Debug().results:GetFrameStrata(),
+                 "same strata: only the level can settle who draws on top")
+            h.truthy(Settings.Debug().frame:GetFrameLevel() > Planner.Debug().results:GetFrameLevel(),
+                     "the panel must outrank the list, or the list can cover it and steal its clicks")
+            Fake.Click(Planner.Debug().gear)
+        end)
+
+        h.it("keeps the drop-down list shut behind it while it is up", function()
+            openPlanner()
+            Fake.Click(Planner.Debug().gear)
+            h.truthy(Settings.Debug().frame:IsShown())
+            Fake.Click(Planner.Debug().dropdown)
+            h.falsy(Planner.Debug().results:IsShown(),
+                     "opening the panel already dismissed the list; the dropdown must not reopen it")
+            Fake.Click(Planner.Debug().gear)
+        end)
+
+        h.it("opens from /gps settings, bringing the planner up under it", function()
+            local pui = Planner.Debug()
+            if pui.frame:IsShown() then
+                Planner.Toggle()
+            end
+            SlashCmdList.GOBLINPS("settings")
+            h.truthy(pui.frame:IsShown(), "the panel sits over the planner, so the planner opens first")
+            h.truthy(Settings.Debug().frame:IsShown())
+            h.truthy(Settings.Debug().frame.points[1][2] == pui.frame)
+        end)
+
+        h.it("closes on Close, on Escape, and with the planner", function()
+            local ui = Settings.Debug()
+            Fake.Click(ui.close)
+            h.falsy(ui.frame:IsShown(), "Close")
+            SlashCmdList.GOBLINPS("settings")
+            local listed = false
+            for _, name in ipairs(UISpecialFrames) do
+                listed = listed or name == "GoblinPSSettings"
+            end
+            h.truthy(listed, "Escape closes a frame only through UISpecialFrames")
+            h.truthy(GoblinPSSettings == ui.frame)
+            GoblinPSSettings:Hide()
+            h.falsy(ui.frame:IsShown(), "Escape's entry for the panel")
+            h.truthy(Planner.Debug().frame:IsShown(),
+                     "a direct :Hide() closes only the panel, not the planner too")
+            SlashCmdList.GOBLINPS("settings")
+            pressEscape()
+            h.falsy(ui.frame:IsShown(), "Escape")
+            SlashCmdList.GOBLINPS("settings")
+            Planner.Toggle()
+            h.falsy(Planner.Debug().frame:IsShown())
+            h.falsy(ui.frame:IsShown(), "closing the planner closes it too")
+        end)
+
+        h.it("stacks its rows down the panel, every line bounded, nothing under Close", function()
+            SlashCmdList.GOBLINPS("settings")
+            local ui = Settings.Debug()
+            local labels = { "Hearthstone must save", "Ground arrival", "Flight arrival",
+                             "Boat, zeppelin, tram arrival", "Hearthstone arrival" }
+            h.eq(#ui.rows, #labels)
+            local lastY = 0
+            for i, row in ipairs(ui.rows) do
+                h.eq(row.label:GetText(), labels[i])
+                local p1, p2 = row.frame.points[1], row.frame.points[2]
+                h.truthy(p1[2] == ui.frame and p2[2] == ui.frame, "row " .. i .. " hangs from the panel")
+                h.eq(p1[1], "TOPLEFT")
+                h.eq(p2[1], "TOPRIGHT")
+                h.eq(p1[5], p2[5], "row " .. i .. " is level")
+                h.truthy(p1[5] < lastY, "row " .. i .. " sits below the one before")
+                lastY = p1[5]
+                h.eq(row.plus.points[1][1], "RIGHT")
+                h.truthy(row.plus.points[1][2] == row.frame, "+ at the row's right end")
+                h.truthy(row.value.points[1][2] == row.plus, "the value just left of +")
+                h.truthy(row.minus.points[1][2] == row.value, "and - just left of the value")
+                h.truthy(row.label.points[2][2] == row.minus, "the label stops short of -")
+            end
+            local texts = { ui.title, ui.honest, ui.version, ui.tagline, ui.feedback, ui.rows[4].note }
+            for _, row in ipairs(ui.rows) do
+                texts[#texts + 1] = row.label
+                texts[#texts + 1] = row.value
+            end
+            for i, fs in ipairs(texts) do
+                h.truthy(#fs.points >= 2 or fs.width, "text " .. i .. " has two anchors or a width")
+            end
+            local close = ui.close.points[1]
+            h.eq(close[1], "BOTTOM")
+            h.truthy(close[2] == ui.frame)
+            h.truthy(-ui.cursor + close[5] + ui.close:GetHeight() <= Settings.SIZE[2],
+                     "the last line ends above Close")
+        end)
+
+        h.it("moves every number by its step and clamps it at both ends", function()
+            local ui = Settings.Debug()
+            for _, row in ipairs(ui.rows) do
+                local range, name = row.spec.range, row.spec.label
+                local start = row.spec.get()
+                Fake.Click(row.plus)
+                h.eq(row.spec.get(), start + range.step, name .. ": + adds one step")
+                Fake.Click(row.minus)
+                h.eq(row.spec.get(), start, name .. ": - takes it back")
+                for _ = 1, (range.max - range.min) / range.step + 2 do
+                    Fake.Click(row.minus)
+                end
+                h.eq(row.spec.get(), range.min, name .. ": clamped at the bottom")
+                h.falsy(row.minus:IsEnabled(), name .. ": - greys out at the bottom")
+                for _ = 1, (range.max - range.min) / range.step + 2 do
+                    Fake.Click(row.plus)
+                end
+                h.eq(row.spec.get(), range.max, name .. ": clamped at the top")
+                h.falsy(row.plus:IsEnabled(), name .. ": + greys out at the top")
+                h.truthy(row.minus:IsEnabled())
+                h.eq(row.value:GetText(), row.spec.show(range.max))
+            end
+            h.eq(GoblinPSDB.hearthSaving, 30 * 60, "the hearth row stores seconds")
+            h.eq(GoblinPSDB.arrive.transport, 1000)
+        end)
+
+        h.it("Reset to defaults puts all five back", function()
+            local ui = Settings.Debug()
+            Fake.Click(ui.reset)
+            h.eq(GoblinPSDB.hearthSaving, ns.Prefs.HEARTH_SAVING_DEFAULT)
+            for key, range in pairs(ns.Prefs.ARRIVE) do
+                h.eq(GoblinPSDB.arrive[key], range.default, key)
+            end
+            local want = { "5 min", "40 yd", "150 yd", "800 yd", "300 yd" }
+            for i, row in ipairs(ui.rows) do
+                h.eq(row.value:GetText(), want[i], "row " .. i .. " shows its default")
+            end
+        end)
+
+        h.it("shares the hearthstone value with /gps hearth, both ways", function()
+            local ui = Settings.Debug()
+            local hearth = ui.rows[1]
+            SlashCmdList.GOBLINPS("hearth 12")
+            h.eq(hearth.value:GetText(), "12 min", "the open panel follows the chat command")
+            Fake.Click(hearth.plus)
+            h.eq(GoblinPSDB.hearthSaving, 13 * 60)
+            local from = #printed
+            SlashCmdList.GOBLINPS("hearth")
+            h.truthy(table.concat(printed, " ", from + 1, #printed):find("~13 min", 1, true),
+                     "and the chat command reads what the panel set")
+            SlashCmdList.GOBLINPS("hearth 0")
+            h.eq(hearth.value:GetText(), "any", "0 means whenever it is faster")
+            Fake.Click(ui.reset)
+        end)
+
+        h.it("an arrival change reaches Trip.Check: 30 yards out advances at 40, not at 20", function()
+            local ui = Settings.Debug()
+            local ground = ui.rows[2]
+            Fake.Click(ground.minus)
+            Fake.Click(ground.minus)
+            h.eq(ground.value:GetText(), "20 yd")
+            local function rideTo(name)
+                return { kind = "ride", seconds = 200, to = { name = name, c = 1, x = 0, y = 0, map = 1 } }
+            end
+            ns.Dash.Start({ level = 60, to = ns.Search.Exact(ns.Data, "Westland", "H"),
+                            result = { seconds = 400, steps = { rideTo("Alpha"), rideTo("Delta") } } })
+            local _, dash = ns.Dash.Debug()
+            where.map, where.mx, where.my = 1, 1, (10000 - 30) / 10000 -- world 30, 0: 30 yards out
+            ns.Dash.Tick("tick")
+            h.eq(dash.index, 1, "not there yet at 20 yards")
+            Fake.Click(ground.plus)
+            Fake.Click(ground.plus)
+            ns.Dash.Tick("tick")
+            h.eq(dash.index, 2, "there at 40")
+            ns.Dash.Stop()
+        end)
+
+        h.it("names the version the client reads from the TOC, through API", function()
+            local ui = Settings.Debug()
+            h.eq(ui.version:GetText(), "GoblinPS 2099.01.01")
+            h.eq(ui.tagline:GetText(), "Accuracy not guaranteed. No refunds.")
+            local saved = ns.API.AddOnVersion
+            ns.API.AddOnVersion = function() return nil end
+            Settings.Refresh()
+            h.eq(ui.version:GetText(), "GoblinPS (version unknown)", "an API that does not answer says so")
+            ns.API.AddOnVersion = saved
+            Settings.Refresh()
+        end)
+
+        h.it("says feedback is coming soon, and offers a copyable address once there is one", function()
+            local ui = Settings.Debug()
+            h.eq(Settings.FEEDBACK_URL, nil, "no page exists yet, so none is printed")
+            h.eq(ui.feedback:GetText(), "Feedback: a GitHub page is coming soon.")
+            h.falsy(ui.url:IsShown())
+            Settings.FEEDBACK_URL = "https://example.invalid/feedback"
+            Settings.Refresh()
+            h.truthy(ui.url:IsShown())
+            h.eq(ui.url:GetText(), Settings.FEEDBACK_URL)
+            h.falsy(ui.feedback:GetText():find("coming soon", 1, true))
+            ui.url.scripts.OnEditFocusGained(ui.url)
+            h.truthy(ui.url.highlighted, "focus selects the whole address, ready to copy")
+            Fake.Type(ui.url, "typed over")
+            h.eq(ui.url:GetText(), Settings.FEEDBACK_URL, "the address cannot be typed over")
+            Settings.FEEDBACK_URL = nil
+            Settings.Refresh()
+            h.falsy(ui.url:IsShown())
+            h.eq(ui.feedback:GetText(), "Feedback: a GitHub page is coming soon.")
+        end)
+
+        h.it("says plainly that settings last one session on this build", function()
+            local ui = Settings.Debug()
+            h.eq(ui.honest:GetText(),
+                 "On this beta build, settings last until you reload: the client does not load saved data yet.")
+            h.eq(ui.honest.wordWrap, true, "a sentence that long wraps inside the panel")
+            h.truthy(ui.rows[4].note:GetText():find("100 yd", 1, true), "the transport floor gives its reason")
+            h.eq(ui.rows[2].note, nil, "only the transport row carries a note")
+            Settings.Close()
         end)
     end)
 

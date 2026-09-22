@@ -15,8 +15,15 @@ local W = ns.Widgets
 Planner.SIZE = { 650, 416 }
 Planner.MAX_RESULTS = 8
 local ROW = 18
--- The 2px inset the rows anchor with, top and bottom of the list's box.
-local ROW_INSET = 4
+-- The rows sit ROW_EDGE px inside the list's box on every side, and each
+-- row's label LABEL_EDGE px inside its row. ROW_INSET is the top and bottom
+-- edges together, which the rows that fit are counted against.
+local ROW_EDGE, LABEL_EDGE = 2, 6
+local ROW_INSET = 2 * ROW_EDGE
+-- A few pixels past the widest label's measured width, so the client
+-- rounding that width down at render time never clips the longest name
+-- into "...".
+local SLACK = 4
 
 local ui          -- built on first open
 local state = {}  -- to = place, plan = Core.PlanRoute's answer
@@ -280,7 +287,22 @@ local function candidates()
     return out
 end
 
+-- What a result row says. The drop-down's width is measured over this too.
+local function rowLabel(item)
+    return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
+end
+
 local function showResults()
+    -- The settings panel sits above this list (Settings.Open sets its frame
+    -- level for exactly that), but a higher level only wins a DRAW -- it does
+    -- not stop this list from opening under the panel and being clickable
+    -- through the gap at its edges. Opening the panel already dismisses the
+    -- list (gear's OnClick calls dismiss()); while the panel is up, the
+    -- dropdown button must not be able to reopen it.
+    local settings = ns.Settings.Debug()
+    if settings and settings.frame:IsShown() then
+        return
+    end
     local items = candidates()
     if #items == 0 then
         hideResults()
@@ -292,7 +314,7 @@ local function showResults()
         row.item = item
         row:SetShown(item ~= nil)
         if item then
-            row.label:SetText(item.name .. (item.kind == "zone" and "" or "  (flight stop)"))
+            row.label:SetText(rowLabel(item))
         end
     end
     ui.results:Show()
@@ -442,7 +464,14 @@ function Planner.ApplyLayout()
     W.PlaceCircle(ui.gear, f, g.gearButton)
     W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
     W.PlaceRect(ui.toBox, f, g.toBox)
-    W.PlaceRect(ui.results, f, g.resultsList)
+    -- Only a little wider than the longest name: the width measured at build
+    -- plus the rows' insets and SLACK, never past the geometry. Left, top
+    -- and bottom are the geometry's. The widest name is data and the font
+    -- sets its width, so no coordinate is typed here.
+    local list = g.resultsList
+    local hug = ((ui.results.labelWidth or math.huge) + 2 * (ROW_EDGE + LABEL_EDGE) + SLACK) / f:GetWidth()
+    W.PlaceRect(ui.results, f, { left = list.left, top = list.top, bottom = list.bottom,
+                                 right = math.min(list.right, list.left + hug) })
     -- How many of the MAX_RESULTS pooled rows actually fit the list's own
     -- box -- worked out from the geometry and this frame's explicit size,
     -- never from the list frame, which only inherits its size (see
@@ -620,13 +649,12 @@ local function build()
         W.Fill(dropdown, "ARTWORK", "steel")
     end
 
-    -- The gear opens settings, which is a later plan. It is drawn and placed
-    -- now because the art has a socket for it and an empty socket reads as a
-    -- fault; it says so when clicked rather than doing nothing.
+    -- The gear opens the settings panel over this window, and closes it again.
     local gear = CreateFrame("Button", nil, content)
     gear:RegisterForClicks("LeftButtonUp")
     gear:SetScript("OnClick", function()
-        ns.Core.Say("Settings are not built yet.")
+        dismiss()
+        ns.Settings.Toggle(f)
     end)
     local gearArt = art(gear, "gear", "ARTWORK")
     if not gearArt then
@@ -712,17 +740,33 @@ local function build()
     for i = 1, Planner.MAX_RESULTS do
         local row = CreateFrame("Button", nil, results)
         row:SetHeight(ROW)
-        row:SetPoint("TOPLEFT", 2, -(2 + (i - 1) * ROW))
-        row:SetPoint("TOPRIGHT", -2, -(2 + (i - 1) * ROW))
+        row:SetPoint("TOPLEFT", ROW_EDGE, -(ROW_EDGE + (i - 1) * ROW))
+        row:SetPoint("TOPRIGHT", -ROW_EDGE, -(ROW_EDGE + (i - 1) * ROW))
         local hover = row:CreateTexture(nil, "HIGHLIGHT")
         hover:SetAllPoints(row)
         hover:SetColorTexture(1, 1, 1, 0.15)
         row.label = W.Text(row, "green")
-        row.label:SetPoint("LEFT", 6, 0)
-        row.label:SetPoint("RIGHT", -6, 0)
+        row.label:SetPoint("LEFT", LABEL_EDGE, 0)
+        row.label:SetPoint("RIGHT", -LABEL_EDGE, 0)
         row:SetScript("OnClick", function(self) pick(self.item) end)
         results.rows[i] = row
     end
+
+    -- The widest label the search can ever offer, measured once in the rows'
+    -- own font, so ApplyLayout can draw the list only a little wider than
+    -- that. The first row's label is the ruler; it is blank again before
+    -- anything shows it. GetUnboundedStringWidth is the text's own width, not
+    -- the row's -- the row only inherits a size, which is never to be read.
+    -- A width of 0 (a font that would not answer) leaves labelWidth nil and
+    -- the list at the geometry's full width.
+    local ruler = results.rows[1].label
+    local widest = 0
+    for _, item in ipairs(ns.Search.Candidates(ns.Data, ns.Core.Faction())) do
+        ruler:SetText(rowLabel(item))
+        widest = math.max(widest, ruler:GetUnboundedStringWidth())
+    end
+    ruler:SetText("")
+    results.labelWidth = widest > 0 and widest or nil
 
     ui = { frame = f, artLayer = artLayer, content = content, flat = flat, frameArt = frameArt,
            titlePlate = titlePlate, taglinePlate = taglinePlate, title = title, tagline = tagline,
@@ -730,7 +774,11 @@ local function build()
            toBox = toBox, toSlice = toSlice, screen = screen, total = total, hint = hint,
            notes = notes, known = known, go = go, results = results, strip = strip }
     wireBox(toBox)
-    f:SetScript("OnHide", hideResults)
+    -- The settings panel sits over this window, so it goes when this does.
+    f:SetScript("OnHide", function()
+        hideResults()
+        ns.Settings.Close()
+    end)
     ns.Core.CloseOnEscape(f, "GoblinPSPlanner")
 end
 
@@ -769,6 +817,14 @@ function Planner.Replan()
     if ui and ui.frame:IsShown() then
         replan()
     end
+end
+
+-- /gps settings: the panel sits over the planner, so open the planner first.
+function Planner.OpenSettings()
+    if not (ui and ui.frame:IsShown()) then
+        Planner.Toggle()
+    end
+    ns.Settings.Open(ui.frame)
 end
 
 -- For the desktop smoke test only.

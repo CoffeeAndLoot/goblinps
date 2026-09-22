@@ -130,4 +130,65 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("the arrival radii", function()
+        local ARRIVE = loaded.ns.Trip.ARRIVE
+        h.it("default to Trip's own radii", function()
+            local db = Prefs.Init(nil)
+            h.eq(db.arrive.ride, ARRIVE.ride)
+            h.eq(db.arrive.fly, ARRIVE.fly)
+            h.eq(db.arrive.transport, ARRIVE.zeppelin)
+            h.eq(db.arrive.hearth, ARRIVE.hearth)
+            for key, range in pairs(Prefs.ARRIVE) do
+                for _, kind in ipairs(range.kinds) do
+                    h.eq(range.default, ARRIVE[kind], key .. " covers " .. kind .. " at Trip's radius")
+                end
+            end
+        end)
+        h.it("keep an in-range value the player chose", function()
+            local db = Prefs.Init({ arrive = { ride = 20, transport = 100 } })
+            h.eq(db.arrive.ride, 20)
+            h.eq(db.arrive.transport, 100, "the floor itself is allowed")
+            h.eq(db.arrive.fly, 150, "a missing one is filled in")
+        end)
+        h.it("repair hostile and out-of-range values", function()
+            local db = Prefs.Init({ arrive = { ride = "near", fly = 5, transport = 5000, hearth = 0 / 0 } })
+            h.eq(db.arrive.ride, 40, "not a number")
+            h.eq(db.arrive.fly, 150, "under the floor")
+            h.eq(db.arrive.transport, 800, "over the ceiling")
+            h.eq(db.arrive.hearth, 300, "NaN")
+            h.eq(Prefs.Init({ arrive = "junk" }).arrive.ride, 40, "a hostile table is replaced")
+        end)
+        h.it("fan the one transport value out to zeppelin, boat and tram", function()
+            local db = Prefs.Init({ arrive = { transport = 300 } })
+            local radii = Prefs.ArriveRadii(db)
+            h.eq(radii.zeppelin, 300)
+            h.eq(radii.boat, 300)
+            h.eq(radii.tram, 300)
+            h.eq(radii.ride, 40)
+            h.eq(radii.fly, 150)
+            h.eq(radii.hearth, 300)
+        end)
+        h.it("Reset puts the hearthstone and every radius back", function()
+            local db = Prefs.Init({ hearthSaving = 0,
+                                    arrive = { ride = 20, fly = 50, transport = 100, hearth = 1000 } })
+            Prefs.Reset(db)
+            h.eq(db.hearthSaving, Prefs.HEARTH_SAVING_DEFAULT)
+            for key, range in pairs(Prefs.ARRIVE) do
+                h.eq(db.arrive[key], range.default, key)
+            end
+        end)
+    end)
+
+    h.describe("Prefs.Step", function()
+        h.it("moves by the range's step and clamps at both ends", function()
+            local ride = Prefs.ARRIVE.ride
+            h.eq(Prefs.Step(40, ride, 1), 50)
+            h.eq(Prefs.Step(40, ride, -1), 30)
+            h.eq(Prefs.Step(200, ride, 1), 200, "the ceiling")
+            h.eq(Prefs.Step(10, ride, -1), 10, "the floor")
+            h.eq(Prefs.Step(45, Prefs.HEARTH_MINUTES, -1), 30, "a value /gps hearth set above the range comes in")
+            h.eq(Prefs.Step(nil, ride, -1), 10, "a value it cannot read starts from the floor")
+        end)
+    end)
+
 end

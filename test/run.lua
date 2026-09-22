@@ -18,6 +18,7 @@ local modules = {
     { "Route",   "GoblinPS/Route.lua" },
     { "Strip",   "GoblinPS/Strip.lua" },
     { "Trip",    "GoblinPS/Trip.lua" },
+    { "Marquee", "GoblinPS/Marquee.lua" },
     { "Known",   "GoblinPS/Known.lua" },
     { "Prefs",   "GoblinPS/Prefs.lua" },
 }
@@ -39,6 +40,7 @@ local suites = {
     "test/test_graph.lua",
     "test/test_route.lua",
     "test/test_strip.lua",
+    "test/test_marquee.lua",
     "test/test_trip.lua",
     "test/test_known.lua",
     "test/test_prefs.lua",

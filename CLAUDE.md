@@ -14,7 +14,7 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 8 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 9 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
 crossings). Plan 4, the dash unit's first design, ran in the client twice on
 2026-09-20: the round art rendered as an oval (a square texture stretched
@@ -54,13 +54,20 @@ rebuilt the planner to the mockup: one search box, the route strip drawn by
 the pure `Strip.lua`, a tooltip on every stop, wide only. Plan 8 was first seen in the client on
 2026-09-21 and drew as designed: the window sealed against a plain sky, the
 strip's badges on the line, solid then dashed, and the tooltips right. The
-rest of its checklist section is still to walk. A schematic world map was dropped on 2026-09-20 in
+rest of its checklist section is still to walk. Plan 9, built 2026-09-22,
+put a settings panel behind the gear (the hearthstone's saving, four arrival
+radii, Reset, About), made the dash's too-long lines scroll like an old car
+radio (the pure `Marquee.lua`), and drew the drop-down only a little wider
+than its longest name. **Plan 9 has not been run in the client.** A
+schematic world map was dropped on 2026-09-20 in
 favour of the strip; the spike that proved it feasible is kept at
 `docs/research/schematic-spike/`. The product is a GPS: point to point with
 an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`, amended for plans 7
 and 8 by
-`docs/superpowers/specs/2026-09-21-goblinps-planner-redesign-design.md`.
+`docs/superpowers/specs/2026-09-21-goblinps-planner-redesign-design.md`
+and for plan 9 by
+`docs/superpowers/specs/2026-09-21-goblinps-settings-and-marquee-design.md`.
 Write each plan after the one before it has been used in game.
 
 Everything known about the client API and data sources is in
@@ -80,7 +87,8 @@ GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
 GoblinPS/Strip.lua           # pure: the route strip as data -- badges, spacing, tooltips, solid/dashed legs
-GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences
+GoblinPS/Marquee.lua         # pure: the dash's scrolling text, a character window
+GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences, arrival radii and their ranges
 GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
 GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber warnings
@@ -93,6 +101,7 @@ GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard
                               # three-slice stretcher that both windows read their geometry through
 GoblinPS/Planner.lua         # the window; draws Strip.lua's layout and decides nothing; no coordinate
                               # is hand-typed here -- every position comes from ns.Data.ArtGeometry.planner.wide
+GoblinPS/Settings.lua        # the settings panel behind the gear; plain, no art yet, so its spacing is its own
 GoblinPS/Dash.lua            # the small draggable device shown when Start Route closes the planner; arrow, distance, ETA
 GoblinPS/Data/Art.lua        # GENERATED: texture coordinates AND placement geometry (ns.Data.ArtGeometry) for
                               # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json

@@ -50,6 +50,11 @@ end
 function Core.MinimapPrefs() return prefs().minimap end
 function Core.HearthSaving() return prefs().hearthSaving end
 function Core.SetHearthSaving(seconds) prefs().hearthSaving = seconds end
+function Core.Arrive(key) return prefs().arrive[key] end
+function Core.SetArrive(key, yards) prefs().arrive[key] = yards end
+-- The player's radii by Trip step kind; the dash hands this to Trip.Check.
+function Core.ArriveRadii() return Prefs.ArriveRadii(prefs()) end
+function Core.ResetSettings() Prefs.Reset(prefs()) end
 
 -- Escape closes a frame only through its global name.
 function Core.CloseOnEscape(frame, globalName)
@@ -362,7 +367,10 @@ local function slash(msg)
                     Route.FormatTime(Core.HearthSaving())))
             end
             ns.Planner.Replan()
+            ns.Settings.Refresh()   -- an open panel shows the new value
         end
+    elseif command == "settings" then
+        ns.Planner.OpenSettings()
     elseif command == "minimap" then
         ns.MinimapButton.SetHidden(not Core.MinimapPrefs().hide)
         say(Core.MinimapPrefs().hide and "Minimap button hidden. /gps minimap shows it again."
@@ -373,6 +381,7 @@ local function slash(msg)
         say("/gps minimap      show or hide the minimap button")
         say("/gps probe        check the flight path data against the client")
         say("/gps hearth <min>  how much the hearthstone must save to be used")
+        say("/gps settings     open the settings panel")
         say("/gps probe zones  check the zone level ranges against the client")
         say("/gps selftest     check textures and fonts")
     end

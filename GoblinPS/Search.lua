@@ -33,8 +33,10 @@ local function legal(n, faction)
     return not faction or n.f == "N" or n.f == faction
 end
 
--- Every candidate, zones first on a name tie so "Orgrimmar" means the city.
-local function candidates(data, faction)
+-- Every destination the search can offer: every zone, and every flight stop
+-- this faction may use (nil means any), zones first on a name tie so
+-- "Orgrimmar" means the city. The planner measures its drop-down over this.
+function Search.Candidates(data, faction)
     local list = {}
     for map, p in pairs(data.Places) do
         list[#list + 1] = fromPlace(data, map, p)
@@ -55,7 +57,7 @@ function Search.Find(data, text, faction, limit)
         return {}
     end
     local ranked = {}
-    for _, item in ipairs(candidates(data, faction)) do
+    for _, item in ipairs(Search.Candidates(data, faction)) do
         local at = item.name:lower():find(needle, 1, true)
         if at then
             item.rank = (at == 1) and 1 or 2
@@ -102,7 +104,7 @@ function Search.Exact(data, name, faction, skipInns)
             end
         end
     end
-    for _, item in ipairs(candidates(data, faction)) do
+    for _, item in ipairs(Search.Candidates(data, faction)) do
         if plain(item.name) == needle then
             local better = not best or (item.kind == "zone" and best.kind ~= "zone")
                 or (item.kind == best.kind and (item.nodeID or 0) < (best.nodeID or 0))
