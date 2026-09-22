@@ -92,7 +92,21 @@ def main():
     assembled = Image.alpha_composite(images["glass"], images["compass"])
     with Image.open(arrow_path) as loaded:
         arrow = loaded.convert("RGBA").resize(tuple(arrow_record["display_size_pixels"]), Image.Resampling.LANCZOS)
-    arrow_xy = (round(gx-arrow.width/2), round(gy-arrow.height/2))
+    ax, ay = arrow_record['cx'] * width, arrow_record['cy'] * height
+    arrow_xy = (round(ax-arrow.width/2), round(ay-arrow.height/2))
+    maximum_y = 0
+    maximum_radius = 0
+    for angle in range(0, 360, 5):
+        rotated = arrow.rotate(angle, resample=Image.Resampling.BICUBIC)
+        ys, xs = np.where(np.array(rotated.getchannel('A')) > 0)
+        px, py = xs + arrow_xy[0], ys + arrow_xy[1]
+        maximum_y = max(maximum_y, int(py.max()))
+        maximum_radius = max(maximum_radius, float(np.sqrt((px-gx)**2+(py-gy)**2).max()))
+        require(((px-gx)**2+(py-gy)**2 <= gr**2).all(),
+                f'Arrow leaves glass at {angle} degrees')
+        require((py < geometry['destination_line']['top'] * height).all(),
+                f'Arrow reaches destination text at {angle} degrees')
+    print(f'Arrow rotation: lowest pixel y={maximum_y}; maximum glass-center radius={maximum_radius:.2f}px')
     assembled.alpha_composite(arrow, arrow_xy)
     for name in LAYERS[2:]:
         assembled = Image.alpha_composite(assembled, images[name])  # All at (0, 0).
@@ -123,6 +137,9 @@ def main():
         sheet.save(ROOT / f"_dash2-{label}.png")
     proof = assembled.copy()
     draw = ImageDraw.Draw(proof)
+    draw.line((ax-8, ay, ax+8, ay), fill='magenta', width=2)
+    draw.line((ax, ay-8, ax, ay+8), fill='magenta', width=2)
+    draw.text((ax+12, ay), 'arrow pivot', font=font, fill='magenta')
     for key, color in (("destination_line", "cyan"), ("distance_line", "cyan"),
                        ("steps_screen", "yellow"), ("eta_screen", "yellow")):
         box = rect(geometry[key])

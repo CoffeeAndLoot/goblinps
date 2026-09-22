@@ -1,5 +1,26 @@
 # Dash 2 art handoff
 
+## Arrow/compass update — 2026-09-22
+
+Arrow center is now (516,377): `cy = 0.29453125`, 92 source pixels above
+the glass center, matching the requested raised composition. Its `cx` and
+461x461 display size are unchanged. It rotates about its own raised center;
+the older centered-arrow placement instructions below are superseded.
+The source `arrow.png` remains unchanged.
+
+The exporter now reads the arrow center from geometry and tests all nonzero
+alpha pixels at 72 angles, every five degrees. Lowest sampled pixel: y567,
+27px above the destination slot at y594. Maximum distance from glass center:
+284px, inside the specified 290px glass radius. Faint glow extends farther
+than the brief's approximate 172px visible-body estimate; it still clears.
+
+Only the compass letters' RGB was multiplied by 1.05 (rounded to bytes).
+Alpha is unchanged everywhere; ticks and alignment remain unchanged. The
+shipped compass alone was rebuilt with `make_art.build_one` at 256x256 and
+full UVs. No Art.lua regeneration or runtime placement code was changed;
+Claude must wire the raised center as described in the brief. Assembled and
+geometry proofs are current; historical text-placement proof predates this.
+
 Stop-cap finish updated at the owner's request: deeper worn red paint, fine
 scratches, chipped metal edges and a distressed white stop square. Built-in
 image-generation edit `4a865819-354c-4a9f-aa2f-8fb2ef7bef46` used the existing
