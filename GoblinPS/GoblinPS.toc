@@ -29,6 +29,7 @@ Known.lua
 Prefs.lua
 Widgets.lua
 Planner.lua
+Settings.lua
 Dash.lua
 MinimapButton.lua
 SelfTest.lua

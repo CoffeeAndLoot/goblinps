@@ -67,9 +67,10 @@ return function(h)
             return waypoint ~= nil and waypoint[1] == map and waypoint[2] == x and waypoint[3] == y
         end,
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
+        AddOnVersion = function() return "2099.01.01" end,
     }
     for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Strip", "Trip", "Marquee", "Known", "Prefs",
-                            "Widgets", "Planner", "Dash", "MinimapButton", "SelfTest", "Core" }) do
+                            "Widgets", "Planner", "Settings", "Dash", "MinimapButton", "SelfTest", "Core" }) do
         assert(loadfile("GoblinPS/" .. file .. ".lua"))("GoblinPS", ns)
     end
     -- Flight paths live in the account-wide save, one table per character.
@@ -2754,6 +2755,235 @@ return function(h)
             ns.Planner.Toggle()
             pstate.to = keptTo
             ns.Dash.Stop()
+        end)
+    end)
+
+    h.describe("the settings panel", function()
+        local Settings = ns.Settings
+        local function openPlanner()
+            if not Planner.Debug().frame:IsShown() then
+                Planner.Toggle()
+            end
+            return Planner.Debug()
+        end
+        -- What the client does on Escape: hide every shown frame UISpecialFrames names.
+        local function pressEscape()
+            for _, name in ipairs(UISpecialFrames) do
+                local frame = _G[name]
+                if frame and frame:IsShown() then
+                    frame:Hide()
+                end
+            end
+        end
+
+        h.it("opens from the gear, centred over the planner and one strata above it", function()
+            local pui = openPlanner()
+            Fake.Click(pui.gear)
+            local ui = Settings.Debug()
+            h.truthy(ui.frame:IsShown())
+            h.eq(#ui.frame.points, 1)
+            local p = ui.frame.points[1]
+            h.eq(p[1], "CENTER")
+            h.truthy(p[2] == pui.frame, "centred on the planner, not the screen")
+            h.eq(p[3], "CENTER")
+            h.eq(p[4], 0)
+            h.eq(p[5], 0)
+            h.eq(pui.frame:GetFrameStrata(), "HIGH")
+            h.eq(ui.frame:GetFrameStrata(), "DIALOG")
+            h.eq(ui.frame:GetWidth(), Settings.SIZE[1])
+            h.eq(ui.frame:GetHeight(), Settings.SIZE[2])
+            Fake.Click(pui.gear)
+            h.falsy(ui.frame:IsShown(), "the gear puts it away again")
+        end)
+
+        h.it("opens from /gps settings, bringing the planner up under it", function()
+            local pui = Planner.Debug()
+            if pui.frame:IsShown() then
+                Planner.Toggle()
+            end
+            SlashCmdList.GOBLINPS("settings")
+            h.truthy(pui.frame:IsShown(), "the panel sits over the planner, so the planner opens first")
+            h.truthy(Settings.Debug().frame:IsShown())
+            h.truthy(Settings.Debug().frame.points[1][2] == pui.frame)
+        end)
+
+        h.it("closes on Close, on Escape, and with the planner", function()
+            local ui = Settings.Debug()
+            Fake.Click(ui.close)
+            h.falsy(ui.frame:IsShown(), "Close")
+            SlashCmdList.GOBLINPS("settings")
+            local listed = false
+            for _, name in ipairs(UISpecialFrames) do
+                listed = listed or name == "GoblinPSSettings"
+            end
+            h.truthy(listed, "Escape closes a frame only through UISpecialFrames")
+            h.truthy(GoblinPSSettings == ui.frame)
+            GoblinPSSettings:Hide()
+            h.falsy(ui.frame:IsShown(), "Escape's entry for the panel")
+            h.truthy(Planner.Debug().frame:IsShown(), "is the panel's alone")
+            SlashCmdList.GOBLINPS("settings")
+            pressEscape()
+            h.falsy(ui.frame:IsShown(), "Escape")
+            SlashCmdList.GOBLINPS("settings")
+            Planner.Toggle()
+            h.falsy(Planner.Debug().frame:IsShown())
+            h.falsy(ui.frame:IsShown(), "closing the planner closes it too")
+        end)
+
+        h.it("stacks its rows down the panel, every line bounded, nothing under Close", function()
+            SlashCmdList.GOBLINPS("settings")
+            local ui = Settings.Debug()
+            local labels = { "Hearthstone must save", "Ground arrival", "Flight arrival",
+                             "Boat, zeppelin, tram arrival", "Hearthstone arrival" }
+            h.eq(#ui.rows, #labels)
+            local lastY = 0
+            for i, row in ipairs(ui.rows) do
+                h.eq(row.label:GetText(), labels[i])
+                local p1, p2 = row.frame.points[1], row.frame.points[2]
+                h.truthy(p1[2] == ui.frame and p2[2] == ui.frame, "row " .. i .. " hangs from the panel")
+                h.eq(p1[1], "TOPLEFT")
+                h.eq(p2[1], "TOPRIGHT")
+                h.eq(p1[5], p2[5], "row " .. i .. " is level")
+                h.truthy(p1[5] < lastY, "row " .. i .. " sits below the one before")
+                lastY = p1[5]
+                h.eq(row.plus.points[1][1], "RIGHT")
+                h.truthy(row.plus.points[1][2] == row.frame, "+ at the row's right end")
+                h.truthy(row.value.points[1][2] == row.plus, "the value just left of +")
+                h.truthy(row.minus.points[1][2] == row.value, "and - just left of the value")
+                h.truthy(row.label.points[2][2] == row.minus, "the label stops short of -")
+            end
+            local texts = { ui.title, ui.honest, ui.version, ui.tagline, ui.feedback, ui.rows[4].note }
+            for _, row in ipairs(ui.rows) do
+                texts[#texts + 1] = row.label
+                texts[#texts + 1] = row.value
+            end
+            for i, fs in ipairs(texts) do
+                h.truthy(#fs.points >= 2 or fs.width, "text " .. i .. " has two anchors or a width")
+            end
+            local close = ui.close.points[1]
+            h.eq(close[1], "BOTTOM")
+            h.truthy(close[2] == ui.frame)
+            h.truthy(-ui.cursor + close[5] + ui.close:GetHeight() <= Settings.SIZE[2],
+                     "the last line ends above Close")
+        end)
+
+        h.it("moves every number by its step and clamps it at both ends", function()
+            local ui = Settings.Debug()
+            for _, row in ipairs(ui.rows) do
+                local range, name = row.spec.range, row.spec.label
+                local start = row.spec.get()
+                Fake.Click(row.plus)
+                h.eq(row.spec.get(), start + range.step, name .. ": + adds one step")
+                Fake.Click(row.minus)
+                h.eq(row.spec.get(), start, name .. ": - takes it back")
+                for _ = 1, (range.max - range.min) / range.step + 2 do
+                    Fake.Click(row.minus)
+                end
+                h.eq(row.spec.get(), range.min, name .. ": clamped at the bottom")
+                h.falsy(row.minus:IsEnabled(), name .. ": - greys out at the bottom")
+                for _ = 1, (range.max - range.min) / range.step + 2 do
+                    Fake.Click(row.plus)
+                end
+                h.eq(row.spec.get(), range.max, name .. ": clamped at the top")
+                h.falsy(row.plus:IsEnabled(), name .. ": + greys out at the top")
+                h.truthy(row.minus:IsEnabled())
+                h.eq(row.value:GetText(), row.spec.show(range.max))
+            end
+            h.eq(GoblinPSDB.hearthSaving, 30 * 60, "the hearth row stores seconds")
+            h.eq(GoblinPSDB.arrive.transport, 1000)
+        end)
+
+        h.it("Reset to defaults puts all five back", function()
+            local ui = Settings.Debug()
+            Fake.Click(ui.reset)
+            h.eq(GoblinPSDB.hearthSaving, ns.Prefs.HEARTH_SAVING_DEFAULT)
+            for key, range in pairs(ns.Prefs.ARRIVE) do
+                h.eq(GoblinPSDB.arrive[key], range.default, key)
+            end
+            local want = { "5 min", "40 yd", "150 yd", "800 yd", "300 yd" }
+            for i, row in ipairs(ui.rows) do
+                h.eq(row.value:GetText(), want[i], "row " .. i .. " shows its default")
+            end
+        end)
+
+        h.it("shares the hearthstone value with /gps hearth, both ways", function()
+            local ui = Settings.Debug()
+            local hearth = ui.rows[1]
+            SlashCmdList.GOBLINPS("hearth 12")
+            h.eq(hearth.value:GetText(), "12 min", "the open panel follows the chat command")
+            Fake.Click(hearth.plus)
+            h.eq(GoblinPSDB.hearthSaving, 13 * 60)
+            local from = #printed
+            SlashCmdList.GOBLINPS("hearth")
+            h.truthy(table.concat(printed, " ", from + 1, #printed):find("~13 min", 1, true),
+                     "and the chat command reads what the panel set")
+            SlashCmdList.GOBLINPS("hearth 0")
+            h.eq(hearth.value:GetText(), "any", "0 means whenever it is faster")
+            Fake.Click(ui.reset)
+        end)
+
+        h.it("an arrival change reaches Trip.Check: 30 yards out advances at 40, not at 20", function()
+            local ui = Settings.Debug()
+            local ground = ui.rows[2]
+            Fake.Click(ground.minus)
+            Fake.Click(ground.minus)
+            h.eq(ground.value:GetText(), "20 yd")
+            local function rideTo(name)
+                return { kind = "ride", seconds = 200, to = { name = name, c = 1, x = 0, y = 0, map = 1 } }
+            end
+            ns.Dash.Start({ level = 60, to = ns.Search.Exact(ns.Data, "Westland", "H"),
+                            result = { seconds = 400, steps = { rideTo("Alpha"), rideTo("Delta") } } })
+            local _, dash = ns.Dash.Debug()
+            where.map, where.mx, where.my = 1, 1, (10000 - 30) / 10000 -- world 30, 0: 30 yards out
+            ns.Dash.Tick("tick")
+            h.eq(dash.index, 1, "not there yet at 20 yards")
+            Fake.Click(ground.plus)
+            Fake.Click(ground.plus)
+            ns.Dash.Tick("tick")
+            h.eq(dash.index, 2, "there at 40")
+            ns.Dash.Stop()
+        end)
+
+        h.it("names the version the client reads from the TOC, through API", function()
+            local ui = Settings.Debug()
+            h.eq(ui.version:GetText(), "GoblinPS 2099.01.01")
+            h.eq(ui.tagline:GetText(), "Accuracy not guaranteed. No refunds.")
+            local saved = ns.API.AddOnVersion
+            ns.API.AddOnVersion = function() return nil end
+            Settings.Refresh()
+            h.eq(ui.version:GetText(), "GoblinPS (version unknown)", "an API that does not answer says so")
+            ns.API.AddOnVersion = saved
+            Settings.Refresh()
+        end)
+
+        h.it("says feedback is coming soon, and offers a copyable address once there is one", function()
+            local ui = Settings.Debug()
+            h.eq(Settings.FEEDBACK_URL, nil, "no page exists yet, so none is printed")
+            h.eq(ui.feedback:GetText(), "Feedback: a GitHub page is coming soon.")
+            h.falsy(ui.url:IsShown())
+            Settings.FEEDBACK_URL = "https://example.invalid/feedback"
+            Settings.Refresh()
+            h.truthy(ui.url:IsShown())
+            h.eq(ui.url:GetText(), Settings.FEEDBACK_URL)
+            h.falsy(ui.feedback:GetText():find("coming soon", 1, true))
+            ui.url.scripts.OnEditFocusGained(ui.url)
+            h.truthy(ui.url.highlighted, "focus selects the whole address, ready to copy")
+            Fake.Type(ui.url, "typed over")
+            h.eq(ui.url:GetText(), Settings.FEEDBACK_URL, "the address cannot be typed over")
+            Settings.FEEDBACK_URL = nil
+            Settings.Refresh()
+            h.falsy(ui.url:IsShown())
+            h.eq(ui.feedback:GetText(), "Feedback: a GitHub page is coming soon.")
+        end)
+
+        h.it("says plainly that settings last one session on this build", function()
+            local ui = Settings.Debug()
+            h.eq(ui.honest:GetText(),
+                 "On this beta build, settings last until you reload: the client does not load saved data yet.")
+            h.eq(ui.honest.wordWrap, true, "a sentence that long wraps inside the panel")
+            h.truthy(ui.rows[4].note:GetText():find("100 yd", 1, true), "the transport floor gives its reason")
+            h.eq(ui.rows[2].note, nil, "only the transport row carries a note")
+            Settings.Close()
         end)
     end)
 

@@ -230,6 +230,9 @@ function Region:GetEffectiveScale() return 1 end
 function Region:ClearFocus()
     if self.scripts.OnEditFocusLost then self.scripts.OnEditFocusLost(self) end
 end
+-- Modelled, not swallowed: the feedback box selects its whole address when
+-- it takes focus, so the player can copy it, and a test must see that it did.
+function Region:HighlightText(start, stop) self.highlighted = { start or 0, stop or -1 } end
 
 -- Test helpers: act like the player.
 function Fake.Type(editBox, text)

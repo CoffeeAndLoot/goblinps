@@ -620,13 +620,12 @@ local function build()
         W.Fill(dropdown, "ARTWORK", "steel")
     end
 
-    -- The gear opens settings, which is a later plan. It is drawn and placed
-    -- now because the art has a socket for it and an empty socket reads as a
-    -- fault; it says so when clicked rather than doing nothing.
+    -- The gear opens the settings panel over this window, and closes it again.
     local gear = CreateFrame("Button", nil, content)
     gear:RegisterForClicks("LeftButtonUp")
     gear:SetScript("OnClick", function()
-        ns.Core.Say("Settings are not built yet.")
+        dismiss()
+        ns.Settings.Toggle(f)
     end)
     local gearArt = art(gear, "gear", "ARTWORK")
     if not gearArt then
@@ -730,7 +729,11 @@ local function build()
            toBox = toBox, toSlice = toSlice, screen = screen, total = total, hint = hint,
            notes = notes, known = known, go = go, results = results, strip = strip }
     wireBox(toBox)
-    f:SetScript("OnHide", hideResults)
+    -- The settings panel sits over this window, so it goes when this does.
+    f:SetScript("OnHide", function()
+        hideResults()
+        ns.Settings.Close()
+    end)
     ns.Core.CloseOnEscape(f, "GoblinPSPlanner")
 end
 
@@ -769,6 +772,14 @@ function Planner.Replan()
     if ui and ui.frame:IsShown() then
         replan()
     end
+end
+
+-- /gps settings: the panel sits over the planner, so open the planner first.
+function Planner.OpenSettings()
+    if not (ui and ui.frame:IsShown()) then
+        Planner.Toggle()
+    end
+    ns.Settings.Open(ui.frame)
 end
 
 -- For the desktop smoke test only.

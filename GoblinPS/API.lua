@@ -1,4 +1,4 @@
-local _, ns = ...
+local addonName, ns = ...
 
 -- The ONLY file that calls Blizzard game APIs (C_*, unit, item, map
 -- functions). Everything is defensive: a missing API or an odd return means
@@ -25,6 +25,19 @@ end
 -- The character's level, or nil. Travel.For turns it into walk-or-ride.
 function API.Level()
     return UnitLevel and UnitLevel("player") or nil
+end
+
+-- The version in GoblinPS.toc, as the client read it: "2026.09.22.1". Nil
+-- when the client cannot say. C_AddOns.GetAddOnMetadata is present on build
+-- 1.60.1.69913 (AddOnsDocumentation.lua; Blizzard_AddOnList calls it), which
+-- on this build is not the same as answering -- the About box says
+-- "(version unknown)" rather than guess.
+function API.AddOnVersion()
+    if not (C_AddOns and C_AddOns.GetAddOnMetadata) then
+        return nil
+    end
+    local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
+    return type(version) == "string" and version ~= "" and version or nil
 end
 
 -- "Name-Realm" for the character logged in, or nil when the client cannot say
@@ -245,6 +258,7 @@ function API.SelfCheck()
         { "UnitLevel", UnitLevel },
         { "GetPlayerFacing", GetPlayerFacing },
         { "UnitOnTaxi", UnitOnTaxi },
+        { "C_AddOns.GetAddOnMetadata", C_AddOns and C_AddOns.GetAddOnMetadata },
     }
     local out = {}
     for i, check in ipairs(checks) do
