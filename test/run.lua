@@ -8,6 +8,7 @@ local modules = {
     { "Places",  "GoblinPS/Data/Places.lua" },
     { "Nodes",   "GoblinPS/Data/Nodes.lua" },
     { "Flights", "GoblinPS/Data/Flights.lua" },
+    { "Towns",   "GoblinPS/Data/Towns.lua" },
     { "Links",   "GoblinPS/Data/Links.lua" },
     { "Inns",    "GoblinPS/Data/Inns.lua" },
     { "Crossings", "GoblinPS/Data/Crossings.lua" },

@@ -45,16 +45,33 @@ local function fromSharedEdge(a, b, c, x, y)
     return distToRect(x0, x1, y0, y1, x, y)
 end
 
+-- Yards from a map point to its own zone's rectangle; math.huge when unplaceable.
+local function fromOwnZone(map, mx, my)
+    local c, x, y = ns.Geo.ToWorld(places, map, mx, my)
+    local p = places[map]
+    if not c then
+        return math.huge
+    end
+    return distToRect(p.x0, p.x1, p.y0, p.y1, x, y)
+end
+
+-- A two-ended row (a tunnel, a lift: `far` set) has a mouth inside each zone,
+-- not on the border, so each end is measured against its own zone instead.
 local rows = {}
 for i, r in ipairs(crossings) do
     local c, x, y = ns.Geo.ToWorld(places, r.map, r.mx, r.my)
+    local away = c and fromSharedEdge(r.a, r.b, c, x, y) or math.huge
+    if r.far then
+        away = math.max(fromOwnZone(r.map, r.mx, r.my), fromOwnZone(r.far.map, r.far.mx, r.far.my))
+    end
     rows[#rows + 1] = {
         i = i,
         name = r.name,
         a = places[r.a] and places[r.a].name or ("zone " .. tostring(r.a)),
         b = places[r.b] and places[r.b].name or ("zone " .. tostring(r.b)),
-        away = c and fromSharedEdge(r.a, r.b, c, x, y) or math.huge,
+        away = away,
         unverified = r.unverified and true or false,
+        twoEnded = r.far ~= nil,
     }
 end
 
@@ -65,7 +82,8 @@ table.sort(rows, function(p, q)
     return p.i < q.i
 end)
 
-print("Crossings whose point is outside the area their two zones share.")
+print("Crossings whose point is outside the area their two zones share")
+print("(a two-ended row: whose ends are not each inside their own zone).")
 print("")
 print(string.format("| %9s | %-38s | %-45s | %s |", "Yards off", "Crossing", "Between", "Note"))
 print(string.format("|%s|%s|%s|---|", string.rep("-", 11), string.rep("-", 40), string.rep("-", 47)))
@@ -75,7 +93,9 @@ for _, r in ipairs(rows) do
     if r.away > 0 then
         off = off + 1
         local note = r.unverified and "already flagged unverified" or ""
-        if r.away == math.huge then
+        if r.twoEnded then
+            note = "two ends: an end is outside its own zone"
+        elseif r.away == math.huge then
             note = "THESE ZONES DO NOT TOUCH: the border is invented"
         end
         print(string.format("| %9s | %-38s | %-45s | %s |",

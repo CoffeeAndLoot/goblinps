@@ -325,6 +325,20 @@ To measure one: stand on it, right-click the GoblinPS minimap button (or
 - [x] the Thunder Bluff lifts (Thunder Bluff and Mulgore): the west lifts,
       31.8, 66.1 on Thunder Bluff's map, 2026-09-22. The guess on Mulgore's map
       was about 314 yd off.
+- [x] the Stonetalon pass (the Barrens and Stonetalon Mountains): 83.4, 96.8 on
+      Stonetalon's map, the exact spot the zone changes, 2026-09-22. The guess
+      was about 124 yd off. (Earlier readings: 35.7, 27.5 on The Barrens' map,
+      64 yd short; and Honor's Stand, 39.4, 29.9, inside the Barrens, which the
+      crossings test refused.)
+- [x] the Talondeep Path (Stonetalon Mountains and Ashenvale): both ends,
+      2026-09-22. The Stonetalon mouth is 78.2, 42.7 on Stonetalon's map (the
+      old one-point guess, on Ashenvale's map, was about 443 yd off); the
+      Ashenvale mouth is 42.3, 71.1 on Ashenvale's map. It is now a two-ended
+      crossing (`far`): a mouth in each zone, joined by a through leg priced at
+      its 45 s walk (`cross`), so the arrow never points through the rock.
+- [ ] Sun Rock Retreat to Splintertree Post: the dash points at the tunnel's
+      Stonetalon mouth, then reads 'through the Talondeep Path' and points at
+      the Ashenvale mouth
 - [x] Control: the Crossroads flight master read 51.5, 30.3 in game against 51.5,
       30.4 in the generated data, 2026-09-22. The in-game readout and our map
       coordinates agree, so crossing readings plug straight in. Flight masters
@@ -466,9 +480,10 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       its neighbour's; note whether the right tooltip comes up
 - [ ] No gold rectangle round Start Route or the search box, at rest or on hover
 - [ ] The scenery fills the frame's whole inside, edge to edge, behind the box and Start Route; nothing of the old dark tiled backing shows
-- [x] A route to a zone: the signpost is labelled with the zone you searched for, and its tooltip still names the crossing you walk to (seen wrong in game 2026-09-21: "the Tirisfal-...", "Darkwhisp...")
+- [x] (Superseded 2026-09-22: a zone is a destination only when it holds no place; the signpost now carries the place searched for.) A route to a zone: the signpost is labelled with the zone you searched for, and its tooltip still names the crossing you walk to (seen wrong in game 2026-09-21: "the Tirisfal-...", "Darkwhisp...")
       (seen right in game 2026-09-21, a route to Mount Hyjal)
 - [x] Crossing names under the badges and on the dash's glass drop their leading "the" ("Mor'shan Rampart"); tooltips still read as sentences ("Walk to the Mor'shan Rampart")
+- [ ] Type a zone's name (e.g. "ashen"): the list shows the towns and flight stops in it, each as "Name · Zone"; no zone itself is offered, and picking one routes all the way to it. The other faction's stops are listed too, marked "(Alliance)" or "(Horde)", and a route there never flies into them; a zone with no town or stop in it (Deadwind Pass) is offered as "Deadwind Pass (zone)"
 
 ## Settings, scrolling dash text, a narrower drop-down (plan 9)
 
@@ -486,7 +501,7 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [ ] The panel looks decent without art -- or ask Codex for some (`docs/later.md`)
 - [ ] Every label and value reads in full; the transport note and the amber
       line about saved data wrap inside the panel, not past it
-- [ ] About shows "GoblinPS 2026.09.22.1". If it says "(version unknown)",
+- [ ] About shows "GoblinPS 2026.09.22.2". If it says "(version unknown)",
       `C_AddOns.GetAddOnMetadata` is one more API present on this build that
       does not answer: note it in CLAUDE.md's list
 - [ ] The feedback line reads "Feedback: a GitHub page is coming soon." and
@@ -511,6 +526,45 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       whether Escape should close only the panel
 - [ ] Settings > Scrolling text: Off stops every line moving (long ones truncate); Slow, Normal and Fast change the speed at once
 - [ ] The dash arrow sits above the destination name and distance and turns in place without covering them (after Codex raises it; until then it is unchanged)
+
+## Towns, a scrolling list, a zone browser (plan 10)
+
+**Needs a full game restart, not `/reload`:** the TOC gained `Data\Towns.lua`,
+and the client reads the file list only at startup. Built 2026-09-22; not yet
+run in the client.
+
+- [ ] "kha" lists "Kharanos · Dun Morogh"; "darn" lists Darnassus as a place
+      ("Darnassus (Alliance)" to the Horde), not "Darnassus (zone)"
+- [ ] "booty bay", "gadgetzan", "everlook": one row each, your own faction's
+      stop, with no "(Alliance)" or "(Horde)" twin under it
+- [ ] "theramore": the Theramore flight stop once, and no "Theramore Isle" row
+      beside it
+- [ ] Type "a": five rows, and under them the footer "1-5 of 194" (the same
+      number for either faction), in its own line, not over the fifth row
+- [ ] The wheel over the list moves it one row a notch ("2-6 of 194"), over a
+      row as well as over the gaps, and stops at the top and at "190-194 of
+      194". If the wheel does nothing, `EnableMouseWheel`/`OnMouseWheel` is
+      one more thing present on this build that does not answer: say so
+- [ ] After scrolling, Enter picks the top row shown, not the first match
+- [ ] Typing another letter puts the list back at its top
+- [ ] ▼ with the box empty, and clicking into the empty box: the recent
+      destinations first, then every zone A to Z with its count, "Ashenvale
+      (17)" among them; the wheel scrolls it
+- [ ] Click "Ashenvale (17)": the box reads "Ashenvale" and keeps the cursor,
+      the list shows its 17 places, and nothing is planned (the strip does
+      not change)
+- [ ] "Alterac Mountains (1)" and "Shen'dralas (1)" each list their one
+      "(zone)" row
+- [ ] Walk to a town the game's table added (Moonbrook in Westfall,
+      Deathknell in Tirisfal Glades): its position is the town's middle, where
+      the map draws its name, not a doorway. Note how far the "arrived" point
+      sits from where you would want it
+- [ ] A town's faction mark is inferred from flight masters within 600 yards:
+      note any that is wrong (to the Alliance, Maraudon reads "(Horde)"
+      because Shadowprey Village's flight master is near)
+- [ ] The drop-down is still only a little wider than its longest name, and
+      no name in it is cut off
+- [ ] About shows "GoblinPS 2026.09.22.2"
 
 ## Flight paths survive a reload
 

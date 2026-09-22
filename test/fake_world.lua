@@ -12,8 +12,16 @@ local function world()
         -- Ground travel is zone by zone. Westland (1) and Northland (4) are joined
         -- by one crossing. Isle (3) and Lostland (5) have none: Isle is an island
         -- (its two stops still ride to each other), Lostland is a hole in the table.
+        -- Lostland also holds no stop and no town, so Search offers the zone itself.
+        -- The Deep Tunnel is a second, two-ended way into Northland, out in the
+        -- far corner: its Westland mouth is world (9600, 9600) and its Northland
+        -- mouth (9600, 9200), 400 yards apart, with no cross time, so the ride
+        -- between the mouths is the price. It is further from Alpha than the
+        -- North Gate is, so every route to Hotel still takes the gate.
         Crossings = {
             { a = 1, b = 4, name = "the North Gate", map = 1, mx = 0.5, my = 0.02, warn = "trolls on the bridge" },
+            { a = 1, b = 4, name = "the Deep Tunnel", map = 1, mx = 0.04, my = 0.04,
+              far = { map = 4, mx = 0.08, my = 0.04 } },
         },
         -- { low, high } level range per zone. Lostland (5) is listed here but
         -- the scripted client has no range for it, which is the fourth case
@@ -41,6 +49,11 @@ local function world()
         Inns = {
             ["Delta Harbour Inn"] = { stop = "Delta" },                 -- an inn beside a flight stop
             ["Quiet Hollow"] = { map = 1, mx = 0.25, my = 0.5 },        -- a town with no flight master
+            ["Quiet Hollow Tavern"] = { town = "Quiet Hollow" },        -- an inn building in that town
+            ["Juliet"] = { map = 1, mx = 0.89, my = 0.9 },              -- where test_ui's player stands (1000, 1100)
+            -- In Northland, 20 yards past the North Gate: a ride too short to keep,
+            -- so a route here ends at the gate and the signpost must say Gatehouse.
+            ["Gatehouse"] = { map = 4, mx = 0.5, my = 0.022 },
             ["Nowhere Inn"] = { map = 99, mx = 0.5, my = 0.5 },         -- a map we do not have
             ["Loop Inn"] = { stop = "Loop Inn" },                       -- names itself as its own stop
         },

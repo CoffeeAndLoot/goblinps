@@ -71,16 +71,16 @@ ns.Data.ArtGeometry = {
         ["r"] = 0.255859
     },
     ["destination"] = {
-        ["bottom"] = 0.4875,
+        ["bottom"] = 0.467969,
         ["left"] = 0.351562,
         ["right"] = 0.65625,
-        ["top"] = 0.464062
+        ["top"] = 0.444531
     },
     ["distance"] = {
-        ["bottom"] = 0.510938,
+        ["bottom"] = 0.520312,
         ["left"] = 0.390625,
         ["right"] = 0.617188,
-        ["top"] = 0.490625
+        ["top"] = 0.5
     },
     ["etaText"] = {
         ["bottom"] = 0.928125,

@@ -30,6 +30,16 @@ return function(h, loaded)
     -- typed wrong in a map coordinate moves a point by thousands, so 300
     -- catches typos while tolerating estimates nobody has walked yet.
     local EDGE_YARDS = 300
+    -- A two-ended crossing (a tunnel, a lift) has a mouth in each zone. The
+    -- Talondeep Path, the longest so far, is about 440 yards mouth to mouth;
+    -- ends further apart than this are a typo, not a tunnel.
+    local ENDS_YARDS = 1500
+
+    -- Is the world point inside zone `map`'s own rectangle, unpadded?
+    local function inside(map, c, x, y)
+        local p = data.Places[map]
+        return p.c == c and x >= p.x0 and x <= p.x1 and y >= p.y0 and y <= p.y1
+    end
 
     local function distToRect(x0, x1, y0, y1, x, y)
         local dx = math.max(x0 - x, 0, x - x1)
@@ -65,6 +75,12 @@ return function(h, loaded)
                 h.truthy(x.cross == nil or (type(x.cross) == "number" and x.cross > 0),
                          label .. ": cross must be a positive number")
                 h.eq(data.Places[x.a].c, data.Places[x.b].c, label .. ": zones on different continents")
+                if x.far then
+                    local other = x.map == x.a and x.b or x.a
+                    h.eq(x.far.map, other, label .. ": its far end must be on the other zone's map")
+                    h.truthy(type(x.far.mx) == "number" and type(x.far.my) == "number",
+                             label .. ": its far end needs mx and my")
+                end
             end
         end)
         h.it("names read the same whichever way you are going", function()
@@ -118,20 +134,42 @@ return function(h, loaded)
                 h.eq(counts[map] or 0, n, data.Places[map].name .. " should have " .. n .. " crossing(s)")
             end
         end)
-        h.it("puts every point in or beside both of its zones", function()
+        h.it("puts every one-ended point in or beside both of its zones", function()
             for i, x in ipairs(data.Crossings) do
                 local c, wx, wy = ns.Geo.ToWorld(data.Places, x.map, x.mx, x.my)
                 h.truthy(c, "crossing " .. i .. " cannot be placed")
-                h.truthy(near(x.a, c, wx, wy) and near(x.b, c, wx, wy),
-                         "crossing " .. i .. " (" .. x.name .. ") is not near both " .. data.Places[x.a].name
-                         .. " and " .. data.Places[x.b].name)
+                if not x.far then
+                    h.truthy(near(x.a, c, wx, wy) and near(x.b, c, wx, wy),
+                             "crossing " .. i .. " (" .. x.name .. ") is not near both " .. data.Places[x.a].name
+                             .. " and " .. data.Places[x.b].name)
+                end
             end
         end)
-        h.it("puts every point on the strip its two zones share", function()
+        h.it("puts each end of a two-ended crossing inside its own zone, near the other end", function()
+            local twoEnded = 0
+            for i, x in ipairs(data.Crossings) do
+                if x.far then
+                    twoEnded = twoEnded + 1
+                    local label = "crossing " .. i .. " (" .. x.name .. ")"
+                    local c, wx, wy = ns.Geo.ToWorld(data.Places, x.map, x.mx, x.my)
+                    local fc, fx, fy = ns.Geo.ToWorld(data.Places, x.far.map, x.far.mx, x.far.my)
+                    h.truthy(c and inside(x.map, c, wx, wy),
+                             label .. ": its end is not inside " .. data.Places[x.map].name)
+                    h.truthy(fc and inside(x.far.map, fc, fx, fy),
+                             label .. ": its far end is not inside " .. data.Places[x.far.map].name)
+                    local yards = ns.Geo.Distance({ c = c, x = wx, y = wy }, { c = fc, x = fx, y = fy })
+                    h.truthy(yards <= ENDS_YARDS, label .. ": its ends are " .. math.floor(yards) .. " yards apart")
+                end
+            end
+            h.eq(twoEnded, 1, "the Talondeep Path is the only two-ended row so far")
+        end)
+        -- A two-ended row's mouths each sit in their own zone, not on the
+        -- border, so this rule is for one-ended rows only.
+        h.it("puts every one-ended point on the strip its two zones share", function()
             local worst, worstName, offenders = 0, nil, 0
             for i, x in ipairs(data.Crossings) do
                 local c, wx, wy = ns.Geo.ToWorld(data.Places, x.map, x.mx, x.my)
-                local away = fromSharedEdge(x.a, x.b, c, wx, wy)
+                local away = x.far and 0 or fromSharedEdge(x.a, x.b, c, wx, wy)   -- the test above takes those
                 h.truthy(away < math.huge, "crossing " .. i .. " (" .. x.name .. "): "
                          .. data.Places[x.a].name .. " and " .. data.Places[x.b].name
                          .. " do not touch, so this border cannot exist")
@@ -196,6 +234,8 @@ return function(h, loaded)
         end)
     end)
 
+    -- The first place the search offers for the text, as /gps to picks it: a
+    -- zone's name finds a town or flight stop in that zone, never the zone.
     local function place(text, faction)
         return ns.Search.Find(data, text, faction, 1)[1]
     end
@@ -224,7 +264,8 @@ return function(h, loaded)
             h.eq(t[6], "Walk to the Ashenvale-Felwood road")
             h.eq(t[7], "Walk to the Timbermaw Hold tunnels")
             h.eq(t[8], "Walk to Darkwhisper Gorge")
-            h.eq(#t, 8)
+            h.eq(t[9], "Walk to Summit of Eternity", "on to a place in Mount Hyjal, not stopping at its border")
+            h.eq(#t, 9)
             for _, s in ipairs(r.steps) do
                 h.falsy(s.rough, "no step may fall back to a straight line")
             end
@@ -259,6 +300,11 @@ return function(h, loaded)
                     local step = { kind = "ride", zone = from,
                                    to = { zones = { x.a, x.b }, warn = x.warn, unverified = x.unverified,
                                           name = x.name } }
+                    if x.far then
+                        -- the step through it, which ends at the mouth in the zone being entered
+                        step = { kind = "ride", zone = to, through = true,
+                                 to = { map = to, warn = x.warn, unverified = x.unverified, name = x.name } }
+                    end
                     local text = ns.Route.StepDetail(data, step, nil)
                     h.truthy(#text <= 66, x.name .. " into " .. data.Places[to].name
                               .. ": detail is " .. #text .. " bytes: " .. text)
@@ -285,13 +331,44 @@ return function(h, loaded)
             end
             h.truthy(sawBoat)
         end)
+        h.it("goes through the Talondeep Path from Sun Rock Retreat to Splintertree Post", function()
+            local sunRock
+            for _, n in pairs(data.Nodes) do
+                if n.name:find("Sun Rock Retreat", 1, true) == 1 then
+                    sunRock = n
+                end
+            end
+            h.truthy(sunRock, "no Sun Rock Retreat flight master")
+            local from = { name = "You", c = sunRock.c, x = sunRock.x, y = sunRock.y,
+                           map = sunRock.map, mx = sunRock.mx, my = sunRock.my }
+            local to = ns.Search.Exact(data, "Splintertree Post", "H")
+            h.truthy(to, "no Splintertree Post")
+            local r = ns.Route.Plan(data, { faction = "H", known = {}, from = from, to = to })
+            h.truthy(r, "no route")
+            local t = texts(r)
+            local at
+            for i, line in ipairs(t) do
+                if line == "Ride through the Talondeep Path" then
+                    at = i
+                end
+            end
+            h.truthy(at, "no step through the Talondeep Path: " .. table.concat(t, " / "))
+            h.eq(t[at - 1], "Ride to the Talondeep Path", "the approach to the Stonetalon mouth")
+            h.eq(r.steps[at - 1].to.map, 1442, "the approach ends at the Stonetalon mouth")
+            h.eq(r.steps[at].to.map, 1440, "the through step ends at the Ashenvale mouth")
+            h.truthy(ns.Route.StepDetail(data, r.steps[at], 60):find("^into Ashenvale"))
+            for _, s in ipairs(r.steps) do
+                h.falsy(s.rough)
+            end
+        end)
         h.it("leaves a city by its gate", function()
             local r = ns.Route.Plan(data, { faction = "A", known = {}, from = place("Stormwind City", "A"),
                                             to = place("Westfall", "A") })
             local t = texts(r)
             h.eq(t[1], "Ride to the Stormwind gates")
             h.eq(t[2], "Ride to the Westfall bridge")
-            h.eq(#t, 2)
+            h.eq(t[3], "Ride to Sentinel Hill", "on to a place in Westfall, not stopping at its border")
+            h.eq(#t, 3)
         end)
     end)
 end

@@ -32,26 +32,29 @@ local function shortest(graph)
     return dist.DEST and prev or nil
 end
 
--- One "Fly to X" per flight master visit; drop rides too short to mention.
+-- One "Fly to X" per flight master visit; drop rides too short to mention,
+-- but never the way through a tunnel: that step is the tunnel.
 local function tidy(raw)
     local steps = {}
     for _, s in ipairs(raw) do
         local last = steps[#steps]
-        local tooShort = s.kind == "ride" and s.seconds < Route.MIN_RIDE_SECONDS
+        local tooShort = s.kind == "ride" and not s.through and s.seconds < Route.MIN_RIDE_SECONDS
         if last and last.kind == "fly" and s.kind == "fly" and last.to.key == s.from.key then
             last.to = s.to
             last.seconds = last.seconds + s.seconds
             last.copper = last.copper + s.copper
         elseif not tooShort then
             steps[#steps + 1] = { kind = s.kind, from = s.from, to = s.to, seconds = s.seconds,
-                                  copper = s.copper, zone = s.zone, walk = s.walk, rough = s.rough }
+                                  copper = s.copper, zone = s.zone, walk = s.walk, rough = s.rough,
+                                  through = s.through }
         end
     end
     return steps
 end
 
 -- Returns { steps, raw, seconds, copper } or nil when there is no route.
--- A step is { kind, from = stop, to = stop, seconds, copper }.
+-- A step is { kind, from = stop, to = stop, seconds, copper }; a ground step
+-- also carries zone, walk, rough and through (the passage of a two-ended crossing).
 function Route.Find(graph)
     local prev = shortest(graph)
     if not prev then
@@ -62,7 +65,8 @@ function Route.Find(graph)
         local p = prev[key]
         table.insert(raw, 1, { kind = p.edge.kind, from = graph.stops[p.from], to = graph.stops[key],
                                seconds = p.edge.seconds, copper = p.edge.copper,
-                               zone = p.edge.zone, walk = p.edge.walk, rough = p.edge.rough })
+                               zone = p.edge.zone, walk = p.edge.walk, rough = p.edge.rough,
+                               through = p.edge.through })
         key = p.from
     end
     local seconds, copper = 0, 0
@@ -191,6 +195,9 @@ function Route.StepText(step)
         if step.rough then
             return verb .. " toward " .. ns.Search.ShortName(step.to.name) .. " (no mapped path)"
         end
+        if step.through then
+            return verb .. " through " .. ns.Search.ShortName(step.to.name)
+        end
         return verb .. " to " .. ns.Search.ShortName(step.to.name)
     end
     -- No time here: the planner prints it in its own column and chat prints it
@@ -224,8 +231,10 @@ function Route.StepDetail(data, step, level)
     local gate = step.to.zones
     local zone = step.zone
     local text
-    if gate then
-        zone = gate[1] == step.zone and gate[2] or gate[1]   -- the zone being entered
+    -- The zone being entered: where a step through a tunnel comes out, or a gate's other side.
+    local entered = step.through and step.to.map or gate and (gate[1] == step.zone and gate[2] or gate[1])
+    if entered then
+        zone = entered
         text = "into " .. (places[zone] and places[zone].name or "the next zone")
     else
         text = "in " .. (places[zone] and places[zone].name or "this zone")

@@ -1,20 +1,31 @@
 -- HAND-WRITTEN. Where you can walk from one zone into the next. Ground travel
--- happens inside one zone at a time; a crossing is a named point that belongs
--- to both of its zones, so the router chains zones through these rows. Cities
--- are zones too, and their gates are crossings. A zone with no row here (or
--- only a row to its own city) is an island: boats and flights only.
+-- happens inside one zone at a time, so the router chains zones through these
+-- rows. Cities are zones too, and their gates are crossings. A zone with no
+-- row here (or only a row to its own city) is an island: boats and flights only.
+--
+-- A row has one of two shapes:
+--   one end    a gate, a bridge or a pass: ONE named point that belongs to both
+--              zones (map, mx, my, with no `far`).
+--   two ends   a tunnel or a lift, where the zones meet inside rock: a mouth in
+--              each zone (map, mx, my in zone `map`, and `far` in the other),
+--              joined by a "through" leg, so the arrow points at the mouth on
+--              your side and then at the far one, never through the mountain.
 --
 --   a, b    the two zones (UiMap IDs; names in the trailing comment)
 --   name    what the step says: "Walk to <name>"; include "the" where it reads better. A name
 --           must read correctly whichever way you are going ("the Ashenvale-Felwood road", not
 --           "the road into Felwood"); the detail line ("into <zone>") gives the direction.
---   map, mx, my   the point, as map coords (0..1) on ONE of the two zones.
+--   map, mx, my   the point, as map coords (0..1) on ONE of the two zones; `map` is a or b.
 --           APPROXIMATE: written from memory of the classic world, corrected in
 --           game from docs/manual-test-checklist.md, like the dock positions.
+--   far     optional { map = <the other zone>, mx, my }: the second end, which makes the
+--           row two-ended; map, mx, my above is then the end in zone `map` only
 --   warn    optional, short: shown in amber on the step's detail line
---   cross   optional seconds: a tunnel, a lift or a mountain pass takes time to walk even
---           though the crossing is one point for both zones; added once per traversal, to
---           the leg that arrives at this crossing (see Graph.Build)
+--   cross   optional seconds. One end: a tunnel, a lift or a mountain pass takes time to walk
+--           even though the crossing is one point for both zones; added once per traversal,
+--           to the leg that arrives at this crossing. Two ends: the time from one end to the
+--           other, the through leg's whole price, never added to the legs that arrive; left
+--           out, the ride time between the two ends is used (see Graph.Build)
 --   unverified = true   Forever's new zones: the crossing itself is a guess
 --
 -- Which zones border which, the place names and the level ranges are facts
@@ -34,7 +45,7 @@ ns.Data.Crossings = {
     { a = 1411, b = 1413, name = "the Southfury bridge", map = 1411, mx = 0.345, my = 0.425 },   -- Durotar, The Barrens
     { a = 1413, b = 1412, name = "the Mulgore pass", map = 1413, mx = 0.418, my = 0.586 },  -- The Barrens, Mulgore; measured in game 2026-09-22 (the guess was ~160 yd off)
     { a = 1413, b = 1440, name = "the Mor'shan Rampart", map = 1413, mx = 0.485, my = 0.055 },   -- The Barrens, Ashenvale
-    { a = 1413, b = 1442, name = "the Stonetalon pass", map = 1413, mx = 0.345, my = 0.280 },    -- The Barrens, Stonetalon Mountains
+    { a = 1413, b = 1442, name = "the Stonetalon pass", map = 1442, mx = 0.834, my = 0.968 },    -- The Barrens, Stonetalon Mountains; where the zone changes, measured in game 2026-09-22 (the guess was ~124 yd off)
     { a = 1413, b = 1445, name = "the Dustwallow road", map = 1413, mx = 0.495, my = 0.785 }, -- The Barrens, Dustwallow Marsh
     { a = 1413, b = 1441, name = "the Great Lift", map = 1413, mx = 0.440, my = 0.910, cross = 45 }, -- The Barrens, Thousand Needles
     { a = 1441, b = 1444, name = "the Feralas-Thousand Needles road", map = 1441, mx = 0.085, my = 0.115 },  -- Thousand Needles, Feralas
@@ -43,7 +54,11 @@ ns.Data.Crossings = {
     { a = 1449, b = 1451, name = "the Un'Goro-Silithus ramp", map = 1449, mx = 0.295, my = 0.220 }, -- Un'Goro Crater, Silithus
     { a = 1444, b = 1443, name = "the Feralas-Desolace road", map = 1444, mx = 0.450, my = 0.080 }, -- Feralas, Desolace
     { a = 1443, b = 1442, name = "the Charred Vale pass", map = 1443, mx = 0.535, my = 0.040 }, -- Desolace, Stonetalon Mountains
-    { a = 1442, b = 1440, name = "the Talondeep Path", map = 1440, mx = 0.420, my = 0.710, cross = 45 },     -- Stonetalon Mountains, Ashenvale
+    -- Stonetalon Mountains, Ashenvale: a tunnel about 440 yd long, so two ends. Both measured in
+    -- game 2026-09-22: the Stonetalon mouth 78.2, 42.7 on Stonetalon's map (the old one-point
+    -- guess was ~443 yd off), the Ashenvale mouth 42.3, 71.1 on Ashenvale's map.
+    { a = 1442, b = 1440, name = "the Talondeep Path", map = 1442, mx = 0.782, my = 0.427,
+      far = { map = 1440, mx = 0.423, my = 0.711 }, cross = 45 },
     { a = 1440, b = 1439, name = "the Ashenvale-Darkshore road", map = 1440, mx = 0.285, my = 0.140 }, -- Ashenvale, Darkshore
     { a = 1440, b = 1448, name = "the Ashenvale-Felwood road", map = 1440, mx = 0.555, my = 0.280 },  -- Ashenvale, Felwood
     { a = 1440, b = 1447, name = "the Ashenvale-Azshara road", map = 1440, mx = 0.945, my = 0.470 },  -- Ashenvale, Azshara

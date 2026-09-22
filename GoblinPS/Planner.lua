@@ -20,6 +20,11 @@ local ROW = 18
 -- edges together, which the rows that fit are counted against.
 local ROW_EDGE, LABEL_EDGE = 2, 6
 local ROW_INSET = 2 * ROW_EDGE
+-- The footer's own slot at the bottom of the list, "6-10 of 23": one line of
+-- the rows' small font (GameFontHighlightSmall, 10 px on this build's
+-- Fonts.xml) with room for its descenders. The rows that fit are counted
+-- with this slot kept free, so the footer never sits on a row.
+local FOOTER = 14
 -- A few pixels past the widest label's measured width, so the client
 -- rounding that width down at render time never clips the longest name
 -- into "...".
@@ -261,35 +266,85 @@ local function dismiss()
     hideResults()
 end
 
-local function pick(item)
-    hideResults()
-    state.to = item
-    ns.Core.Remember(item.name)
-    ui.toBox:SetText(item.name)
-    ui.toBox:ClearFocus()
-    W.UpdatePlaceholder(ui.toBox)
-    replan()
-end
-
--- Matches for the text; with an empty box, the recent destinations. Asks for
--- only as many as the list's own box can show (ui.results.fit), not the
--- pool size, so Enter still picks the first of what is actually on screen.
+-- Every match for the text, however many: the list shows `fit` of them at a
+-- time and the wheel moves over the rest. With an empty box, the recent
+-- destinations, then the zone browser's rows.
 local function candidates()
     local text = ui.toBox:GetText()
-    local fit = ui.results.fit or Planner.MAX_RESULTS
     if text ~= "" then
-        return ns.Search.Find(ns.Data, text, ns.Core.Faction(), fit)
+        return ns.Search.Find(ns.Data, text, ns.Core.Faction())
     end
     local out = {}
     for _, name in ipairs(ns.Core.Recents()) do
         out[#out + 1] = ns.Search.Exact(ns.Data, name, ns.Core.Faction())
     end
+    for _, zone in ipairs(ns.Search.Zones(ns.Data, ns.Core.Faction())) do
+        out[#out + 1] = zone
+    end
     return out
 end
 
--- What a result row says. The drop-down's width is measured over this too.
+local FACTION_NAME = { A = "Alliance", H = "Horde" }
+
+-- What a result row says, "Splintertree Post · Ashenvale": the place and
+-- the zone it stands in, or the place alone when the zone has its name
+-- (Orgrimmar in Orgrimmar); "Sentinel Hill · Westfall (Alliance)" for the
+-- other faction's stop, "Deadwind Pass (zone)" for a zone that holds no
+-- place, "Ashenvale (6)" for the zone browser's way into a zone. The
+-- drop-down's width is measured over this too.
 local function rowLabel(item)
-    return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
+    if item.kind == "browse" then
+        return item.name .. " (" .. item.count .. ")"
+    end
+    local label = item.name
+    if item.zone and item.zone ~= item.name then
+        label = label .. " · " .. item.zone
+    end
+    if item.kind == "zone" then
+        return label .. " (zone)"
+    end
+    if FACTION_NAME[item.enemy] then
+        return label .. " (" .. FACTION_NAME[item.enemy] .. ")"
+    end
+    return label
+end
+
+-- Paint the `fit` rows from the list's window onto its items, and the footer
+-- when there is more than fits. The window is results.offset, 0 at the top.
+local function drawResults()
+    local r = ui.results
+    local fit = r.fit or Planner.MAX_RESULTS
+    local shown = 0
+    for i = 1, Planner.MAX_RESULTS do
+        local row, item = r.rows[i], (i <= fit) and r.items[r.offset + i] or nil
+        row.item = item
+        row:SetShown(item ~= nil)
+        if item then
+            row.label:SetText(rowLabel(item))
+            shown = shown + 1
+        end
+    end
+    local more = #r.items > fit
+    r.footer:SetText(more and ((r.offset + 1) .. "-" .. (r.offset + shown) .. " of " .. #r.items) or "")
+    r.footer:SetShown(more)
+end
+
+-- One notch of the wheel moves the window one row, clamped at both ends.
+-- delta is the client's: positive for a notch up, negative for a notch
+-- down, and on this build not always exactly 1 in size (a trackpad can
+-- send a fraction) -- every Blizzard scroll handler on this build
+-- (ScrollFrameTemplate_OnMouseWheel, HybridScrollFrame_OnMouseWheel,
+-- ScrollControllerMixin) reads only its sign, never its size, and so does
+-- this: using it as a distance would jump several rows on one notch.
+local function scrollResults(delta)
+    if delta == 0 then
+        return
+    end
+    local step = (delta > 0) and -1 or 1
+    local r = ui.results
+    local last = math.max(0, #r.items - (r.fit or Planner.MAX_RESULTS))
+    r.offset = math.max(0, math.min(last, r.offset + step))
+    drawResults()
 end
 
 local function showResults()
@@ -303,21 +358,41 @@ local function showResults()
     if settings and settings.frame:IsShown() then
         return
     end
-    local items = candidates()
-    if #items == 0 then
+    -- A fresh list always starts at its top: typing resets the window.
+    ui.results.items, ui.results.offset = candidates(), 0
+    if #ui.results.items == 0 then
         hideResults()
         return
     end
-    local fit = ui.results.fit or Planner.MAX_RESULTS
-    for i = 1, Planner.MAX_RESULTS do
-        local row, item = ui.results.rows[i], (i <= fit) and items[i] or nil
-        row.item = item
-        row:SetShown(item ~= nil)
-        if item then
-            row.label:SetText(rowLabel(item))
-        end
-    end
+    drawResults()
     ui.results:Show()
+end
+
+-- A zone browser row is a way in, never a destination: it puts the zone's
+-- name in the box, exactly as typing it would, and the list shows the
+-- zone's places. Nothing is planned and nothing is remembered.
+local function browse(item)
+    ui.toBox:SetText(item.name)
+    W.UpdatePlaceholder(ui.toBox)
+    ui.toBox:SetFocus()
+    -- SetFocus fires OnEditFocusGained (which calls showResults) only when the
+    -- box did not already have focus; a browse row clicked while the box is
+    -- focused needs this explicit call, in the client, to refresh the list.
+    showResults()
+end
+
+local function pick(item)
+    if item.kind == "browse" then
+        browse(item)
+        return
+    end
+    hideResults()
+    state.to = item
+    ns.Core.Remember(item.name)
+    ui.toBox:SetText(item.name)
+    ui.toBox:ClearFocus()
+    W.UpdatePlaceholder(ui.toBox)
+    replan()
 end
 
 local function wireBox(box)
@@ -336,7 +411,9 @@ local function wireBox(box)
         end
     end)
     box:SetScript("OnEnterPressed", function(self)
-        local first = candidates()[1]
+        -- The top row on screen, wherever the wheel has moved the list to.
+        local r = ui.results
+        local first = r:IsShown() and r.items[r.offset + 1] or candidates()[1]
         if first then
             pick(first)
         else
@@ -478,8 +555,10 @@ function Planner.ApplyLayout()
     -- PlaceRect above). Client report 2026-09-21: typing "a" dropped all
     -- 8 rows and two (Booty Bay, Brackenwall Village) hung below the
     -- list's panel, because showResults() always filled every pooled row.
+    -- The footer's slot is kept free: 109.7 px of list at 416 px tall, less
+    -- the insets and the footer, still holds 5 rows.
     ui.results.fit = math.max(1, math.min(Planner.MAX_RESULTS, math.floor(
-        ((g.resultsList.bottom - g.resultsList.top) * f:GetHeight() - ROW_INSET) / ROW)))
+        ((g.resultsList.bottom - g.resultsList.top) * f:GetHeight() - ROW_INSET - FOOTER) / ROW)))
     W.PlaceRect(ui.screen, f, g.screen)
     W.PlaceRect(ui.go, f, g.goButton)
     W.PlaceLine(ui.total, f, g.totalLine)
@@ -670,7 +749,7 @@ local function build()
     -- it gets three-slice art on top of its flat fallback.
     local BUTTON_CAP, BUTTON_CAP_ASPECT = 0.25, 1.0
 
-    local toBox = W.EditBox(content, 170, 20, "To: city, zone or flight stop")
+    local toBox = W.EditBox(content, 170, 20, "To: a town or flight stop")
 
     -- input-box.png is 1024x128, so 0.18 of its width is a 184x128 cap.
     local CAP, CAP_ASPECT = 0.18, 184 / 128
@@ -737,6 +816,20 @@ local function build()
     results:Hide()
     results.rows = {}
     results.fit = Planner.MAX_RESULTS -- ApplyLayout narrows this once geometry is known
+    results.items, results.offset = {}, 0
+    -- The wheel scrolls the list. EnableMouseWheel is present on build
+    -- 1.60.1.69913 (SimpleScriptRegionAPIDocumentation.lua) and Blizzard's
+    -- own UI sets OnMouseWheel scripts with SetScript; without the enable the
+    -- client never delivers the wheel to this frame.
+    results:EnableMouseWheel(true)
+    results:SetScript("OnMouseWheel", function(_, delta) scrollResults(delta) end)
+    -- "6-10 of 23", in its own slot under the rows: bounded by two anchors,
+    -- one line, truncated. Hidden when everything fits.
+    results.footer = W.Text(results, "dim", nil, "RIGHT")
+    results.footer:SetHeight(FOOTER)
+    results.footer:SetPoint("BOTTOMLEFT", ROW_EDGE + LABEL_EDGE, ROW_EDGE)
+    results.footer:SetPoint("BOTTOMRIGHT", -(ROW_EDGE + LABEL_EDGE), ROW_EDGE)
+    results.footer:Hide()
     for i = 1, Planner.MAX_RESULTS do
         local row = CreateFrame("Button", nil, results)
         row:SetHeight(ROW)
@@ -761,9 +854,12 @@ local function build()
     -- the list at the geometry's full width.
     local ruler = results.rows[1].label
     local widest = 0
-    for _, item in ipairs(ns.Search.Candidates(ns.Data, ns.Core.Faction())) do
-        ruler:SetText(rowLabel(item))
-        widest = math.max(widest, ruler:GetUnboundedStringWidth())
+    for _, list in ipairs({ ns.Search.Candidates(ns.Data, ns.Core.Faction()),
+                            ns.Search.Zones(ns.Data, ns.Core.Faction()) }) do
+        for _, item in ipairs(list) do
+            ruler:SetText(rowLabel(item))
+            widest = math.max(widest, ruler:GetUnboundedStringWidth())
+        end
     end
     ruler:SetText("")
     results.labelWidth = widest > 0 and widest or nil

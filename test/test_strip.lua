@@ -123,6 +123,26 @@ return function(h, loaded)
             h.eq(layout.warning, "the North Gate: into Northland · trolls on the bridge")
         end)
 
+        h.it("wears the walk or ride badge through a tunnel, and says through in the tooltip", function()
+            local function through(walk)
+                local s = step("ride", "the Deep Tunnel", { zone = 4, through = true, walk = walk })
+                s.to.map = 4
+                return s
+            end
+            local steps = { through(false), step("ride", "Hotel, Northland", { zone = 4 }) }
+            local layout = Strip.Layout(data, steps, OPTS)
+            h.eq(layout.stops[2].badge, "icon-ride")
+            h.eq(layout.stops[2].label, "Deep Tunnel")
+            local tip = layout.stops[2].tooltip
+            h.eq(tip[1].text, "Ride through the Deep Tunnel")
+            h.eq(tip[2].text, "~4 min")
+            h.eq(tip[3].text, "into Northland · level 30-40")
+            steps[1] = through(true)
+            layout = Strip.Layout(data, steps, OPTS)
+            h.eq(layout.stops[2].badge, "icon-walk")
+            h.eq(layout.stops[2].tooltip[1].text, "Walk through the Deep Tunnel")
+        end)
+
         h.it("has no warning when nothing is amber", function()
             local layout = Strip.Layout(data, { step("ride", "Hotel, Northland", { zone = 4 }) }, OPTS)
             h.eq(layout.warning, nil)

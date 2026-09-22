@@ -201,6 +201,8 @@ Snapshots are in `docs/research/data/`. URL form:
 | `TaxiPathNode` | ~10,800 (754 KB, not snapshotted) | spline points per path; path length gives a flight-time estimate |
 | `UiMap` | 60 | map tree: `ID`, `Name_lang`, `ParentUiMapID`, `Type` (1 world, 2 continent, 3 zone) |
 | `UiMapAssignment` | 61 | world-coordinate bounds per UiMap; converts `TaxiNodes.Pos` to map x/y |
+| `AreaPOI` | 372 | named places on the world map: `Name_lang`, world `Pos_0`/`Pos_1` (the same axes as `TaxiNodes`: Thunder Bluff's label is 8 yd from its flight master), `ContinentID`, `AreaID` (0 or -1 on 63 of the 207 town-icon rows), `Icon` (4 town, 5 capital, 6 village or outpost), `WorldStateID` (non-zero on event labels). Read 2026-09-22 for plan 10 |
+| `AreaTable` | 1372 | the area tree: `AreaName_lang`, `ParentAreaID` (0 at the top), `ContinentID`; climbs a POI's `AreaID`, or its own name, to its zone |
 
 - `TaxiNodes.Flags` seen: 1024, 1025, 1026, 1027, 1152, 0. Inferred: bit 1 =
   Alliance, bit 2 = Horde (so 1027 = both), 1024 = shown on map. **Verify**

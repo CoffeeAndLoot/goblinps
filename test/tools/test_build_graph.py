@@ -111,6 +111,97 @@ class Flights(unittest.TestCase):
         self.assertEqual(len(self.flights), 4)
 
 
+class Towns(unittest.TestCase):
+    def setUp(self):
+        self.tables = bg.load_tables(FIXTURES)
+        self.log = io.StringIO()
+        with contextlib.redirect_stderr(self.log):
+            self.places = bg.build_places(self.tables)
+            self.nodes = bg.build_nodes(self.tables, self.places)
+            self.towns = bg.build_towns(self.tables, self.places, self.nodes)
+
+    def zone(self, poi_id):
+        areas = {a["ID"]: a for a in self.tables["AreaTable"]}
+        names = {}
+        for a in self.tables["AreaTable"]:
+            names.setdefault((a["AreaName_lang"], a["ContinentID"]), []).append(a["ID"])
+        poi = next(p for p in self.tables["AreaPOI"] if p["ID"] == str(poi_id))
+        return bg._town_zone(self.places, areas, names, bg._zones_by_name(self.places), poi)
+
+    def test_keeps_town_icons_on_the_two_continents_and_no_event_markers(self):
+        # 59 is on continent 30, 1200 is a shop sign (icon 9), 7713 shows only while a
+        # world state holds; 34 and 911 are duplicates, 900 is unplaced, 960 is off its map.
+        self.assertEqual(sorted(self.towns), [31, 36, 37, 910, 950, 1068])
+
+    def test_the_zone_comes_from_the_area_id_first(self):
+        # Razor Hill sits inside both the Durotar and the Barrens rectangles.
+        self.assertEqual(self.zone(31), (1411, "area"))
+        self.assertEqual(self.towns[31]["map"], 1411)
+        self.assertEqual(self.zone(37), (1411, "area"))
+
+    def test_then_from_an_area_row_that_bears_the_towns_name(self):
+        # AreaID 0; the smallest rectangle holding it is Durotar, which is wrong.
+        self.assertEqual(self.zone(36), (1413, "name"))
+
+    def test_then_from_a_rectangle_but_only_when_one_zone_holds_the_town(self):
+        # Wailing Caverns' AreaID climbs to no zone; only The Barrens holds the point.
+        self.assertEqual(self.zone(1068), (1413, "rectangle"))
+        self.assertEqual(self.zone(950), (1500, "rectangle"))
+
+    def test_reports_and_skips_a_town_no_zone_holds_for_certain(self):
+        self.assertEqual(self.zone(900), (None, "unplaced"))
+        self.assertNotIn(900, self.towns)
+        self.assertIn("skip town 900 Lost Camp: no zone holds it for certain", self.log.getvalue())
+
+    def test_skips_a_town_outside_its_own_zones_map(self):
+        # Its AreaID says Durotar, but it stands west of Durotar's rectangle.
+        self.assertEqual(self.zone(960), (1411, "area"))
+        self.assertNotIn(960, self.towns)
+        self.assertIn("skip town 960 Stray Post: outside Durotar's map", self.log.getvalue())
+
+    def test_takes_the_faction_of_a_one_faction_flight_master_within_600_yards(self):
+        # 500 yards from Crossroads (Horde), in The Barrens with it.
+        self.assertEqual(self.towns[36]["f"], "H")
+
+    def test_takes_no_faction_otherwise(self):
+        self.assertNotIn("f", self.towns[31], "no flight master in Durotar at all")
+        self.assertNotIn("f", self.towns[37], "510 yards from Orgrimmar's, but in another zone")
+        self.assertNotIn("f", self.towns[1068], "Crossroads is over 3000 yards away")
+        self.assertNotIn("f", self.towns[910], "no one-faction flight master within 600 yards")
+
+    def test_a_capital_takes_the_nearest_one_faction_flight_masters_faction(self):
+        # Taurajo Keep has no flight master in its own zone: Crossroads is the nearest.
+        self.assertEqual(self.towns[950]["f"], "H")
+
+    def test_both_factions_near_means_none(self):
+        nodes = {1: {"f": "A", "c": 1, "map": 5, "x": 0, "y": 100},
+                 2: {"f": "H", "c": 1, "map": 5, "x": 0, "y": -100},
+                 3: {"f": "N", "c": 1, "map": 5, "x": 0, "y": 10}}
+        town = {"c": 1, "map": 5, "x": 0, "y": 0}
+        self.assertIsNone(bg._town_faction(nodes, town, False))
+        self.assertEqual(bg._town_faction({3: nodes[3], 2: nodes[2]}, town, False), "H",
+                         "a neutral one does not count")
+        self.assertEqual(bg._town_faction(nodes, dict(town, y=90), True), "A", "a capital: the nearest")
+
+    def test_drops_a_town_that_is_a_flight_stop_in_the_same_zone(self):
+        # "The Crossroads" is the Crossroads stop once "The" is dropped.
+        self.assertNotIn(34, self.towns)
+
+    def test_keeps_the_lower_id_of_two_towns_with_one_name_in_one_zone(self):
+        self.assertIn(910, self.towns)
+        self.assertNotIn(911, self.towns)
+
+    def test_rows_carry_every_field(self):
+        self.assertEqual(self.towns[36], {"name": "Far Watch Post", "map": 1413, "mx": 0.46, "my": 0.4667,
+                                          "c": 1, "x": -800, "y": -2300, "f": "H"})
+        for town in self.towns.values():
+            self.assertEqual(set(town) - {"f"}, {"name", "map", "mx", "my", "c", "x", "y"})
+
+    def test_plain_matches_search_lua(self):
+        self.assertEqual(bg.plain("The Crossroads"), "crossroads")
+        self.assertEqual(bg.plain("Theramore Isle"), "theramore isle")
+
+
 class Emit(unittest.TestCase):
     def test_lua_value(self):
         self.assertEqual(bg.lua_value({"name": 'A "b"', "c": 1, "x": -2.5, "ok": True}),

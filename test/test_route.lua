@@ -6,6 +6,14 @@ return function(h, loaded)
     local nearDelta = { name = "Delta Inn", c = 0, x = 5000, y = 5100, map = 2 }
     local nearCharlie = { name = "Charlie Field", c = 1, x = 5000, y = 9100, map = 1 }
 
+    -- Graph's kind == "zone" rule serves a zone that holds no place, the only
+    -- zone Search offers; these tests build one by hand, the centre of the
+    -- zone, as Search does, to test the rule on zones that do have places.
+    local function zone(map)
+        local c, x, y = loaded.ns.Geo.ToWorld(world.Places, map, 0.5, 0.5)
+        return { kind = "zone", name = world.Places[map].name, c = c, x = x, y = y, map = map, mx = 0.5, my = 0.5 }
+    end
+
     local function kinds(result)
         local out = {}
         for i, s in ipairs(result.steps) do
@@ -123,8 +131,28 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("an enemy flight stop", function()
+        h.it("is ridden to, never flown to: the Horde may not use an Alliance flight master", function()
+            -- A flight Charlie -> Echo would win by far if Graph let the Horde take it.
+            local w = dofile("test/fake_world.lua")()
+            w.Flights[#w.Flights + 1] = { 3, 5, 10, 10 }
+            local echo = loaded.ns.Search.Find(w, "echo", "H", 1)[1]
+            h.eq(echo.enemy, "A")
+            local r = Route.Plan(w, { faction = "H", known = { [1] = true, [2] = true, [3] = true, [5] = true },
+                                      from = nearAlpha, to = echo })
+            h.truthy(r, "an enemy stop is still somewhere to go")
+            for _, s in ipairs(r.steps) do
+                h.falsy(s.kind == "fly" and s.to.nodeID == 5, "a flight lands at the enemy stop")
+            end
+            h.eq(r.steps[#r.steps].kind, "ride")
+            local alliance = Route.Plan(w, { faction = "A", known = { [3] = true, [5] = true },
+                                             from = nearCharlie, to = echo })
+            h.eq(kinds(alliance), "ride,fly", "the check can fail: the Alliance does fly there")
+        end)
+    end)
+
     h.describe("a zone destination", function()
-        local westland = loaded.ns.Search.Find(world, "westland", "H", 1)[1]
+        local westland = zone(1)
         h.it("is reached at the first stop inside the zone", function()
             local r = Route.Plan(world, { faction = "H", known = { [4] = true }, from = nearDelta, to = westland })
             h.eq(kinds(r), "ride,zeppelin")
@@ -144,9 +172,9 @@ return function(h, loaded)
     end)
 
     h.describe("ground travel through crossings", function()
-        local northland = loaded.ns.Search.Find(world, "northland", "H", 1)[1]
+        local northland = zone(4)
         local hotel = loaded.ns.Search.Find(world, "hotel", "H", 1)[1]
-        local lostland = loaded.ns.Search.Find(world, "lostland", "H", 1)[1]
+        local lostland = zone(5)
 
         h.it("reaches the next zone at its crossing", function()
             local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = northland })
@@ -177,6 +205,35 @@ return function(h, loaded)
             local walking = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = lostland,
                                                 speed = 7, walk = true })
             h.eq(Route.StepText(walking.steps[1]), "Walk toward Lostland (no mapped path)")
+        end)
+        h.it("goes to a two-ended crossing, then through it, then on", function()
+            local from = { name = "You", c = 1, x = 9000, y = 9900, map = 1 }
+            local camp = { name = "Deep Camp", c = 1, x = 9000, y = 9000, map = 4 }
+            local r = Route.Plan(world, { faction = "H", known = {}, from = from, to = camp })
+            h.eq(kinds(r), "ride,ride,ride")
+            h.eq(Route.StepText(r.steps[1]), "Ride to the Deep Tunnel")
+            h.eq(Route.StepText(r.steps[2]), "Ride through the Deep Tunnel")
+            h.eq(Route.StepText(r.steps[3]), "Ride to Deep Camp")
+            h.falsy(r.steps[1].through)
+            h.eq(r.steps[2].through, true)
+            h.eq(r.steps[2].to.map, 4, "the through step ends at the far mouth")
+            h.eq(Route.StepDetail(world, r.steps[1], 5), "in Westland · level 1-10")
+            local text, warn = Route.StepDetail(world, r.steps[2], 5)
+            h.eq(text, "into Northland · level 30-40")
+            h.eq(warn, true)
+            local walking = Route.Plan(world, { faction = "H", known = {}, from = from, to = camp,
+                                                speed = 7, walk = true })
+            h.eq(Route.StepText(walking.steps[1]), "Walk to the Deep Tunnel")
+            h.eq(Route.StepText(walking.steps[2]), "Walk through the Deep Tunnel")
+        end)
+        h.it("never drops a through step as too short to mention", function()
+            local w = dofile("test/fake_world.lua")()
+            w.Crossings[2].cross = 1
+            local from = { name = "You", c = 1, x = 9000, y = 9900, map = 1 }
+            local camp = { name = "Deep Camp", c = 1, x = 9000, y = 9000, map = 4 }
+            local r = Route.Plan(w, { faction = "H", known = {}, from = from, to = camp })
+            h.eq(Route.StepText(r.steps[2]), "Ride through the Deep Tunnel")
+            h.eq(r.steps[2].seconds, 1)
         end)
         h.it("never uses a straight line when a chain of crossings exists", function()
             local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = hotel })

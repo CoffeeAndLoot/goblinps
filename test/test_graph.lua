@@ -175,4 +175,76 @@ return function(h, loaded)
             h.truthy(math.abs(edge.seconds - (plain + 90)) < 0.001)
         end)
     end)
+
+    h.describe("a crossing with two ends", function()
+        -- The fake world's Deep Tunnel: row 2, a mouth in Westland (1) at
+        -- world (9600, 9600) and one in Northland (4) at (9600, 9200).
+        local from = { name = "You", c = 1, x = 9000, y = 9900, map = 1 }
+        local camp = { name = "Deep Camp", c = 1, x = 9000, y = 9000, map = 4 }
+        local function edgeTo(g, a, b)
+            for _, e in ipairs(g.edges[a] or {}) do
+                if e.to == b then
+                    return e
+                end
+            end
+        end
+
+        h.it("builds two stops, each an ordinary point in one zone", function()
+            local g = Graph.Build(world, { faction = "H", known = {}, from = from, to = camp })
+            local near, far = g.stops.x2, g.stops.x2far
+            h.truthy(near and far, "one stop per end, keyed x2 and x2far")
+            h.eq(near.map, 1)
+            h.eq(far.map, 4)
+            h.eq(near.zones, nil, "an end belongs to one zone only")
+            h.eq(far.zones, nil, "an end belongs to one zone only")
+            h.eq(near.name, "the Deep Tunnel")
+            h.eq(far.name, "the Deep Tunnel")
+            h.truthy(math.abs(near.x - 9600) < 0.001 and math.abs(near.y - 9600) < 0.001, "Westland mouth")
+            h.truthy(math.abs(far.x - 9600) < 0.001 and math.abs(far.y - 9200) < 0.001, "Northland mouth")
+            h.falsy(g.stops.x1far, "a one-ended row still builds one stop")
+            h.truthy(g.stops.x1.zones, "and that stop still belongs to both zones")
+        end)
+        h.it("joins its ends with a through edge each way, priced at the ride between them", function()
+            local g = Graph.Build(world, { faction = "H", known = {}, from = from, to = camp, speed = 7, walk = true })
+            local there, back = edgeTo(g, "x2", "x2far"), edgeTo(g, "x2far", "x2")
+            h.truthy(there and back, "one edge each way")
+            local ride = Graph.RideSeconds(g.stops.x2, g.stops.x2far, 7)
+            for _, e in ipairs({ there, back }) do
+                h.eq(e.kind, "ride")
+                h.eq(e.through, true)
+                h.eq(e.walk, true)
+                h.truthy(math.abs(e.seconds - ride) < 0.001)
+            end
+            h.eq(there.zone, 4, "the zone being entered")
+            h.eq(back.zone, 1, "the zone being entered")
+        end)
+        h.it("prices the through edge at cross when the row gives one, and only there", function()
+            local w = dofile("test/fake_world.lua")()
+            w.Crossings[2].cross = 45
+            local g = Graph.Build(w, { faction = "H", known = {}, from = from, to = camp })
+            h.eq(edgeTo(g, "x2", "x2far").seconds, 45)
+            h.eq(edgeTo(g, "x2far", "x2").seconds, 45)
+            local approach = edgeTo(g, "START", "x2")
+            h.truthy(math.abs(approach.seconds - Graph.RideSeconds(from, g.stops.x2)) < 0.001,
+                     "cross is not added again on the leg that arrives at an end")
+            h.falsy(approach.through)
+        end)
+        h.it("gives both ends the row's warning and unverified flag", function()
+            local w = dofile("test/fake_world.lua")()
+            w.Crossings[2].warn, w.Crossings[2].unverified = "bats", true
+            local g = Graph.Build(w, { faction = "H", known = {}, from = from, to = camp })
+            for _, key in ipairs({ "x2", "x2far" }) do
+                h.eq(g.stops[key].warn, "bats", key)
+                h.eq(g.stops[key].unverified, true, key)
+                h.eq(g.stops[key].cross, nil, key .. ": cross lives on the through edge, never on a stop")
+            end
+        end)
+        h.it("rides to each end only inside that end's zone", function()
+            local g = Graph.Build(world, { faction = "H", known = {}, from = from, to = camp })
+            h.eq(edgeTo(g, "START", "x2").zone, 1)
+            h.falsy(edgeTo(g, "START", "x2far"), "the far mouth is in another zone")
+            h.eq(edgeTo(g, "x2far", "DEST").zone, 4)
+            h.falsy(edgeTo(g, "x2", "DEST"), "the near mouth is in another zone")
+        end)
+    end)
 end

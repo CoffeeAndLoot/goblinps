@@ -14,7 +14,7 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 9 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 10 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
 crossings). Plan 4, the dash unit's first design, ran in the client twice on
 2026-09-20: the round art rendered as an oval (a square texture stretched
@@ -58,7 +58,11 @@ rest of its checklist section is still to walk. Plan 9, built 2026-09-22,
 put a settings panel behind the gear (the hearthstone's saving, four arrival
 radii, Reset, About), made the dash's too-long lines scroll like an old car
 radio (the pure `Marquee.lua`), and drew the drop-down only a little wider
-than its longest name. **Plan 9 has not been run in the client.** A
+than its longest name. **Plan 9 has not been run in the client.** Plan 10, built
+2026-09-22, made every named town on the world map a destination
+(`Data/Towns.lua`, 150 towns generated from the game's own `AreaPOI`), let
+the results list scroll on the wheel with a footer, and made the empty
+box's drop-down a zone browser. **Plan 10 has not been run in the client.** A
 schematic world map was dropped on 2026-09-20 in
 favour of the strip; the spike that proved it feasible is kept at
 `docs/research/schematic-spike/`. The product is a GPS: point to point with
@@ -66,8 +70,10 @@ an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`, amended for plans 7
 and 8 by
 `docs/superpowers/specs/2026-09-21-goblinps-planner-redesign-design.md`
-and for plan 9 by
-`docs/superpowers/specs/2026-09-21-goblinps-settings-and-marquee-design.md`.
+for plan 9 by
+`docs/superpowers/specs/2026-09-21-goblinps-settings-and-marquee-design.md`
+and for plan 10 by
+`docs/superpowers/specs/2026-09-22-goblinps-towns-and-browsing-design.md`.
 Write each plan after the one before it has been used in game.
 
 Everything known about the client API and data sources is in
@@ -83,13 +89,14 @@ GoblinPS/API.lua             # the ONLY file that calls Blizzard game APIs and r
                               # events (LooseEnds pattern); UI files may register UI layout events
                               # (UI_SCALE_CHANGED, DISPLAY_SIZE_CHANGED) for their own frames
 GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
+GoblinPS/Data/Towns.lua      # GENERATED from AreaPOI: every named town in its zone, an inferred faction; stops and Inns rows win
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
 GoblinPS/Strip.lua           # pure: the route strip as data -- badges, spacing, tooltips, solid/dashed legs
 GoblinPS/Marquee.lua         # pure: the dash's scrolling text, a character window
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences, arrival radii and their ranges
-GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
+GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone; a row wins over a generated town of its name
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
 GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber warnings
                               # HAND-WRITTEN and staying that way: C_Map.GetMapLevels is dead on this
@@ -246,8 +253,9 @@ commit; re-read files before editing.
   anchors (or a width) and decide wrap or truncate. A one-anchor FontString
   fed a sentence draws over its neighbours and past the frame.
 - Ground travel is per zone: a ride edge joins two points only when they
-  share a UiMap, and a crossing belongs to both of its zones. Every place
-  handed to the router needs its `map`. A missing crossing shows up as a step
+  share a UiMap, and a crossing belongs to both of its zones. A tunnel or
+  lift is a crossing with two ends (`far`), each in its own zone, joined by a
+  through edge. Every place handed to the router needs its `map`. A missing crossing shows up as a step
   labelled "(no mapped path)"; add the row to `Data/Crossings.lua`, do not
   loosen the rule. `test/test_crossings.lua` checks every row and that each
   continent's zones all connect. A crossing's name must read correctly
@@ -286,3 +294,4 @@ commit; re-read files before editing.
   `max_line_length = false` entry to make a real warning on hand-written
   code go away; fix the code, or, if the check itself is wrong, say so and
   change the check.
+- **A destination is a place; a zone is offered only when it holds no place.** Every destination is a point with a name and a map position -- a flight stop (the other faction's too, marked, and ridden to, never flown to), an inn town, and later a quest. A zone name is otherwise only a search word that finds the places in it (decided 2026-09-22: a zone destination routed to its border and read as broken). A zone with no stop and no town is offered as itself so that no zone is out of reach; `test/test_data.lua` lists exactly which ones.

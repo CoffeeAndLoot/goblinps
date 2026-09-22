@@ -24,7 +24,7 @@ function Geo.Distance(a, b)
     return math.sqrt(dx * dx + dy * dy)
 end
 
--- The closest of every crossing and dock to a world position (c, x, y),
+-- The closest of every crossing (either end of a tunnel) and dock to a world position (c, x, y),
 -- compared in world yards on the same continent only. `data` is the data
 -- root: Places (so each candidate's map coords can be converted the same way
 -- as the player's own), Crossings and Docks. Returns { name, yards }, or nil
@@ -47,6 +47,10 @@ function Geo.Nearest(data, c, x, y)
 
     for _, crossing in ipairs(data.Crossings or {}) do
         consider(crossing.name, crossing.map, crossing.mx, crossing.my)
+        local far = crossing.far   -- a tunnel's other mouth goes by the same name
+        if far then
+            consider(crossing.name, far.map, far.mx, far.my)
+        end
     end
     for _, dock in pairs(data.Docks or {}) do
         consider(dock.name, dock.map, dock.mx, dock.my)

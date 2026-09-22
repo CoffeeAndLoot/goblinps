@@ -1,0 +1,14 @@
+Name_lang,Description_lang,ID,Pos_0,Pos_1,Pos_2,ContinentID,AreaID,WorldStateID,Icon
+"Razor Hill",,31,-1500,-4500,0,1,362,0,6
+"The Crossroads",,34,-420,-2580,0,1,380,0,4
+"Far Watch Post",,36,-800,-2300,0,1,0,0,6
+"Valley Gate",,37,1500,-3900,0,1,363,0,6
+"Dun Baldar",,59,0,0,0,30,0,0,6
+"Lost Camp",,900,0,-3500,0,1,-1,0,6
+"Twin Rocks",,910,-3000,-1200,0,1,-1,0,6
+"Twin Rocks",,911,-3010,-1210,0,1,-1,0,4
+"Taurajo Keep",,950,0,500,0,1,-1,0,5
+"Stray Post",,960,-3500,-2500,0,1,362,0,6
+"Wailing Caverns",,1068,-3500,-1000,0,1,718,0,6
+"Goblin Shop",,1200,-3500,-1000,0,1,0,0,9
+"Blood Altar",,7713,-3600,-1100,0,1,-1,25764,6

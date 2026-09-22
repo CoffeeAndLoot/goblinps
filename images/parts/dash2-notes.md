@@ -1,5 +1,26 @@
 # Dash 2 art handoff
 
+## Text spacing update — 2026-09-22
+
+Destination center is now y584 (slot y569–599); distance center is y653
+(slot y640–666). Their gap is 69px / 1280 = 0.05390625, or 19.40625px on the
+288x360 dash. Widths and slot heights are unchanged. The name moved up 25px
+and the distance down 12px, preserving room for the rotating compass beneath.
+These replace the earlier text positions. All other geometry keys and artwork
+are unchanged; Claude regenerates Art.lua to apply them.
+
+The exporter now renders “Sun Rock Retreat” and “583 yd” using Arial at
+source-scaled equivalents of the addon's approximately 10px and 16px fonts.
+The sample glyphs do not overlap each other, stay inside the glass, and clear
+every nonzero-alpha arrow/compass pixel across rotations sampled every five
+degrees. The placement slots also pass the existing rotating-compass checks.
+The arrow's lowest faint glow is y567, above the name slot's y569 top.
+Actual game font metrics still need an in-game check; Arial is the desktop
+proof font, not a claim of pixel-identical Blizzard text rendering.
+
+Fresh proofs: `_dash2-geometry-proof.png`, `_dash2-text-placement.png` and
+`_dash2-text-runtime-proof.png` (288x360). No shipped texture needs changing.
+
 ## Arrow/compass update — 2026-09-22
 
 Arrow center is now (516,377): `cy = 0.29453125`, 92 source pixels above

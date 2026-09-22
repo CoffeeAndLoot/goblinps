@@ -188,7 +188,7 @@ return function(h)
             local ui, state = Planner.Debug()
             Fake.Type(ui.toBox, "delt")
             h.truthy(ui.results:IsShown())
-            h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
             Fake.Click(ui.results.rows[1])
             h.falsy(ui.results:IsShown())
             h.eq(state.to.nodeID, 4)
@@ -238,11 +238,68 @@ return function(h)
             ui.toBox:SetText("Delta")
         end)
 
+        h.it("asks for a town or flight stop, not a zone", function()
+            h.eq(Planner.Debug().toBox.placeholder:GetText(), "To: a town or flight stop")
+        end)
+
+        h.it("lists the places in a zone when you type the zone's name", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "westland")
+            local want = { "Alpha · Westland", "Bravo · Westland", "Charlie · Westland",
+                           "Echo · Westland (Alliance)", "Juliet · Westland" }
+            for i, label in ipairs(want) do
+                h.eq(ui.results.rows[i].label:GetText(), label, "row " .. i)
+            end
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("offers a zone in a row only when it holds no place", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "land")
+            h.eq(ui.results.rows[1].label:GetText(), "Lostland (zone)", "Lostland holds no stop and no town")
+            local shown = 0
+            for i, row in ipairs(ui.results.rows) do
+                if row:IsShown() and i > 1 then
+                    shown = shown + 1
+                    h.truthy(row.item.kind ~= "zone", row.label:GetText() .. " is a zone")
+                    for _, place in pairs(ns.Data.Places) do
+                        h.truthy(row.label:GetText() ~= place.name, place.name .. " is offered as a row")
+                    end
+                end
+            end
+            h.truthy(shown > 0, "a check that saw no rows proves nothing")
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("drops the zone from a row when the place has the zone's own name", function()
+            local ui = Planner.Debug()
+            ns.Data.Inns.Isle = { map = 3, mx = 0.5, my = 0.6 } -- a city named after its zone, like Orgrimmar
+            local ok, err = pcall(function()
+                Fake.Type(ui.toBox, "isle")
+                h.eq(ui.results.rows[1].label:GetText(), "Isle")
+                h.eq(ui.results.rows[2].label:GetText(), "Foxtrot · Isle")
+            end)
+            ns.Data.Inns.Isle = nil -- put the fixture back even when an assertion failed
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+            h.truthy(ok, err)
+        end)
+
+        h.it("marks the other faction's flight stop in its row", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "echo")
+            h.eq(ui.results.rows[1].label:GetText(), "Echo · Westland (Alliance)")
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
         h.it("remembers the destination and offers it when the box is empty", function()
             local ui = Planner.Debug()
             h.eq(GoblinPSDB.recents[1], "Delta")
             Fake.Type(ui.toBox, "")
-            h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
         end)
 
         h.it("offers the next real recent when the newest one no longer resolves", function()
@@ -250,7 +307,16 @@ return function(h)
             table.insert(GoblinPSDB.recents, 1, "Ghost Town")
             ui.toBox:SetText("")
             ui.toBox.scripts.OnEditFocusGained(ui.toBox)
-            h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
+            table.remove(GoblinPSDB.recents, 1)
+        end)
+
+        h.it("skips a recent that is a zone, saved before zones stopped being destinations", function()
+            local ui = Planner.Debug()
+            table.insert(GoblinPSDB.recents, 1, "Westland")
+            ui.toBox:SetText("")
+            ui.toBox.scripts.OnEditFocusGained(ui.toBox)
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
             table.remove(GoblinPSDB.recents, 1)
         end)
 
@@ -306,10 +372,10 @@ return function(h)
 
         h.it("shows the zero-step case when you are already at the destination", function()
             local ui, state = Planner.Debug()
-            Fake.Type(ui.toBox, "westland")
+            Fake.Type(ui.toBox, "juliet") -- a town right where the player stands
             Fake.Click(ui.results.rows[1])
-            h.eq(state.to.name, "Westland")
-            h.eq(ui.notes:GetText(), "You're already at Westland.")
+            h.eq(state.to.name, "Juliet")
+            h.eq(ui.notes:GetText(), "You're already at Juliet.")
             h.truthy(ui.notes:IsShown())
             h.eq(ui.total:GetText(), "")
             h.falsy(ui.go.enabled)
@@ -914,7 +980,8 @@ return function(h)
             -- panel, because showResults() always filled all MAX_RESULTS
             -- rows regardless of how tall the list's own box is.
             -- ROW mirrors Planner.lua's private row-height constant (18px);
-            -- it has no other home to be read from.
+            -- it has no other home to be read from. The footer's slot is
+            -- read off the footer, which is given an explicit height.
             -- No Toggle() here: it flips the window's own shown/hidden state,
             -- which the tests after this one rely on to stay in step (Toggle
             -- hiding the frame is what fires OnHide's hideResults for the
@@ -924,8 +991,9 @@ return function(h)
             local ui = ns.Planner.Debug()
             local g = ns.Data.ArtGeometry.planner.wide
             local listHeight = (g.resultsList.bottom - g.resultsList.top) * ui.frame:GetHeight()
-            -- Real numbers at 416px: (109.69 - 4) / 18 floors to 5.
-            h.eq(ui.results.fit, 5, "5 rows fit the 416px-tall window's list")
+            local footerTop = listHeight - 2 - ui.results.footer:GetHeight()
+            -- Real numbers at 416px: (109.69 - 4 - 14) / 18 floors to 5.
+            h.eq(ui.results.fit, 5, "5 rows fit the 416px-tall window's list, the footer's slot kept free")
             Fake.Type(ui.toBox, "a") -- matches more than fit in the fake world
             h.truthy(ui.results:IsShown())
             local shown, hidden = 0, 0
@@ -933,8 +1001,8 @@ return function(h)
                 if row:IsShown() then
                     shown = shown + 1
                     local bottom = 2 + i * ROW -- TOPLEFT offset (2 + (i-1)*ROW) plus the row's own height
-                    h.truthy(bottom <= listHeight,
-                              "row " .. i .. " bottom edge must stay inside the list's own height")
+                    h.truthy(bottom <= footerTop,
+                              "row " .. i .. " bottom edge must stay above the footer's slot")
                 else
                     hidden = hidden + 1
                 end
@@ -996,7 +1064,11 @@ return function(h)
         local INSETS = 16
         local SLACK = 4
         local function labelOf(item)
-            return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
+            local label = item.name .. ((item.zone and item.zone ~= item.name) and (" · " .. item.zone) or "")
+            if item.kind == "zone" then
+                return label .. " (zone)"
+            end
+            return label .. ((item.enemy == "A" and " (Alliance)") or (item.enemy == "H" and " (Horde)") or "")
         end
 
         h.it("draws the drop-down only a little wider than its longest name", function()
@@ -1007,7 +1079,7 @@ return function(h)
             for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
                 widest = math.max(widest, #labelOf(item) * Fake.CHAR_WIDTH)
             end
-            h.eq(widest, 110, "Charlie  (flight stop) is the widest name the fake world offers")
+            h.eq(widest, 135, "Echo · Westland (Alliance) is the widest label (its dot is two bytes)")
             local tl, br = ui.results.points[1], ui.results.points[2]
             h.truthy(math.abs(tl[4] - g.resultsList.left * w) < 1e-9, "its left edge stays the geometry's")
             h.truthy(math.abs(tl[5] + g.resultsList.top * fh) < 1e-9, "and its top")
@@ -1072,6 +1144,170 @@ return function(h)
             -- The fresh window took the global Escape name; give it back.
             GoblinPSPlanner = Planner.Debug().frame
             h.truthy(ok, err)
+        end)
+    end)
+
+    h.describe("the results list scrolls, and browses zones", function()
+        local function open()
+            if not Planner.Debug().frame:IsShown() then
+                Planner.Toggle()
+            end
+            return Planner.Debug()
+        end
+        local function labels(ui)
+            local out = {}
+            for _, row in ipairs(ui.results.rows) do
+                if row:IsShown() then
+                    out[#out + 1] = row.label:GetText()
+                end
+            end
+            return table.concat(out, " | ")
+        end
+        local WESTLAND = { "Alpha · Westland", "Bravo · Westland", "Charlie · Westland",
+                           "Echo · Westland (Alliance)", "Juliet · Westland", "Quiet Hollow · Westland" }
+
+        h.it("keeps the footer in its own slot at the bottom of the list, bounded", function()
+            local ui = open()
+            local footer = ui.results.footer
+            h.eq(footer:GetHeight(), 14)
+            h.eq(#footer.points, 2, "two horizontal anchors, so it truncates")
+            h.eq(footer.points[1][1], "BOTTOMLEFT")
+            h.eq(footer.points[1][4], 8, "the label's own inset: row edge 2 plus label edge 6")
+            h.eq(footer.points[1][5], 2, "on the list's bottom edge, inside its inset")
+            h.eq(footer.points[2][1], "BOTTOMRIGHT")
+            h.eq(footer.points[2][4], -8)
+            h.eq(footer.points[2][5], 2)
+            h.eq(footer.wordWrap, false, "one line")
+            h.truthy(footer.points[1][2] == nil and footer.parent == ui.results, "it lives on the list")
+        end)
+
+        h.it("shows only what fits, and says where the window is when there is more", function()
+            local ui = open()
+            Fake.Type(ui.toBox, "westland")
+            h.eq(labels(ui), table.concat(WESTLAND, " | ", 1, 5))
+            h.truthy(ui.results.footer:IsShown())
+            h.eq(ui.results.footer:GetText(), "1-5 of 6")
+        end)
+
+        h.it("scrolls one row a notch on the wheel, and clamps at both ends", function()
+            local ui = open()
+            h.truthy(ui.results.mouseWheel, "the list asked the client for the wheel")
+            Fake.Wheel(ui.results, -1)
+            h.eq(labels(ui), table.concat(WESTLAND, " | ", 2, 6), "one notch down, one row on")
+            h.eq(ui.results.footer:GetText(), "2-6 of 6")
+            Fake.Wheel(ui.results, -1)
+            h.eq(ui.results.footer:GetText(), "2-6 of 6", "clamped at the bottom")
+            h.eq(ui.results.rows[5].label:GetText(), WESTLAND[6])
+            Fake.Wheel(ui.results, 1)
+            Fake.Wheel(ui.results, 1)
+            h.eq(ui.results.footer:GetText(), "1-5 of 6", "clamped at the top")
+            h.eq(ui.results.rows[1].label:GetText(), WESTLAND[1])
+        end)
+
+        h.it("uses only the wheel's sign, not its size, and ignores a delta of 0", function()
+            local ui = open()
+            Fake.Type(ui.toBox, "westland")
+            Fake.Wheel(ui.results, -3)
+            h.eq(ui.results.offset, 1, "one row, the same as a delta of -1, not three")
+            Fake.Wheel(ui.results, 0.5)
+            h.eq(ui.results.offset, 0, "a fractional delta toward the start still moves one row")
+            h.truthy(ui.results.offset == math.floor(ui.results.offset), "the offset stays an integer")
+            Fake.Wheel(ui.results, 0)
+            h.eq(ui.results.offset, 0, "a delta of 0 does nothing")
+        end)
+
+        h.it("hides the footer when everything fits", function()
+            local ui = open()
+            Fake.Type(ui.toBox, "delt")
+            h.eq(labels(ui), "Delta · Eastland")
+            h.falsy(ui.results.footer:IsShown())
+        end)
+
+        h.it("starts again at the top whenever you type", function()
+            local ui = open()
+            Fake.Type(ui.toBox, "westland")
+            Fake.Wheel(ui.results, -1)
+            h.eq(ui.results.rows[1].label:GetText(), WESTLAND[2])
+            Fake.Type(ui.toBox, "westlan")
+            h.eq(ui.results.rows[1].label:GetText(), WESTLAND[1])
+            h.eq(ui.results.footer:GetText(), "1-5 of 6")
+        end)
+
+        h.it("Enter picks the top row on screen, wherever the wheel left it", function()
+            local ui, state = open()
+            Fake.Type(ui.toBox, "westland")
+            Fake.Wheel(ui.results, -1)
+            ui.toBox.scripts.OnEnterPressed(ui.toBox)
+            h.eq(state.to.nodeID, 2, "Bravo, the top row shown, not Alpha above it")
+            -- put the destination back for the tests that follow
+            Fake.Type(ui.toBox, "delt")
+            Fake.Click(ui.results.rows[1])
+            h.eq(state.to.nodeID, 4)
+        end)
+
+        h.it("with the box empty, lists the recent destinations, then every zone with its count", function()
+            local ui = open()
+            local saved = GoblinPSDB.recents
+            GoblinPSDB.recents = { "Delta", "Juliet" }
+            Fake.Type(ui.toBox, "")
+            h.eq(labels(ui), "Delta · Eastland | Juliet · Westland | Eastland (1) | Isle (2) | Lostland (1)")
+            h.eq(ui.results.footer:GetText(), "1-5 of 7")
+            Fake.Wheel(ui.results, -1)
+            Fake.Wheel(ui.results, -1)
+            h.eq(ui.results.rows[4].label:GetText(), "Northland (2)")
+            h.eq(ui.results.rows[5].label:GetText(), "Westland (6)")
+            GoblinPSDB.recents = saved
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("the dropdown opens the same browser", function()
+            local ui = open()
+            ui.toBox:SetText("")
+            Fake.MouseDown(ui.frame) -- the list starts put away
+            Fake.Click(ui.dropdown)
+            h.truthy(ui.results:IsShown())
+            local items = ui.results.items
+            h.eq(items[1].name, GoblinPSDB.recents[1], "the newest recent first")
+            h.truthy(items[1].kind ~= "browse", "a recent is a place")
+            h.eq(items[#items].kind, "browse")
+            h.eq(items[#items].name, "Westland", "and the last zone, A to Z, at the end")
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("a zone row fills the box and lists that zone's places, and is never routed to", function()
+            local ui, state = open()
+            local saved, to, plan = GoblinPSDB.recents, state.to, state.plan
+            GoblinPSDB.recents = {} -- the five zones fill the list exactly
+            ui.toBox:SetText("")
+            ui.toBox.scripts.OnEditFocusGained(ui.toBox)
+            h.eq(ui.results.rows[5].label:GetText(), "Westland (6)")
+            Fake.Click(ui.results.rows[5])
+            h.eq(ui.toBox:GetText(), "Westland", "exactly as typing it would")
+            h.truthy(ui.toBox.focused, "the box keeps the search going")
+            h.truthy(ui.results:IsShown())
+            h.eq(labels(ui), table.concat(WESTLAND, " | ", 1, 5), "the zone's places")
+            h.truthy(state.to == to and state.plan == plan, "nothing was planned")
+            h.eq(#GoblinPSDB.recents, 0, "and nothing remembered")
+            GoblinPSDB.recents = saved
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("Enter on a zone row at the top browses too, and never routes", function()
+            local ui, state = open()
+            local saved, to = GoblinPSDB.recents, state.to
+            GoblinPSDB.recents = {}
+            Fake.Type(ui.toBox, "")
+            h.eq(ui.results.rows[1].label:GetText(), "Eastland (1)")
+            ui.toBox.scripts.OnEnterPressed(ui.toBox)
+            h.eq(ui.toBox:GetText(), "Eastland")
+            h.eq(labels(ui), "Delta · Eastland")
+            h.truthy(state.to == to, "nothing was planned")
+            GoblinPSDB.recents = saved
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
         end)
     end)
 
@@ -1236,7 +1472,7 @@ return function(h)
         end)
 
         h.it("says so on the tooltip when the crossings table has a hole", function()
-            local ui = pickTo("lostland")
+            local ui = pickTo("lostland") -- the zone itself: it holds no place
             local b = ui.strip.badges[2]
             b.scripts.OnEnter(b)
             h.eq(GameTooltip.lines[1].text, "Ride toward Lostland (no mapped path)")
@@ -1244,16 +1480,20 @@ return function(h)
             GameTooltip:Hide()
         end)
 
-        h.it("names the signpost after the destination, not the last crossing", function()
+        h.it("names the signpost after the place searched for, not the last crossing", function()
+            -- Gatehouse stands 20 yards past the North Gate, a ride too short
+            -- to keep, so the route's last step goes to the gate: the label
+            -- can only read Gatehouse if the planner hands the Strip the
+            -- destination's own name.
             local ui, state = Planner.Debug()
-            Fake.Type(ui.toBox, "northland")
-            h.eq(ui.results.rows[1].label:GetText(), "Northland", "the search's first row is the zone")
+            Fake.Type(ui.toBox, "gatehouse")
+            h.eq(ui.results.rows[1].label:GetText(), "Gatehouse · Northland")
             Fake.Click(ui.results.rows[1])
             local steps = state.plan.result.steps
             h.eq(ns.Route.StepText(steps[#steps]), "Ride to the North Gate",
-                 "the fixture route to Northland really ends at the crossing")
+                 "the fixture route to Gatehouse really ends at the crossing")
             local last = ui.strip.badges[#steps + 1]
-            h.eq(last.label:GetText(), "Northland")
+            h.eq(last.label:GetText(), "Gatehouse")
             last.scripts.OnEnter(last)
             h.eq(GameTooltip.lines[1].text, "Ride to the North Gate")
             GameTooltip:Hide()
@@ -1277,7 +1517,7 @@ return function(h)
         end)
 
         h.it("draws no strip without a route", function()
-            local ui = pickTo("westland")
+            local ui = pickTo("juliet")
             h.falsy(ui.strip:IsShown(), "you're already there: words, not a strip")
             h.truthy(ui.notes:IsShown())
             pickTo("delt")
@@ -1557,6 +1797,16 @@ return function(h)
             h.truthy(printed[from + 1]:find("To Delta: ~10 min, 1s", 1, true))
             h.truthy(printed[from + 2]:find("1. Ride to Alpha", 1, true))
         end)
+        h.it("takes a zone's name to the first place in it, all the way there", function()
+            local from = #printed
+            SlashCmdList.GOBLINPS("to eastland")
+            h.truthy(printed[from + 1]:find("To Delta: ", 1, true), printed[from + 1])
+            local saw = false
+            for i = from + 2, #printed do
+                saw = saw or printed[i]:find("Ride to Delta", 1, true) ~= nil
+            end
+            h.truthy(saw, "the route goes on past the East Dock to Delta")
+        end)
     end)
 
     -- Smoke test of the dash unit against test/fake_frames.lua. It catches our own
@@ -1594,11 +1844,11 @@ return function(h)
         -- A real step's `to` always carries a map (Graph.stopFrom sets it from
         -- the stop data); task 5's pin test needs it too, so the fixture gets
         -- one. `plan.to` is the destination a recalculation replans towards,
-        -- same as Core.PlanRoute always sets it; Westland is the zone the fake
+        -- same as Core.PlanRoute always sets it; Juliet is the town the fake
         -- player already stands in, on purpose, for the zero-step test below.
         local plan = {
             level = 60,
-            to = ns.Search.Exact(ns.Data, "Westland", "H"),
+            to = ns.Search.Exact(ns.Data, "Juliet", "H"),
             result = {
                 seconds = 600,
                 steps = {
@@ -2134,8 +2384,8 @@ return function(h)
 
             -- The only way to reach a zero-step replan is a recalculation that
             -- finds the player already at their destination (plan.to here is
-            -- Westland, the zone map 1 stands in, so PlanRoute always returns
-            -- 0 steps for it). That must finish the trip like arriving at the
+            -- Juliet, the town the player strays into, so PlanRoute returns 0
+            -- steps for it). That must finish the trip like arriving at the
             -- last step does, not leave the old step's text stuck on screen.
             h.it("finishes the trip when a recalculation finds nothing left to plan", function()
                 Dash.Start(plan)
@@ -2143,7 +2393,7 @@ return function(h)
                 standAt(100, 0); facing = 0
                 Dash.Tick("tick")
                 h.eq(state.index, 1, "still short of arriving")
-                standAt(1000, 0)
+                standAt(1000, 1100) -- Juliet: strayed far enough to replan, and already there
                 Dash.Tick("tick")
                 h.eq(ui.steps[1]:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
                 h.falsy(state.plan, "the trip is over, not stuck on the old plan")
@@ -2566,7 +2816,7 @@ return function(h)
             end
             local longPlan = {
                 level = 60,
-                to = ns.Search.Exact(ns.Data, "Westland", "H"),
+                to = ns.Search.Exact(ns.Data, "Juliet", "H"),
                 result = { seconds = 400, steps = {
                     rideTo(LONG, 200), rideTo("Delta", 100), rideTo("Another Far Distant Crossing", 100),
                 } },
@@ -2970,8 +3220,8 @@ return function(h)
 
         h.it("shows Arrived when you resume at the destination", function()
             home()
-            local westland = ns.Search.Exact(ns.Data, "Westland", "H")
-            ns.Dash.Resume(westland) -- home() is in Westland
+            local juliet = ns.Search.Exact(ns.Data, "Juliet", "H")
+            ns.Dash.Resume(juliet) -- home() is Juliet
             ns.Dash.Tick("tick")
             local ui, state = ns.Dash.Debug()
             h.eq(ui.steps[1]:GetText(), "Arrived.")
@@ -3011,6 +3261,15 @@ return function(h)
             local said = table.concat(printed, "\n", from + 1, #printed)
             h.truthy(said:find("Couldn't resume your trip to Atlantis", 1, true),
                      "never silently")
+        end)
+
+        h.it("drops a trip saved to a zone: a zone is no longer a destination", function()
+            GoblinPSDB.trips[character] = { to = "Westland" }
+            local from = #printed
+            Core.ResumeTrip()
+            h.eq(Core.SavedTripName(), nil)
+            local said = table.concat(printed, "\n", from + 1, #printed)
+            h.truthy(said:find("Couldn't resume your trip to Westland", 1, true), "never silently")
         end)
 
         h.it("opens the planner on the running trip's destination", function()
@@ -3273,7 +3532,7 @@ return function(h)
             local function rideTo(name)
                 return { kind = "ride", seconds = 200, to = { name = name, c = 1, x = 0, y = 0, map = 1 } }
             end
-            ns.Dash.Start({ level = 60, to = ns.Search.Exact(ns.Data, "Westland", "H"),
+            ns.Dash.Start({ level = 60, to = ns.Search.Exact(ns.Data, "Juliet", "H"),
                             result = { seconds = 400, steps = { rideTo("Alpha"), rideTo("Delta") } } })
             local _, dash = ns.Dash.Debug()
             where.map, where.mx, where.my = 1, 1, (10000 - 30) / 10000 -- world 30, 0: 30 yards out

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 import sys
 import urllib.request
 from pathlib import Path
 
-TABLES = ["TaxiNodes", "TaxiPath", "TaxiPathNode", "UiMap", "UiMapAssignment"]
+TABLES = ["TaxiNodes", "TaxiPath", "TaxiPathNode", "UiMap", "UiMapAssignment", "AreaPOI", "AreaTable"]
 WAGO = "https://wago.tools/db2/{table}/csv?build={build}"
 USER_AGENT = "Mozilla/5.0 (GoblinPS build tool)"
 
@@ -19,6 +20,8 @@ REQUIRED_COLUMNS = {
     "UiMap": ["ID", "Name_lang", "Type"],
     "UiMapAssignment": ["UiMapID", "MapID", "Region_0", "Region_1", "Region_3", "Region_4",
                         "UiMin_0", "UiMin_1", "UiMax_0", "UiMax_1"],
+    "AreaPOI": ["ID", "Name_lang", "Pos_0", "Pos_1", "ContinentID", "AreaID", "Icon", "WorldStateID"],
+    "AreaTable": ["ID", "AreaName_lang", "ContinentID", "ParentAreaID"],
 }
 
 CONTINENTS = {"0", "1"}  # TaxiNodes.ContinentID / UiMapAssignment.MapID: Eastern Kingdoms, Kalimdor
@@ -26,6 +29,12 @@ AZEROTH = "947"
 ZONE_TYPE = "3"
 STALE_PREFIX = "zzOLD"  # Blizzard's marker for abandoned rows; their positions are junk
 FLIGHT_YARDS_PER_SECOND = 32.0  # calibrated against measured Classic times, within ~15%
+
+# AreaPOI.Icon for a named place on the world map: 4 a town, 5 a capital, 6 a village or
+# outpost. Every other icon is a shop sign or a battleground marker.
+TOWN_ICONS = {"4", "5", "6"}
+CAPITAL_ICON = "5"
+FACTION_YARDS = 600.0  # a town takes the faction of a one-faction flight master this close
 
 
 def read_lock(path: Path) -> str:
@@ -178,6 +187,107 @@ def build_nodes(tables, places) -> dict[int, dict]:
     return nodes
 
 
+def plain(name: str) -> str:
+    """Search.lua's own rule for a name: case folded, a leading "The" dropped."""
+    return re.sub(r"^the\s+", "", name.lower())
+
+
+def _zones_by_name(places) -> dict[tuple[str, int], int]:
+    """(zone name, continent) -> UiMap, for the zones whose name is not shared on a continent."""
+    seen: dict[tuple[str, int], list[int]] = {}
+    for map_id, p in places.items():
+        seen.setdefault((p["name"], p["c"]), []).append(map_id)
+    return {key: ids[0] for key, ids in seen.items() if len(ids) == 1}
+
+
+def _area_zone(areas, zones, area_id: str, continent: int) -> int | None:
+    """Climb AreaTable.ParentAreaID to the top area and name the zone in Places it is."""
+    row, seen = areas.get(area_id), set()
+    while row is not None and row["ParentAreaID"] != "0" and row["ID"] not in seen:
+        seen.add(row["ID"])
+        row = areas.get(row["ParentAreaID"])
+    return zones.get((row["AreaName_lang"], continent)) if row is not None else None
+
+
+def _town_zone(places, areas, area_names, zones, poi) -> tuple[int | None, str]:
+    """The UiMap a town is in, and how it was found: "area", "name", "rectangle" or "unplaced".
+
+    Zone rectangles overlap, so the rectangle comes last. First the POI's own AreaID,
+    climbed to its zone. Many POIs carry none (0 or -1), so next the AreaTable rows that
+    bear the town's own name, when they all climb to one zone. Last a zone rectangle, but
+    only when exactly one holds the point: where several do, the smallest is a guess, and
+    for a town (whose name carries no ", Zone" the way a flight stop's does) a wrong one.
+    """
+    continent, wx, wy = int(poi["ContinentID"]), float(poi["Pos_0"]), float(poi["Pos_1"])
+    if int(poi["AreaID"]) > 0:
+        zone = _area_zone(areas, zones, poi["AreaID"], continent)
+        if zone is not None:
+            return zone, "area"
+    rows = area_names.get((poi["Name_lang"], poi["ContinentID"]), ())
+    named = {_area_zone(areas, zones, i, continent) for i in rows}
+    if len(named) == 1 and None not in named:
+        return named.pop(), "name"
+    inside = [m for m, p in places.items()
+              if p["c"] == continent and p["x0"] <= wx <= p["x1"] and p["y0"] <= wy <= p["y1"]]
+    if len(inside) == 1:
+        return inside[0], "rectangle"
+    return None, "unplaced"
+
+
+def _town_faction(nodes, town, capital: bool) -> str | None:
+    """The table does not say, so: the faction of the one-faction flight masters within
+    FACTION_YARDS in the town's zone, when they are all one faction; none otherwise. A
+    capital takes the faction of the nearest one-faction flight master on its continent,
+    its own (Darnassus's is Rut'theran Village, across the water in Teldrassil)."""
+    here = (town["x"], town["y"])
+    sided = [n for n in nodes.values() if n["f"] in ("A", "H") and n["c"] == town["c"]]
+    if capital:
+        return min(sided, key=lambda n: math.dist(here, (n["x"], n["y"])))["f"] if sided else None
+    near = {n["f"] for n in sided if n["map"] == town["map"] and math.dist(here, (n["x"], n["y"])) <= FACTION_YARDS}
+    return near.pop() if len(near) == 1 else None
+
+
+def build_towns(tables, places, nodes) -> dict[int, dict]:
+    """Every named town on the two continents' world maps (AreaPOI), in its zone.
+
+    A town that shares its name (Search's plain rule) and its zone with a flight stop is
+    that stop, and is left out: the stop wins. Two towns that share both are one place
+    labelled twice (Aldrassil is), and the lower ID is kept. A label shown only while a
+    world state holds (an event's objective, a PvP tower) is not a place, and is left out.
+    """
+    assignments = index_assignments(tables)
+    areas = {a["ID"]: a for a in tables["AreaTable"]}
+    area_names: dict[tuple[str, str], list[str]] = {}
+    for a in tables["AreaTable"]:
+        area_names.setdefault((a["AreaName_lang"], a["ContinentID"]), []).append(a["ID"])
+    zones = _zones_by_name(places)
+    taken = {(plain(n["name"].split(",")[0].strip()), n["map"]) for n in nodes.values()}
+    towns = {}
+    for poi in sorted(tables["AreaPOI"], key=lambda p: int(p["ID"])):
+        if poi["ContinentID"] not in CONTINENTS or poi["Icon"] not in TOWN_ICONS or poi["WorldStateID"] != "0":
+            continue
+        map_id, _ = _town_zone(places, areas, area_names, zones, poi)
+        if map_id is None:
+            print(f"skip town {poi['ID']} {poi['Name_lang']}: no zone holds it for certain", file=sys.stderr)
+            continue
+        wx, wy = float(poi["Pos_0"]), float(poi["Pos_1"])
+        spot = world_to_map(assignments, str(map_id), poi["ContinentID"], wx, wy)
+        if spot is None:
+            print(f"skip town {poi['ID']} {poi['Name_lang']}: outside {places[map_id]['name']}'s map", file=sys.stderr)
+            continue
+        if (plain(poi["Name_lang"]), map_id) in taken:
+            continue
+        taken.add((plain(poi["Name_lang"]), map_id))
+        mx, my = spot
+        town = {"name": poi["Name_lang"], "map": map_id, "mx": mx, "my": my,
+                "c": int(poi["ContinentID"]), "x": round(wx, 1), "y": round(wy, 1)}
+        faction = _town_faction(nodes, town, poi["Icon"] == CAPITAL_ICON)
+        if faction:
+            town["f"] = faction
+        towns[int(poi["ID"])] = town
+    return towns
+
+
 def _path_lengths(tables) -> dict[str, float]:
     points: dict[str, list] = {}
     for p in tables["TaxiPathNode"]:
@@ -263,11 +373,13 @@ def main(argv=None) -> int:
     places = build_places(tables)
     nodes = build_nodes(tables, places)
     flights = build_flights(tables, nodes)
+    towns = build_towns(tables, places, nodes)
     out = root / "GoblinPS" / "Data"
     emit(out, build, "Places", places)
     emit(out, build, "Nodes", nodes)
     emit(out, build, "Flights", flights)
-    print(f"{len(places)} places, {len(nodes)} nodes, {len(flights)} flights", file=sys.stderr)
+    emit(out, build, "Towns", towns)
+    print(f"{len(places)} places, {len(nodes)} nodes, {len(flights)} flights, {len(towns)} towns", file=sys.stderr)
     return 0
 
 

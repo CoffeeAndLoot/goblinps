@@ -239,6 +239,12 @@ function Region:SetFocus()
     self.focused = true
     if self.scripts.OnEditFocusGained then self.scripts.OnEditFocusGained(self) end
 end
+-- Modelled, not swallowed: the client delivers the mouse wheel only to a
+-- frame that enabled it, so Fake.Wheel refuses a frame that did not, and a
+-- list that forgot the call fails on the desktop instead of lying still in
+-- game. Verified present on SimpleScriptRegionAPIDocumentation.lua.
+function Region:EnableMouseWheel(enable) self.mouseWheel = enable and true or false end
+
 -- Modelled, not swallowed: the feedback box selects its whole address when
 -- it takes focus, so the player can copy it, and a test must see that it did.
 function Region:HighlightText(start, stop) self.highlighted = { start or 0, stop or -1 } end
@@ -253,6 +259,11 @@ function Fake.Click(button)
 end
 function Fake.MouseDown(frame)
     frame.scripts.OnMouseDown(frame, "LeftButton")
+end
+-- One notch of the wheel over `frame`: 1 up, -1 down, as the client passes it.
+function Fake.Wheel(frame, delta)
+    assert(frame.mouseWheel, "the client sends no wheel to a frame that did not EnableMouseWheel")
+    frame.scripts.OnMouseWheel(frame, delta)
 end
 
 -- Installs the globals the UI files use. Returns a table of what was printed.

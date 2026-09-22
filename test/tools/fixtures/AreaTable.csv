@@ -1,0 +1,8 @@
+ID,ZoneName,AreaName_lang,ContinentID,ParentAreaID
+10,FarWatchPost,"Far Watch Post",1,17
+14,Durotar,Durotar,1,0
+17,Barrens,"The Barrens",1,0
+362,RazorHill,"Razor Hill",1,14
+363,ValleyGate,"Valley Gate",1,14
+380,Crossroads,"The Crossroads",1,17
+718,WailingCaverns,"Wailing Caverns",1,0
