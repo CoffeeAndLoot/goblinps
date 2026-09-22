@@ -46,7 +46,7 @@ local function tidy(raw)
         elseif not tooShort then
             steps[#steps + 1] = { kind = s.kind, from = s.from, to = s.to, seconds = s.seconds,
                                   copper = s.copper, zone = s.zone, walk = s.walk, rough = s.rough,
-                                  through = s.through }
+                                  through = s.through, danger = s.danger }
         end
     end
     return steps
@@ -54,7 +54,8 @@ end
 
 -- Returns { steps, raw, seconds, copper } or nil when there is no route.
 -- A step is { kind, from = stop, to = stop, seconds, copper }; a ground step
--- also carries zone, walk, rough and through (the passage of a two-ended crossing).
+-- also carries zone, walk, rough, through (the passage of a two-ended
+-- crossing) and danger ({ name, f }: the enemy town its straight line passes).
 function Route.Find(graph)
     local prev = shortest(graph)
     if not prev then
@@ -66,7 +67,7 @@ function Route.Find(graph)
         table.insert(raw, 1, { kind = p.edge.kind, from = graph.stops[p.from], to = graph.stops[key],
                                seconds = p.edge.seconds, copper = p.edge.copper,
                                zone = p.edge.zone, walk = p.edge.walk, rough = p.edge.rough,
-                               through = p.edge.through })
+                               through = p.edge.through, danger = p.edge.danger })
         key = p.from
     end
     local seconds, copper = 0, 0

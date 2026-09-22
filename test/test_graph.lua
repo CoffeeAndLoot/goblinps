@@ -247,4 +247,187 @@ return function(h, loaded)
             h.falsy(edgeTo(g, "x2", "DEST"), "the near mouth is in another zone")
         end)
     end)
+
+    h.describe("enemy towns", function()
+        -- A world of its own on continent 7. Every zone is 10000 yards square,
+        -- so map coords convert as world x = 10000 - my * 10000,
+        -- y = 10000 - mx * 10000. Keep, an Alliance flight master, stands at
+        -- world (5000, 5000) in Vale (20), right on the straight line from
+        -- West (5000, 9000) to East (5000, 1000). Hill (21) shares the
+        -- continent and no crossing; Castle City (22) is a capital's zone.
+        local function vale()
+            return {
+                Places = {
+                    [20] = { name = "Vale", c = 7, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.5, ay = 0.5 },
+                    [21] = { name = "Hill", c = 7, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.5, ay = 0.5 },
+                    [22] = { name = "Castle City", c = 7, x0 = 0, y0 = 0, x1 = 10000, y1 = 10000, ax = 0.5, ay = 0.5 },
+                },
+                Nodes = {
+                    [1] = { name = "Keep, Vale", f = "A", c = 7, x = 5000, y = 5000, map = 20, mx = 0.5, my = 0.5 },
+                },
+                Flights = {}, Links = {}, Crossings = {},
+            }
+        end
+        local west = { name = "West", c = 7, x = 5000, y = 9000, map = 20 }
+        local east = { name = "East", c = 7, x = 5000, y = 1000, map = 20 }
+        local function edge(g, a, b, kind)
+            for _, e in ipairs(g.edges[a] or {}) do
+                if e.to == b and (not kind or e.kind == kind) then
+                    return e
+                end
+            end
+        end
+        local function straight(w, faction, from, to, extra)
+            local opts = { faction = faction, known = {}, from = from, to = to }
+            for k, v in pairs(extra or {}) do
+                opts[k] = v
+            end
+            return edge(Graph.Build(w, opts), "START", "DEST")
+        end
+        local function names(list)
+            local out = {}
+            for i, place in ipairs(list) do
+                out[i] = place.name .. " " .. place.radius
+            end
+            return table.concat(out, ", ")
+        end
+        local function near(a, b) return math.abs(a - b) < 0.001 end
+
+        h.it("lists the other side's flight master, 150 yards round, and nothing to its own side", function()
+            local list = Graph.Hostile(vale(), "H")
+            h.eq(names(list), "Keep 150")
+            h.eq(list[1].f, "A")
+            h.eq(list[1].c, 7)
+            h.truthy(near(list[1].x, 5000) and near(list[1].y, 5000))
+            h.eq(#Graph.Hostile(vale(), "A"), 0)
+            h.eq(#Graph.Hostile(vale(), nil), 0, "with no faction, nothing is hostile")
+        end)
+        h.it("never counts a neutral stop, a town with no faction, or your own side's town", function()
+            local w = vale()
+            w.Nodes[1].f = "N"
+            w.Towns = { [7] = { name = "Mill", c = 7, x = 3000, y = 3000, map = 20, mx = 0.7, my = 0.7 },
+                        [8] = { name = "Camp", f = "H", c = 7, x = 2000, y = 2000, map = 20, mx = 0.8, my = 0.8 } }
+            h.eq(names(Graph.Hostile(w, "H")), "")
+        end)
+        h.it("counts a town the owner marked, after the flight masters", function()
+            local w = vale()
+            w.Towns = { [7] = { name = "Mill", c = 7, x = 3000, y = 3000, map = 20, mx = 0.7, my = 0.7 },
+                        [8] = { name = "Abbey", f = "A", c = 7, x = 2000, y = 2000, map = 20, mx = 0.8, my = 0.8 },
+                        [9] = { name = "Fort", f = "A", c = 7, x = 1000, y = 1000, map = 20, mx = 0.9, my = 0.9 } }
+            h.eq(names(Graph.Hostile(w, "H")), "Keep 150, Abbey 150, Fort 150",
+                 "the flight master, then the marked towns by name; Mill is not marked")
+        end)
+        h.it("names a leg after the surer of two enemy places it passes, not the first by name", function()
+            local w = vale()
+            w.Towns = { [8] = { name = "Cave", f = "A", c = 7, x = 5000, y = 6000, map = 20, mx = 0.4, my = 0.5 } }
+            h.eq(straight(w, "H", west, east).danger.name, "Keep", "a flight master is surer than a marked town")
+        end)
+        h.it("skips an enemy flight master whose name one of your own shares: that town is neutral", function()
+            local w = vale()
+            w.Nodes[2] = { name = "Keep, Vale", f = "H", c = 7, x = 5050, y = 5000, map = 20, mx = 0.5, my = 0.495 }
+            h.eq(names(Graph.Hostile(w, "H")), "")
+        end)
+        h.it("draws a capital's circle 400 yards round: the place named after its own zone", function()
+            local w = vale()
+            w.Nodes[3] = { name = "Castle, Castle City", f = "A", c = 7, x = 8000, y = 8000, map = 22,
+                           mx = 0.2, my = 0.2 }
+            h.eq(names(Graph.Hostile(w, "H")), "Castle 400, Keep 150")
+        end)
+        h.it("finds the hostile place a point stands in, and none outside every circle", function()
+            h.eq(Graph.HostileAt(vale(), "H", { c = 7, x = 5100, y = 5000 }).name, "Keep")
+            h.eq(Graph.HostileAt(vale(), "H", { c = 7, x = 5151, y = 5000 }), nil)
+            h.eq(Graph.HostileAt(vale(), "A", { c = 7, x = 5000, y = 5000 }), nil, "not to its own side")
+        end)
+        h.it("charges a leg through an enemy town ten minutes more and names the town on it", function()
+            local e = straight(vale(), "H", west, east)
+            h.eq(e.kind, "ride")
+            h.eq(e.danger.name, "Keep")
+            h.eq(e.danger.f, "A")
+            h.truthy(near(e.seconds, Graph.RideSeconds(west, east) + 600))
+        end)
+        h.it("counts a leg that passes right at the radius, and not one a yard wider", function()
+            local w = vale()
+            w.Nodes[1].x = 5150
+            h.eq(straight(w, "H", west, east).danger.name, "Keep")
+            w.Nodes[1].x = 5151
+            local e = straight(w, "H", west, east)
+            h.eq(e.danger, nil)
+            h.truthy(near(e.seconds, Graph.RideSeconds(west, east)), "and no penalty")
+        end)
+        h.it("leaves the leg alone for the side whose town it is", function()
+            local e = straight(vale(), "A", west, east)
+            h.eq(e.danger, nil)
+            h.truthy(near(e.seconds, Graph.RideSeconds(west, east)))
+        end)
+        h.it("exempts a leg that starts or ends inside the circle: you are there, or going there", function()
+            local gate = { name = "Keep Gate", c = 7, x = 5000, y = 5100, map = 20 }
+            h.eq(straight(vale(), "H", west, gate).danger, nil, "going there on purpose")
+            h.eq(straight(vale(), "H", gate, east).danger, nil, "leaving it")
+        end)
+        h.it("never charges a flight, a boat, the hearthstone or a tunnel's passage, even over the town", function()
+            local w = vale()
+            w.Nodes[4] = { name = "Westfort, Vale", f = "H", c = 7, x = 5000, y = 9000, map = 20, mx = 0.1, my = 0.5 }
+            w.Nodes[5] = { name = "Eastfort, Vale", f = "H", c = 7, x = 5000, y = 1000, map = 20, mx = 0.9, my = 0.5 }
+            w.Flights = { { 4, 5, 100, 90 } }
+            -- Two docks 3000 yards either side of Keep, joined by a boat.
+            w.Docks = { west_dock = { name = "West Dock", map = 20, mx = 0.2, my = 0.5 },
+                        east_dock = { name = "East Dock", map = 20, mx = 0.8, my = 0.5 } }
+            w.Links = { { from = "west_dock", to = "east_dock", kind = "boat", minutes = 2 } }
+            -- A tunnel from Vale into Hill, its mouths 1000 yards either side of Keep.
+            w.Crossings = { { a = 20, b = 21, name = "the Keep tunnel", map = 20, mx = 0.5, my = 0.4,
+                              far = { map = 21, mx = 0.5, my = 0.6 } } }
+            local inn = { name = "Eastfort Inn", c = 7, x = 5000, y = 1100, map = 20 }
+            local g = Graph.Build(w, { faction = "H", known = { [4] = true, [5] = true }, from = west, to = east,
+                                       hearth = inn })
+            local fly = edge(g, "f4", "f5", "fly")
+            h.eq(fly.seconds, 90)
+            h.eq(fly.danger, nil)
+            h.eq(edge(g, "f4", "f5", "ride").danger.name, "Keep", "riding the same line is charged")
+            local boat = edge(g, "west_dock", "east_dock", "boat")
+            h.eq(boat.seconds, 120)
+            h.eq(boat.danger, nil)
+            local hearth = edge(g, "START", "HEARTH", "hearth")
+            h.eq(hearth.seconds, Graph.HEARTH_SECONDS)
+            h.eq(hearth.danger, nil)
+            local through = edge(g, "x1", "x1far")
+            h.eq(through.through, true)
+            h.eq(through.danger, nil)
+            h.truthy(near(through.seconds, Graph.RideSeconds(g.stops.x1, g.stops.x1far)))
+        end)
+        h.it("tests a rough straight line the same way", function()
+            local over = { name = "Over The Hill", c = 7, x = 5000, y = 1000, map = 21 }
+            local e = straight(vale(), "H", west, over, { rough = true })
+            h.eq(e.rough, true)
+            h.eq(e.danger.name, "Keep")
+            h.truthy(near(e.seconds, Graph.RideSeconds(west, over) + 600))
+        end)
+        h.it("adds a stopover as an ordinary point in its zone, and the route goes round through it", function()
+            local w = vale()
+            -- world (5400, 5000): 400 yards north of Keep, clear of its circle
+            w.Stopovers = { { name = "the north road", map = 20, mx = 0.5, my = 0.46 },
+                            { name = "on no map", map = 99, mx = 0.5, my = 0.5 } }
+            local g = Graph.Build(w, { faction = "H", known = {}, from = west, to = east })
+            local s = g.stops.s1
+            h.eq(s.name, "the north road")
+            h.eq(s.map, 20)
+            h.eq(s.zones, nil, "one zone only, like a tunnel's mouth")
+            h.truthy(near(s.x, 5400) and near(s.y, 5000))
+            h.eq(g.stops.s2, nil, "a stopover on a map we do not have is left out")
+            h.eq(edge(g, "START", "s1").danger, nil)
+            h.eq(edge(g, "s1", "DEST").danger, nil)
+            local r = loaded.ns.Route.Find(g)
+            h.eq(#r.steps, 2)
+            h.eq(r.steps[1].to.key, "s1")
+            h.eq(loaded.ns.Route.StepText(r.steps[1]), "Ride to the north road")
+            h.eq(r.steps[2].to.key, "DEST")
+            h.eq(r.steps[1].danger, nil)
+            h.eq(r.steps[2].danger, nil)
+        end)
+        h.it("still goes straight through with no way round, the danger on its step", function()
+            local r = loaded.ns.Route.Find(Graph.Build(vale(), { faction = "H", known = {}, from = west, to = east }))
+            h.eq(#r.steps, 1)
+            h.eq(r.steps[1].danger.name, "Keep")
+            h.eq(r.raw[1].danger.name, "Keep")
+        end)
+    end)
 end

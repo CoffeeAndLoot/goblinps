@@ -17,10 +17,109 @@ ns.Graph = Graph
 Graph.RIDE_DETOUR = 1.3            -- roads are not straight lines
 Graph.HEARTH_SECONDS = 20          -- cast plus loading screen
 
+-- A ride leg that passes an enemy town costs this much more: a penalty, not
+-- a ban, so the router goes round whenever a way round is within ten minutes
+-- and a destination is never made unreachable. The two radii are guesses
+-- until walked: the closest reading at Silverwind Refuge, where the guards
+-- killed a level 15 Horde player on 2026-09-22, was about 40 yd from its map
+-- label, so 150 errs wide.
+Graph.HOSTILE_SECONDS = 600
+Graph.HOSTILE_RADIUS = 150         -- yards around an enemy town or flight master
+Graph.CAPITAL_RADIUS = 400         -- yards around an enemy capital's
+
 -- nil means open to both: only crossings and links carry a faction at all,
 -- and most crossings have none.
 local function legal(stopFaction, faction)
     return not stopFaction or stopFaction == "N" or stopFaction == faction
+end
+
+-- A capital is the one place named after the zone it stands in: "Orgrimmar"
+-- in Orgrimmar, "Stormwind" in Stormwind City, and the town Darnassus in
+-- Darnassus once tools/town-factions.csv marks it. Moonglade's two flight
+-- masters are named so too, but they are twins (see Graph.Hostile), so never
+-- hostile.
+local function isCapital(data, name, map)
+    local zone = data.Places[map]
+    return zone ~= nil and zone.name:find(name, 1, true) == 1
+end
+
+-- Every place whose guards attack this faction, as { name, f, c, x, y, map,
+-- radius, rank }: only places whose faction is known. Two sources, surest
+-- first:
+--   rank 1  the other side's flight masters, bar one whose short name a stop
+--           this faction may use shares (Booty Bay, Gadgetzan, Everlook...:
+--           the town is neutral, only its flight masters are split);
+--   rank 2  the other side's towns, by the `f` Data/Towns.lua carries, which
+--           comes only from the owner's marks in tools/town-factions.csv.
+-- A place with no faction, or "N", is nobody's enemy. No faction, no list.
+-- Sorted by rank, then name, map and position: when a leg passes two, it is
+-- named after the surer one, and always the same one.
+function Graph.Hostile(data, faction)
+    local list = {}
+    if not faction then
+        return list
+    end
+    local usable = {}
+    for _, n in pairs(data.Nodes) do
+        if legal(n.f, faction) then
+            usable[ns.Search.ShortName(n.name)] = true
+        end
+    end
+    local function add(name, f, place, rank)
+        if f and not legal(f, faction) then
+            list[#list + 1] = { name = name, f = f, c = place.c, x = place.x, y = place.y, map = place.map,
+                                rank = rank, radius = isCapital(data, name, place.map) and Graph.CAPITAL_RADIUS
+                                    or Graph.HOSTILE_RADIUS }
+        end
+    end
+    for _, n in pairs(data.Nodes) do
+        local name = ns.Search.ShortName(n.name)
+        if not usable[name] then
+            add(name, n.f, n, 1)
+        end
+    end
+    for _, t in pairs(data.Towns or {}) do
+        add(t.name, t.f, t, 2)
+    end
+    table.sort(list, function(a, b)
+        if a.rank ~= b.rank then return a.rank < b.rank end
+        if a.name ~= b.name then return a.name < b.name end
+        if a.map ~= b.map then return a.map < b.map end
+        if a.x ~= b.x then return a.x < b.x end
+        return a.y < b.y
+    end)
+    return list
+end
+
+-- The first hostile place whose circle holds this world point, or nil. The
+-- planner warns when a destination is one.
+function Graph.HostileAt(data, faction, point)
+    for _, h in ipairs(Graph.Hostile(data, faction)) do
+        if ns.Geo.Distance(point, h) <= h.radius then
+            return h
+        end
+    end
+    return nil
+end
+
+-- The first of these hostile places (one continent's, in Graph.Hostile's
+-- order) that the straight leg p->q passes within its radius of, as
+-- { name, f }; nil when none does. A place is ignored when either end of the
+-- leg is inside its circle: you are already there, or going there on purpose.
+local function dangerOn(hostile, p, q)
+    local Geo = ns.Geo
+    local x0, x1 = math.min(p.x, q.x), math.max(p.x, q.x)
+    local y0, y1 = math.min(p.y, q.y), math.max(p.y, q.y)
+    for _, h in ipairs(hostile or {}) do
+        local r = h.radius
+        -- The box round the leg, widened by r, is a cheap no for most places:
+        -- it halves what the test costs Graph.Build (measured 2026-09-22).
+        local near = h.x >= x0 - r and h.x <= x1 + r and h.y >= y0 - r and h.y <= y1 + r
+        if near and Geo.SegmentDistance(p, q, h) <= r and Geo.Distance(p, h) > r and Geo.Distance(q, h) > r then
+            return { name = h.name, f = h.f }
+        end
+    end
+    return nil
 end
 
 -- Seconds on the ground between two world positions at a speed in yards per
@@ -96,9 +195,12 @@ end
 -- reaches the destination.
 -- Returns { stops = { [key] = stop }, edges = { [key] = { edge, ... } } }
 -- with the special keys START, DEST and HEARTH. A ride edge carries zone (the
--- UiMap it is walked in), walk and, in rough mode, rough. The edge between the
--- two ends of a two-ended crossing also carries through = true, and its zone
--- is the one being entered.
+-- UiMap it is walked in), walk, danger ({ name, f }: the enemy town its
+-- straight line passes, already priced in at Graph.HOSTILE_SECONDS) and, in
+-- rough mode, rough. The edge between the two ends of a two-ended crossing
+-- also carries through = true, and its zone is the one being entered; it is
+-- one passage, never charged for a town. Data/Stopovers.lua rows are stops
+-- keyed "s1", "s2"...
 function Graph.Build(data, opts)
     local stops, edges = {}, {}
     local faction, known, speed = opts.faction, opts.known or {}, opts.speed
@@ -148,6 +250,18 @@ function Graph.Build(data, opts)
         end
     end
 
+    -- A stopover is an ordinary point in one zone, like a tunnel's mouth: the
+    -- pair loop below joins it to every other point in its zone, so a ride
+    -- can bend through it round an enemy town.
+    for i, s in ipairs(data.Stopovers or {}) do
+        local c, x, y = ns.Geo.ToWorld(data.Places, s.map, s.mx, s.my)
+        if c then
+            local key = "s" .. i
+            stops[key] = { key = key, name = s.name, c = c, x = x, y = y, map = s.map, mx = s.mx, my = s.my,
+                           unverified = s.unverified, stopover = true }
+        end
+    end
+
     stops.START = stopFrom("START", opts.from)
     stops.DEST = stopFrom("DEST", opts.to)
     if opts.hearth then
@@ -167,6 +281,13 @@ function Graph.Build(data, opts)
     -- short). A stop or an exact spot is travelled to as usual.
     local zoneMap = opts.to.kind == "zone" and opts.to.map or nil
 
+    -- The enemy's towns, by continent: a leg is only ever tested against its own.
+    local hostile = {}
+    for _, h in ipairs(Graph.Hostile(data, faction)) do
+        hostile[h.c] = hostile[h.c] or {}
+        table.insert(hostile[h.c], h)
+    end
+
     for _, pk in ipairs(keys) do
         for _, qk in ipairs(keys) do
             -- Nothing leaves DEST; nothing but the hearthstone arrives at HEARTH; nothing arrives at START.
@@ -174,17 +295,25 @@ function Graph.Build(data, opts)
                 local p, q = stops[pk], stops[qk]
                 local zone = sharedZone(p, q)
                 if zone then
-                    local seconds = Graph.RideSeconds(p, q, speed)
+                    local seconds, danger = Graph.RideSeconds(p, q, speed), nil
                     if q.cross then
                         seconds = seconds + q.cross
                     end
                     if qk == "DEST" and zoneMap and inZone(p, zoneMap) then
-                        seconds = 0
+                        seconds = 0   -- already in the zone: no leg is ridden, so none passes anything
+                    else
+                        danger = dangerOn(hostile[p.c], p, q)
                     end
-                    addEdge(edges, pk, qk, { kind = "ride", seconds = seconds, zone = zone, walk = opts.walk })
+                    if danger then
+                        seconds = seconds + Graph.HOSTILE_SECONDS
+                    end
+                    addEdge(edges, pk, qk, { kind = "ride", seconds = seconds, zone = zone, walk = opts.walk,
+                                             danger = danger })
                 elseif opts.rough and p.c == q.c and (pk == "START" or pk == "HEARTH" or qk == "DEST") then
-                    addEdge(edges, pk, qk, { kind = "ride", seconds = Graph.RideSeconds(p, q, speed),
-                                             walk = opts.walk, rough = true })
+                    local danger = dangerOn(hostile[p.c], p, q)
+                    addEdge(edges, pk, qk, { kind = "ride", walk = opts.walk, rough = true, danger = danger,
+                                             seconds = Graph.RideSeconds(p, q, speed)
+                                                 + (danger and Graph.HOSTILE_SECONDS or 0) })
                 end
             end
         end

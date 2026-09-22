@@ -261,11 +261,15 @@ return function(h, loaded)
             h.eq(t[3], "Walk to Orgrimmar's front gate")
             h.eq(t[4], "Walk to Orgrimmar's west gate")
             h.eq(t[5], "Walk to the Mor'shan Rampart")
-            h.eq(t[6], "Walk to the Ashenvale-Felwood road")
-            h.eq(t[7], "Walk to the Timbermaw Hold tunnels")
-            h.eq(t[8], "Walk to Darkwhisper Gorge")
-            h.eq(t[9], "Walk to Summit of Eternity", "on to a place in Mount Hyjal, not stopping at its border")
-            h.eq(#t, 9)
+            -- Round by the Darkshore road: the straight line from the rampart to
+            -- the Felwood road passes Silverwing Outpost, which the owner marked
+            -- Alliance in tools/town-factions.csv.
+            h.eq(t[6], "Walk to the Ashenvale-Darkshore road")
+            h.eq(t[7], "Walk to the Ashenvale-Felwood road")
+            h.eq(t[8], "Walk to the Timbermaw Hold tunnels")
+            h.eq(t[9], "Walk to Darkwhisper Gorge")
+            h.eq(t[10], "Walk to Summit of Eternity", "on to a place in Mount Hyjal, not stopping at its border")
+            h.eq(#t, 10)
             for _, s in ipairs(r.steps) do
                 h.falsy(s.rough, "no step may fall back to a straight line")
             end
@@ -280,10 +284,10 @@ return function(h, loaded)
             text, warn = ns.Route.StepDetail(data, r.steps[5], 1)
             h.eq(text, "into Ashenvale · level 18-30")
             h.eq(warn, true)
-            text, warn = ns.Route.StepDetail(data, r.steps[7], 60)
+            text, warn = ns.Route.StepDetail(data, r.steps[8], 60)
             h.eq(text, "into Winterspring · Timbermaw furbolgs attack without reputation")
             h.eq(warn, true)
-            text, warn = ns.Route.StepDetail(data, r.steps[8], 60)
+            text, warn = ns.Route.StepDetail(data, r.steps[9], 60)
             h.eq(text, "into Mount Hyjal · crossing not confirmed")
             h.eq(warn, true)
             -- The zeppelin step. Its figure is padded by the average wait, and
@@ -331,7 +335,10 @@ return function(h, loaded)
             end
             h.truthy(sawBoat)
         end)
-        h.it("goes through the Talondeep Path from Sun Rock Retreat to Splintertree Post", function()
+        -- Zoram'gar Outpost, not Splintertree Post: from Sun Rock the way to
+        -- Splintertree now stays out of Ashenvale's marked Alliance south, down
+        -- the Stonetalon pass and up through the Mor'shan Rampart.
+        h.it("goes through the Talondeep Path from Sun Rock Retreat to Zoram'gar Outpost", function()
             local sunRock
             for _, n in pairs(data.Nodes) do
                 if n.name:find("Sun Rock Retreat", 1, true) == 1 then
@@ -341,8 +348,8 @@ return function(h, loaded)
             h.truthy(sunRock, "no Sun Rock Retreat flight master")
             local from = { name = "You", c = sunRock.c, x = sunRock.x, y = sunRock.y,
                            map = sunRock.map, mx = sunRock.mx, my = sunRock.my }
-            local to = ns.Search.Exact(data, "Splintertree Post", "H")
-            h.truthy(to, "no Splintertree Post")
+            local to = ns.Search.Exact(data, "Zoram'gar Outpost", "H")
+            h.truthy(to, "no Zoram'gar Outpost")
             local r = ns.Route.Plan(data, { faction = "H", known = {}, from = from, to = to })
             h.truthy(r, "no route")
             local t = texts(r)
@@ -360,6 +367,88 @@ return function(h, loaded)
             for _, s in ipairs(r.steps) do
                 h.falsy(s.rough)
             end
+        end)
+        -- The owner's route on 2026-09-22: from the Talondeep Path's Ashenvale
+        -- mouth, measured in game at 42.3, 71.1, the straight line to
+        -- Splintertree Post runs 97 yards from Silverwind Refuge (50.1, 66.2),
+        -- whose guards killed a level 15 Horde player there more than once.
+        local function fromTalondeep(faction)
+            local c, x, y = ns.Geo.ToWorld(data.Places, 1440, 0.423, 0.711)
+            local walker = ns.Travel.For(15)
+            return { faction = faction, known = {}, speed = walker.speed, walk = walker.walk,
+                     from = { name = "You", c = c, x = x, y = y, map = 1440, mx = 0.423, my = 0.711 },
+                     to = ns.Search.Exact(data, "Splintertree Post", faction) }
+        end
+        local function straightLine(opts)
+            for _, e in ipairs(ns.Graph.Build(data, opts).edges.START) do
+                if e.to == "DEST" then
+                    return e
+                end
+            end
+        end
+        h.it("charges the Horde's straight line past Silverwind Refuge, and walks it round by the north", function()
+            local opts = fromTalondeep("H")
+            local line = straightLine(opts)
+            h.eq(line.danger and line.danger.name, "Silverwind Refuge")
+            h.eq(line.danger.f, "A")
+            local silverwind
+            for _, enemy in ipairs(ns.Graph.Hostile(data, "H")) do
+                if enemy.name == "Silverwind Refuge" then
+                    silverwind = enemy
+                end
+            end
+            h.truthy(silverwind, "tools/town-factions.csv marks Silverwind Refuge Alliance")
+            local r = ns.Route.Plan(data, opts)
+            -- 307 seconds longer on foot than the straight line, inside its ten
+            -- minutes; the way by the Mor'shan Rampart passes Silverwing Grove.
+            h.eq(table.concat(texts(r), " / "), "Walk to the Ashenvale-Felwood road / Walk to Splintertree Post")
+            for _, s in ipairs(r.steps) do
+                h.eq(s.danger, nil)
+                h.truthy(ns.Geo.SegmentDistance(s.from, s.to, silverwind) > silverwind.radius,
+                         ns.Route.StepText(s) .. " passes Silverwind Refuge")
+            end
+        end)
+        h.it("walks the Alliance straight there: nothing on that line is hostile to it", function()
+            for _, enemy in ipairs(ns.Graph.Hostile(data, "A")) do
+                h.truthy(enemy.name ~= "Silverwind Refuge", "Silverwind Refuge is hostile to the Alliance")
+            end
+            local opts = fromTalondeep("A")
+            h.eq(straightLine(opts).danger, nil)
+            local r = ns.Route.Plan(data, opts)
+            h.eq(table.concat(texts(r), " / "), "Walk to Splintertree Post")
+            h.eq(r.steps[1].danger, nil)
+        end)
+        h.it("counts the other side's flight masters and marked towns, and draws capitals wider", function()
+            local function summary(faction)
+                local stops, towns, capitals = 0, 0, {}
+                for _, enemy in ipairs(ns.Graph.Hostile(data, faction)) do
+                    if enemy.rank == 1 then
+                        stops = stops + 1
+                    else
+                        towns = towns + 1
+                    end
+                    if enemy.radius == ns.Graph.CAPITAL_RADIUS then
+                        capitals[#capitals + 1] = enemy.name
+                    end
+                end
+                table.sort(capitals)
+                return stops, towns, table.concat(capitals, ", ")
+            end
+            local marked = { A = 0, H = 0 }
+            for _, t in pairs(data.Towns) do
+                if t.f then
+                    marked[t.f] = marked[t.f] + 1
+                end
+            end
+            local stops, towns, capitals = summary("H")
+            h.eq(stops, 24, "32 Alliance flight masters less the 8 split neutral towns")
+            h.eq(towns, marked.A, "every town the owner marked Alliance, and no other")
+            h.truthy(towns > 0, "a count of nothing proves nothing")
+            h.eq(capitals, "Ironforge, Stormwind", "Darnassus has no flight master and is not marked")
+            stops, towns, capitals = summary("A")
+            h.eq(stops, 23, "31 Horde flight masters less the same 8")
+            h.eq(towns, marked.H, "every town the owner marked Horde, and no other")
+            h.eq(capitals, "Orgrimmar, Thunder Bluff, Undercity")
         end)
         h.it("leaves a city by its gate", function()
             local r = ns.Route.Plan(data, { faction = "A", known = {}, from = place("Stormwind City", "A"),
