@@ -310,6 +310,7 @@ local function build()
            stopPressed = stopPressed, stopHover = stopHover }
     local since = 0
     f:SetScript("OnUpdate", function(_, elapsed)
+        Dash.Steer(elapsed)
         since = since + elapsed
         if since >= Dash.TICK then
             since = 0
@@ -345,6 +346,7 @@ function Dash.Start(plan)
     -- with all three step lines blanked behind it. A resume in progress is
     -- replaced too: a new route takes over from wherever it was waiting.
     state.plan, state.index, state.best, state.banner, state.resume = plan, 1, nil, nil, nil
+    state.arrowAngle, state.compassAngle = nil, nil
     Dash.Refresh()
     ui.frame:Show()
 end
@@ -354,6 +356,7 @@ end
 -- one place the saved trip and our map pin are cleared.
 function Dash.Stop()
     state.plan, state.index, state.best, state.banner, state.resume = nil, nil, nil, nil, nil
+    state.arrowAngle, state.compassAngle = nil, nil
     ns.Core.ClearTrip()
     ns.Core.ClearPin()
     if ui then
@@ -367,6 +370,7 @@ end
 function Dash.Resume(place)
     ensureBuilt()
     state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
+    state.arrowAngle, state.compassAngle = nil, nil
     state.resume = place
     ui.steps[1]:SetText("Resuming your trip to " .. ns.Search.ShortName(place.name) .. "...")
     ui.steps[2]:SetText("")
@@ -392,21 +396,62 @@ end
 -- Point the arrow at the current step, or hide it. The client can decline to
 -- say which way the player faces, and an arrow pointing the wrong way is worse
 -- than no arrow at all.
+--
+-- This only decides show/hide and, on the moment the arrow comes into view,
+-- snaps the shown angle straight to its target so it never swings in from a
+-- stale one. While it is already showing, this touches neither angle at
+-- all -- Dash.Steer, running every frame, is what turns it -- so a step
+-- advance glides to the new target instead of jumping to it.
 local function aimArrow(pos, step)
+    local wasShown = ui.arrow:IsShown()
     local angle = ns.Trip.ArrowAngle(ns.Trip.Bearing(pos, step.to), ns.API.PlayerFacing())
     if not angle then
         ui.arrow:Hide()
+        state.arrowAngle, state.compassAngle = nil, nil
         return
     end
-    ui.arrow:SetRotation(angle)
+    if not wasShown or state.arrowAngle == nil then
+        state.arrowAngle = angle
+        -- Through Trip.CompassAngle, the same ROTATION_SIGN the arrow uses:
+        -- flipping that constant (the checklist's in-game remedy for an
+        -- arrow that turns the wrong way) must turn the compass with it,
+        -- not leave it hard-coded to one direction.
+        state.compassAngle = ns.Trip.CompassAngle(ns.API.PlayerFacing())
+        ui.arrow:SetRotation(state.arrowAngle)
+        ui.compass:SetRotation(state.compassAngle)
+    end
     ui.arrow:Show()
-    -- Through Trip.CompassAngle, the same ROTATION_SIGN the arrow uses:
-    -- flipping that constant (the checklist's in-game remedy for an arrow
-    -- that turns the wrong way) must turn the compass with it, not leave it
-    -- hard-coded to one direction. The texture is always there -- build()
-    -- creates it unconditionally and only hides it when the part is missing
-    -- -- so turning it needs no guard.
-    ui.compass:SetRotation(ns.Trip.CompassAngle(ns.API.PlayerFacing()))
+end
+
+-- Called every frame, ahead of the 0.5s tick check, so the arrow and compass
+-- glide instead of jumping twice a second. Guarded to run only while there
+-- is something to steer: Tick still owns showing, hiding and (on the tick
+-- the arrow comes into view) snapping it, and clears state.arrowAngle /
+-- state.compassAngle wherever the arrow goes away.
+function Dash.Steer(elapsed)
+    if not ui or not ui.frame:IsShown() then
+        return
+    end
+    if state.resume or not state.plan then
+        return
+    end
+    local steps = state.plan.result and state.plan.result.steps or {}
+    local step = steps[state.index]
+    if not step or not ui.arrow:IsShown() then
+        return
+    end
+    local pos = ns.Core.Here()
+    local facing = ns.API.PlayerFacing()
+    local arrowTarget = ns.Trip.ArrowAngle(ns.Trip.Bearing(pos, step.to), facing)
+    if not arrowTarget then
+        -- Leave the arrow at its last angle; the next tick hides it.
+        return
+    end
+    local compassTarget = ns.Trip.CompassAngle(facing)
+    state.arrowAngle = ns.Trip.Ease(state.arrowAngle, arrowTarget, elapsed)
+    state.compassAngle = ns.Trip.Ease(state.compassAngle, compassTarget, elapsed)
+    ui.arrow:SetRotation(state.arrowAngle)
+    ui.compass:SetRotation(state.compassAngle)
 end
 
 local function finish()
@@ -421,6 +466,7 @@ local function finish()
     -- it -- but a pin on the spot you are standing on says nothing.
     ns.Core.ClearPin()
     state.plan, state.index, state.best, state.banner = nil, nil, nil, nil
+    state.arrowAngle, state.compassAngle = nil, nil
 end
 
 -- One try at resuming. No position yet (still loading, or in an instance):
@@ -489,6 +535,7 @@ function Dash.Tick(event)
         ui.distance:SetText("Waiting...")
         ui.eta:SetText("")
         ui.arrow:Hide()
+        state.arrowAngle, state.compassAngle = nil, nil
         return
     end
     if verdict == "advance" then
@@ -534,6 +581,7 @@ function Dash.Tick(event)
     else
         ui.distance:SetText("")
         ui.arrow:Hide()
+        state.arrowAngle, state.compassAngle = nil, nil
     end
     local travel = ns.Travel.For(state.plan.level)
     local left = ns.Trip.Remaining(state.plan.result, state.index, pos, travel.speed)

@@ -423,8 +423,12 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       panel, none hanging below it
       (seen failing in game 2026-09-21: typing "a" showed 8 rows and two,
       Booty Bay and Brackenwall Village, hung below the panel)
-- [ ] Start Route closes the planner and opens the dash; `/gps` mid-trip
+- [x] Start Route closes the planner and opens the dash; `/gps` mid-trip
       shows the trip's destination in the box
+      (2026-09-21: Start Route opened the dash, and a whole trip from the
+      Crossroads to Silverpine Forest ran end to end in game -- ground legs,
+      the zeppelin and the zone crossings -- with every step advancing as it
+      should. The mid-trip `/gps` half is not yet looked at)
 - [ ] `/gps selftest` lists the fifteen strip textures, all `ok`
 - [ ] Nothing reads past the brass or overlaps: names under the end badges
       stay on the glass
@@ -530,6 +534,8 @@ still unconfirmed.
       pointing at the same place in the world. **If it turns the wrong way,
       flip Trip.ROTATION_SIGN and nothing else**
 - [ ] The compass ring's N stays north as you turn
+- [ ] Turning in place, the arrow and compass swing smoothly, not in
+      half-second jumps; on a step advance the arrow glides to the new target
 - [ ] Blizzard's map pin moves to each new step as the dash advances, not
       only to the first one when GO is pressed
 - [ ] Walk to the first step's target: the dash advances to the next step

@@ -70,6 +70,27 @@ function Trip.CompassAngle(facing)
     return Trip.ROTATION_SIGN * -(facing or 0)
 end
 
+-- Time constant for easing the dash's shown arrow and compass angle toward
+-- their target: about 95% of a turn lands within a quarter second, quick
+-- enough not to lag a turning character.
+Trip.EASE_SECONDS = 0.08
+
+-- Eases `current` toward `target` over `dt` seconds, always the short way
+-- round the circle. `current == nil` snaps straight to `target` (the "just
+-- came into view" case, which the caller decides, not this function). The
+-- result is not normalised into any particular range -- only the step taken
+-- to get there is shortest.
+function Trip.Ease(current, target, dt)
+    if current == nil then
+        return target
+    end
+    local diff = (target - current) % (2 * math.pi)
+    if diff > math.pi then
+        diff = diff - 2 * math.pi
+    end
+    return current + diff * (1 - math.exp(-dt / Trip.EASE_SECONDS))
+end
+
 -- Yards from a world position to a step's target, or nil.
 function Trip.DistanceTo(pos, step)
     if not pos or not step or not step.to then
