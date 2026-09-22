@@ -117,6 +117,8 @@ function Core.Here() return here() end
 --   result  Route.Plan's answer, or nil
 --   hint    Route.Hint's answer, or nil
 --   notes   plain lines for the player; the last one explains a missing route
+--   hostile the note, also first in notes, when the destination stands in an
+--           enemy town (Graph.HostileAt); the planner puts it first under the strip
 --   level   the character's level, or nil
 function Core.PlanRoute(to, from)
     local plan = { to = to, notes = {}, level = API.Level() }
@@ -129,6 +131,11 @@ function Core.PlanRoute(to, from)
     if not from then
         plan.notes[1] = "Can't tell where you are. Inside an instance?"
         return plan
+    end
+    local enemy = ns.Graph.HostileAt(ns.Data, faction, to)
+    if enemy then
+        plan.hostile = Route.HostileNote(enemy)
+        plan.notes[#plan.notes + 1] = plan.hostile
     end
     local bindName = API.HearthBindName()
     local bind = bindName and Search.Exact(ns.Data, bindName, faction) or nil

@@ -226,6 +226,19 @@ function Route.StepText(step)
     return VERB[step.kind] .. " " .. ns.Search.ShortName(step.to.name)
 end
 
+local FACTION = { A = "Alliance", H = "Horde" }
+
+-- "passes Silverwind Refuge (Alliance)"
+local function passes(danger)
+    return "passes " .. danger.name .. " (" .. FACTION[danger.f] .. ")"
+end
+
+-- The plan note for a destination inside an enemy town's circle (Graph.HostileAt).
+function Route.HostileNote(place)
+    return ("%s is %s %s town: its guards will attack you."):format(
+        place.name, place.f == "A" and "an" or "a", FACTION[place.f])
+end
+
 local function levels(range)
     if not range then
         return ""
@@ -235,15 +248,23 @@ end
 
 -- The small line under a ground step: where it takes you and what to expect.
 -- Returns text, warn. warn is true when the zone starts well above the
--- character's level, the crossing carries a hazard note, or it is
--- unconfirmed. Other step kinds have no detail ("", false). A hazard or an
--- unconfirmed note replaces the level range on the line (never both: the
--- line does not wrap, and the hazard is the part that must not be cut off).
+-- character's level, the leg passes an enemy town, the crossing carries a
+-- hazard note, or it is unconfirmed. Other step kinds have no detail ("",
+-- false). An enemy town, a hazard or an unconfirmed note replaces the level
+-- range on the line (never both: the line does not wrap, and the warning is
+-- the part that must not be cut off), the enemy town first.
 function Route.StepDetail(data, step, level)
     if WAITS[step.kind] then
         return "includes the average wait", false
     end
-    if step.kind ~= "ride" or not step.zone then
+    if step.kind ~= "ride" then
+        return "", false
+    end
+    if not step.zone then
+        -- A rough straight line has no zone to name, but may still pass a town.
+        if step.danger then
+            return passes(step.danger), true
+        end
         return "", false
     end
     local places, zones = data.Places or {}, data.Zones or {}
@@ -258,21 +279,24 @@ function Route.StepDetail(data, step, level)
     else
         text = "in " .. (places[zone] and places[zone].name or "this zone")
         -- Do not say the obvious: "Walk to Orgrimmar" already says where you land.
-        if places[zone] and ns.Search.ShortName(step.to.name) == places[zone].name then
+        if places[zone] and ns.Search.ShortName(step.to.name) == places[zone].name and not step.danger then
             return "", false
         end
     end
     local warn = ns.Travel.Dangerous(zones[zone], level)
-    if step.to.warn or step.to.unverified then
+    if step.danger or step.to.warn or step.to.unverified then
         warn = true
     else
         text = text .. levels(zones[zone])
+    end
+    if step.danger then
+        text = text .. " · " .. passes(step.danger)
     end
     if step.to.warn then
         text = text .. " · " .. step.to.warn
     end
     if step.to.unverified then
-        text = text .. " · crossing not confirmed"
+        text = text .. (step.to.stopover and " · stopover not confirmed" or " · crossing not confirmed")
     end
     return text, warn
 end

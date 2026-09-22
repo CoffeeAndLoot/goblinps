@@ -285,7 +285,11 @@ return function(h, loaded)
             h.eq(text, "into Ashenvale · level 18-30")
             h.eq(warn, true)
             text, warn = ns.Route.StepDetail(data, r.steps[8], 60)
-            h.eq(text, "into Winterspring · Timbermaw furbolgs attack without reputation")
+            -- The line from the Ashenvale-Felwood road to the tunnels runs past
+            -- Talonbranch Glade, an Alliance flight master, and there is no way
+            -- round it: the town comes first, so the hazard is what gets cut.
+            h.eq(text, "into Winterspring · passes Talonbranch Glade (Alliance) · Timbermaw furbolgs attack without "
+                 .. "reputation")
             h.eq(warn, true)
             text, warn = ns.Route.StepDetail(data, r.steps[9], 60)
             h.eq(text, "into Mount Hyjal · crossing not confirmed")

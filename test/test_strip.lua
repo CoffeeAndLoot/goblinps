@@ -123,6 +123,15 @@ return function(h, loaded)
             h.eq(layout.warning, "the North Gate: into Northland · trolls on the bridge")
         end)
 
+        h.it("turns the enemy town a leg passes amber and names it as the warning", function()
+            local leg = step("ride", "Splintertree Post, Ashenvale",
+                             { zone = 1, danger = { name = "Silverwind Refuge", f = "A" } })
+            local layout = Strip.Layout(data, { leg }, OPTS)
+            local detail = layout.stops[2].tooltip[3]
+            h.eq(detail.text, "in Westland · passes Silverwind Refuge (Alliance)")
+            h.eq(detail.amber, true)
+            h.eq(layout.warning, "Splintertree Post: in Westland · passes Silverwind Refuge (Alliance)")
+        end)
         h.it("wears the walk or ride badge through a tunnel, and says through in the tooltip", function()
             local function through(walk)
                 local s = step("ride", "the Deep Tunnel", { zone = 4, through = true, walk = walk })
