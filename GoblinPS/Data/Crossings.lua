@@ -43,7 +43,7 @@ ns.Data.Crossings = {
     { a = 1449, b = 1451, name = "the Un'Goro-Silithus ramp", map = 1449, mx = 0.295, my = 0.220 }, -- Un'Goro Crater, Silithus
     { a = 1444, b = 1443, name = "the Feralas-Desolace road", map = 1444, mx = 0.450, my = 0.080 }, -- Feralas, Desolace
     { a = 1443, b = 1442, name = "the Charred Vale pass", map = 1443, mx = 0.535, my = 0.040 }, -- Desolace, Stonetalon Mountains
-    { a = 1442, b = 1440, name = "the Talondeep Path", map = 1440, mx = 0.420, my = 0.710, cross = 45 },     -- Stonetalon Mountains, Ashenvale
+    { a = 1442, b = 1440, name = "the Talondeep Path", map = 1442, mx = 0.782, my = 0.427, cross = 45 },     -- Stonetalon Mountains, Ashenvale; the Stonetalon entrance, measured in game 2026-09-22 (the guess was ~443 yd off)
     { a = 1440, b = 1439, name = "the Ashenvale-Darkshore road", map = 1440, mx = 0.285, my = 0.140 }, -- Ashenvale, Darkshore
     { a = 1440, b = 1448, name = "the Ashenvale-Felwood road", map = 1440, mx = 0.555, my = 0.280 },  -- Ashenvale, Felwood
     { a = 1440, b = 1447, name = "the Ashenvale-Azshara road", map = 1440, mx = 0.945, my = 0.470 },  -- Ashenvale, Azshara

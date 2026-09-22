@@ -330,6 +330,10 @@ To measure one: stand on it, right-click the GoblinPS minimap button (or
       was about 124 yd off. (Earlier readings: 35.7, 27.5 on The Barrens' map,
       64 yd short; and Honor's Stand, 39.4, 29.9, inside the Barrens, which the
       crossings test refused.)
+- [x] the Talondeep Path (Stonetalon Mountains and Ashenvale): the Stonetalon
+      entrance, 78.2, 42.7 on Stonetalon's map, 2026-09-22. The guess on
+      Ashenvale's map was about 443 yd off. The tunnel is one point for both
+      zones plus its 45 s walk (`cross`); the Ashenvale end is not yet measured.
 - [x] Control: the Crossroads flight master read 51.5, 30.3 in game against 51.5,
       30.4 in the generated data, 2026-09-22. The in-game readout and our map
       coordinates agree, so crossing readings plug straight in. Flight masters
