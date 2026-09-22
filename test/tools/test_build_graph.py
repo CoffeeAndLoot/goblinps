@@ -1,5 +1,6 @@
 import contextlib
 import io
+import re
 import sys
 import tempfile
 import unittest
@@ -159,29 +160,11 @@ class Towns(unittest.TestCase):
         self.assertNotIn(960, self.towns)
         self.assertIn("skip town 960 Stray Post: outside Durotar's map", self.log.getvalue())
 
-    def test_takes_the_faction_of_a_one_faction_flight_master_within_600_yards(self):
-        # 500 yards from Crossroads (Horde), in The Barrens with it.
-        self.assertEqual(self.towns[36]["f"], "H")
-
-    def test_takes_no_faction_otherwise(self):
-        self.assertNotIn("f", self.towns[31], "no flight master in Durotar at all")
-        self.assertNotIn("f", self.towns[37], "510 yards from Orgrimmar's, but in another zone")
-        self.assertNotIn("f", self.towns[1068], "Crossroads is over 3000 yards away")
-        self.assertNotIn("f", self.towns[910], "no one-faction flight master within 600 yards")
-
-    def test_a_capital_takes_the_nearest_one_faction_flight_masters_faction(self):
-        # Taurajo Keep has no flight master in its own zone: Crossroads is the nearest.
-        self.assertEqual(self.towns[950]["f"], "H")
-
-    def test_both_factions_near_means_none(self):
-        nodes = {1: {"f": "A", "c": 1, "map": 5, "x": 0, "y": 100},
-                 2: {"f": "H", "c": 1, "map": 5, "x": 0, "y": -100},
-                 3: {"f": "N", "c": 1, "map": 5, "x": 0, "y": 10}}
-        town = {"c": 1, "map": 5, "x": 0, "y": 0}
-        self.assertIsNone(bg._town_faction(nodes, town, False))
-        self.assertEqual(bg._town_faction({3: nodes[3], 2: nodes[2]}, town, False), "H",
-                         "a neutral one does not count")
-        self.assertEqual(bg._town_faction(nodes, dict(town, y=90), True), "A", "a capital: the nearest")
+    def test_guesses_no_faction_from_nearby_flight_masters(self):
+        # Far Watch Post is 500 yards from Crossroads (Horde) in The Barrens, and Taurajo
+        # Keep a capital with Crossroads the nearest: the generator used to call both Horde.
+        for town in self.towns.values():
+            self.assertNotIn("f", town, town["name"] + " has a faction nobody marked")
 
     def test_drops_a_town_that_is_a_flight_stop_in_the_same_zone(self):
         # "The Crossroads" is the Crossroads stop once "The" is dropped.
@@ -193,13 +176,97 @@ class Towns(unittest.TestCase):
 
     def test_rows_carry_every_field(self):
         self.assertEqual(self.towns[36], {"name": "Far Watch Post", "map": 1413, "mx": 0.46, "my": 0.4667,
-                                          "c": 1, "x": -800, "y": -2300, "f": "H"})
+                                          "c": 1, "x": -800, "y": -2300})
         for town in self.towns.values():
-            self.assertEqual(set(town) - {"f"}, {"name", "map", "mx", "my", "c", "x", "y"})
+            self.assertEqual(set(town), {"name", "map", "mx", "my", "c", "x", "y"})
 
     def test_plain_matches_search_lua(self):
         self.assertEqual(bg.plain("The Crossroads"), "crossroads")
         self.assertEqual(bg.plain("Theramore Isle"), "theramore isle")
+
+
+class TownFactions(unittest.TestCase):
+    HEADER = "zone,town,x,y,guess,faction (A/H/N),Notes\n"
+
+    def setUp(self):
+        tables = bg.load_tables(FIXTURES)
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.places = bg.build_places(tables)
+            self.towns = bg.build_towns(tables, self.places, bg.build_nodes(tables, self.places))
+
+    def sheet(self, text):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "town-factions.csv"
+        path.write_text(text, encoding="utf-8", newline="")
+        return path
+
+    def test_reads_zone_town_and_faction_and_nothing_else(self):
+        marks = bg.read_town_factions(self.sheet(self.HEADER
+            + "The Barrens,Far Watch Post,46,46.7,A,H,\n"
+            + "Durotar,Razor Hill,52,43,H,n,Hostile to all\n"
+            + "Durotar,Valley Gate,40,20,H,,\n"
+            + '"The Barrens","Wailing Caverns",46,36,H, a ,"a note, with a comma"\n'))
+        self.assertEqual(marks, {("The Barrens", "Far Watch Post"): "H", ("Durotar", "Razor Hill"): "N",
+                                 ("Durotar", "Valley Gate"): "", ("The Barrens", "Wailing Caverns"): "A"},
+                         "guess and Notes are the owner's own and never read")
+
+    def test_refuses_a_faction_it_does_not_know(self):
+        with self.assertRaisesRegex(RuntimeError, "Far Watch Post in The Barrens: faction 'X'"):
+            bg.read_town_factions(self.sheet(self.HEADER + "The Barrens,Far Watch Post,46,46.7,,X,\n"))
+
+    def test_refuses_a_sheet_without_its_faction_column(self):
+        with self.assertRaisesRegex(RuntimeError, "missing columns"):
+            bg.read_town_factions(self.sheet("zone,town,x,y,guess,faction,Notes\n"))
+
+    def test_gives_a_or_h_as_f_and_n_or_blank_none(self):
+        errors = bg.mark_towns(self.towns, self.places, {("The Barrens", "Far Watch Post"): "H",
+                                                         ("Durotar", "Razor Hill"): "N",
+                                                         ("Durotar", "Valley Gate"): "",
+                                                         ("The Barrens", "Wailing Caverns"): "A"})
+        self.assertEqual(errors, [])
+        self.assertEqual(self.towns[36]["f"], "H")
+        self.assertEqual(self.towns[1068]["f"], "A")
+        self.assertNotIn("f", self.towns[31], "N is no faction")
+        self.assertNotIn("f", self.towns[37], "blank is no faction")
+
+    def test_names_every_row_that_matches_no_generated_town(self):
+        errors = bg.mark_towns(self.towns, self.places, {("Durotar", "Far Watch Post"): "H",
+                                                         ("Durotar", "Nowhere Keep"): ""})
+        self.assertEqual(errors, ["town-factions.csv: no generated town 'Far Watch Post' in 'Durotar'",
+                                  "town-factions.csv: no generated town 'Nowhere Keep' in 'Durotar'"])
+        self.assertNotIn("f", self.towns[36], "a mark in the wrong zone is not applied")
+
+
+class TheOwnersSheet(unittest.TestCase):
+    """tools/town-factions.csv against the committed GoblinPS/Data/Towns.lua: a typo in the
+    sheet, or a mark made without running tools/build_graph.py again, fails here."""
+
+    @staticmethod
+    def lua_rows(name):
+        text = (ROOT / "GoblinPS" / "Data" / f"{name}.lua").read_text(encoding="utf-8")
+        return re.findall(r"^\s*\[(\d+)\]=\{(.*)\},$", text, re.M)
+
+    @staticmethod
+    def field(row, key):
+        m = re.search(r"\b" + key + r'=(?:"((?:[^"\\]|\\.)*)"|([^,}]+))', row)
+        return None if m is None else (m.group(1) if m.group(1) is not None else m.group(2))
+
+    def setUp(self):
+        zones = {int(i): self.field(row, "name") for i, row in self.lua_rows("Places")}
+        self.towns = {(zones[int(self.field(row, "map"))], self.field(row, "name")): self.field(row, "f")
+                      for _, row in self.lua_rows("Towns")}
+        self.marks = bg.read_town_factions(ROOT / "tools" / bg.TOWN_FACTIONS)
+
+    def test_every_row_names_a_generated_town(self):
+        self.assertEqual(len(self.towns), 150, "every row of Towns.lua was read")
+        self.assertEqual(sorted(key for key in self.marks if key not in self.towns), [])
+
+    def test_towns_lua_carries_exactly_the_sheets_a_and_h_marks(self):
+        marked = {key: f for key, f in self.marks.items() if f in ("A", "H")}
+        self.assertGreater(len(marked), 0, "a sheet with no marks proves nothing")
+        self.assertEqual({key: f for key, f in self.towns.items() if f}, marked,
+                         "run tools/build_graph.py after marking the sheet")
 
 
 class Emit(unittest.TestCase):

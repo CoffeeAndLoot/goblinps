@@ -6,12 +6,15 @@ Status: **asked for by the owner in chat on 2026-09-22.** A Horde level 15 mage 
 Inside a zone, a ride leg is a straight line between two points. The router knows nothing about roads, cliffs or towns in between. On the real data, the straight leg from the Talondeep Path's Ashenvale mouth (42.3, 71.1) to Splintertree Post (73.3, 61.7) runs through Silverwind Refuge (50.1, 66.2).
 
 ## 1. Hostile places
-A hostile place is a point with a name, a faction and a radius, built from three sources:
-- **Enemy flight stops:** every `Data/Nodes` stop whose faction is not the player's and not neutral.
-- **Enemy towns:** every `Data/Towns` row with an `f` that is not the player's.
-- **Hand-written hostile towns:** `Data/Hostile.lua` (new, HAND-WRITTEN). It lists towns the generator could not give a faction to: `["Silverwind Refuge"] = { f = "A" }`, keyed by the town's name as it appears in `Data/Towns` or `Data/Nodes`. Seeded with Silverwind Refuge, known in game on 2026-09-22 because its guards killed a level 15 Horde player. Add a row whenever a town kills you.
+**Revised 2026-09-22 by the owner:** a place is hostile only when its faction is known. The generator no longer guesses a town's faction from nearby flight masters (plan 11's prototype found most such guesses were caves, rivers and dungeons), and `Data/Hostile.lua` is dropped.
 
-**Ruling: the radius** is `Hostile.RADIUS = 150` yards for a town or stop, and `Hostile.CAPITAL_RADIUS = 400` for a capital (a town with icon 5 in the generated data, or a stop in one of the six capital zones). Both are named constants, and they are guesses until walked. The owner's closest reading at Silverwind was about 40 yd from its map label, so 150 errs wide.
+A hostile place is a point with a name, a faction and a radius, built from two sources:
+- **Enemy flight stops:** every `Data/Nodes` stop whose faction is not the player's and not neutral, except one whose short name a stop the player may use shares (Booty Bay, Gadgetzan, Everlook...: a neutral town with a flight master for each side).
+- **Marked enemy towns:** every `Data/Towns` row with an `f` that is not the player's. `f` comes only from the owner's hand-written sheet `tools/town-factions.csv` (columns zone, town, x, y, guess, "faction (A/H/N)", Notes), which `tools/build_graph.py` reads the way it reads `catalog.lock`: A or H becomes `f`, N or blank gives none, and the guess and Notes columns are never read. A row that names a town the generator does not produce is a loud error: the generator prints it and writes nothing, and the Python tests fail. Silverwind Refuge is marked A, because its guards killed a level 15 Horde player on 2026-09-22. Mark a town whenever one kills you.
+
+**Ruling: the radius** is `Graph.HOSTILE_RADIUS = 150` yards for a town or stop, and `Graph.CAPITAL_RADIUS = 400` for a capital: a hostile place named after its own zone ("Orgrimmar" in Orgrimmar, "Stormwind" in Stormwind City). Both are named constants, and they are guesses until walked. The owner's closest reading at Silverwind was about 40 yd from its map label, so 150 errs wide.
+
+When one leg passes two hostile places, it is named after the surer source: a flight master, then a marked town.
 
 A place is hostile only to the other faction. Neutral towns (no `f`) are never hostile.
 
@@ -51,8 +54,8 @@ A place is hostile only to the other faction. Neutral towns (no `f`) are never h
   - flights and through edges are never penalised;
   - given a stopover beside the circle, the route goes round it.
 - **Route:** the "passes X (Alliance)" detail line is amber, and a hostile destination gets its note.
-- **Real data:** a Horde level 15 route from the Talondeep Path's Ashenvale mouth to Splintertree Post has a step with `danger` naming Silverwind Refuge (until a stopover exists). An Alliance route on the same line has none.
-- **Data:** every `Data/Hostile.lua` key matches a real town or stop name; every stopover sits inside its zone's rectangle.
+- **Real data:** a Horde level 15 route from the Talondeep Path's Ashenvale mouth to Splintertree Post: its straight line carries `danger` naming Silverwind Refuge, and the route goes round with no step passing within the radius (measured 2026-09-22: by the Ashenvale-Felwood road). An Alliance route on the same line is the straight line, with no `danger`.
+- **Data:** every `tools/town-factions.csv` row names a town the generator produces, and `Data/Towns.lua` carries exactly its A and H marks (Python); Irontree Cavern, a cave the old guess called Alliance, has no `f`; every stopover sits inside its zone's rectangle.
 
 ## In game (checklist)
 - Horde, Talondeep Path to Splintertree Post: the tooltip for the leg past Silverwind reads "passes Silverwind Refuge (Alliance)" in amber, and so does the line under the strip.

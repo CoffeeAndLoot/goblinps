@@ -175,8 +175,24 @@ return function(h, loaded)
                     h.truthy(place.kind ~= "zone", name .. " is still only a zone")
                 end
             end
-            h.eq(ns.Search.Exact(data, "Darnassus", "H").enemy, "A", "a capital takes its own flight stop's faction")
             h.eq(ns.Search.Exact(data, "Sentinel Hill", "H").nodeID, 4, "the stop, not a town beside it")
+        end)
+
+        h.it("gives a town a faction only where the owner marked one", function()
+            -- tools/town-factions.csv, and nothing else: no faction is guessed
+            -- from nearby flight masters any more. test/tools/test_build_graph.py
+            -- checks the whole sheet against this file.
+            local byName = {}
+            for _, t in pairs(towns) do
+                byName[t.name] = t
+            end
+            h.eq(byName["Silverwind Refuge"].f, "A", "marked Alliance")
+            h.eq(byName["Warsong Labor Camp"].f, "H", "marked Horde")
+            for _, name in ipairs({ "Irontree Cavern", "Maraudon", "Falfarren River" }) do
+                h.eq(byName[name].f, nil, name .. " is not marked, so it has no faction")
+            end
+            h.eq(ns.Search.Exact(data, "Silverwind Refuge", "H").enemy, "A", "the Horde's list says (Alliance)")
+            h.eq(ns.Search.Exact(data, "Irontree Cavern", "H").enemy, nil, "and a cave is nobody's enemy")
         end)
     end)
 
