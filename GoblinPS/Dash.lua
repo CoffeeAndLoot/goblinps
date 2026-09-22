@@ -76,7 +76,7 @@ function Dash.Refresh()
     -- destination: the arrow only ever points at the current step, and
     -- putting the journey's end on the same glass would invite reading the
     -- arrow as pointing there.
-    ui.destination:SetText(step.to and ns.Search.ShortName(step.to.name) or "")
+    ui.destination:SetText(step.to and ns.Search.Label(step.to.name) or "")
     ui.distance:SetText("")
     ui.eta:SetText("")
 end
