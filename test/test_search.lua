@@ -80,6 +80,97 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("generated towns", function()
+        -- The fake world with a towns table shaped as tools/build_graph.py
+        -- emits Data/Towns.lua. Map coords and world coords are one point.
+        local function withTowns()
+            local w = dofile("test/fake_world.lua")()
+            w.Towns = {
+                [101] = { name = "Mike", map = 1, mx = 0.3, my = 0.3, c = 1, x = 7000, y = 7000 },
+                [102] = { name = "November", map = 4, mx = 0.6, my = 0.6, c = 1, x = 4000, y = 4000, f = "A" },
+                -- The game's own label for the hand-written inn town, 100 yards off it.
+                [103] = { name = "Quiet Hollow", map = 1, mx = 0.26, my = 0.5, c = 1, x = 5000, y = 7400 },
+                -- In Lostland, which held nothing until now.
+                [104] = { name = "Oscar", map = 5, mx = 0.5, my = 0.5, c = 1, x = 5000, y = 5000, f = "H" },
+            }
+            return w
+        end
+
+        h.it("offers a town as a place of kind town, in its zone", function()
+            local mike = Search.Find(withTowns(), "mike", "H")[1]
+            h.eq(mike.kind, "town")
+            h.eq(mike.townID, 101)
+            h.eq(mike.name, "Mike")
+            h.eq(mike.zone, "Westland")
+            h.eq(mike.enemy, nil, "a town with no inferred faction is nobody's enemy")
+            h.eq(mike.map, 1)
+            h.eq(mike.x, 7000)
+            h.eq(mike.y, 7000)
+        end)
+        h.it("marks a town with the other faction's inferred faction", function()
+            local w = withTowns()
+            h.eq(Search.Find(w, "november", "H")[1].enemy, "A")
+            h.eq(Search.Find(w, "november", "A")[1].enemy, nil, "an Alliance town is no enemy to the Alliance")
+            h.eq(Search.Find(w, "oscar", "A")[1].enemy, "H")
+        end)
+        h.it("lets the hand-written inn town win over the game's town of its name", function()
+            local found = Search.Find(withTowns(), "quiet", "H")
+            h.eq(#found, 1, "one Quiet Hollow, not two")
+            h.eq(found[1].townID, nil, "the inn row's")
+            h.eq(found[1].y, 7500, "at the inn row's own position")
+        end)
+        h.it("takes a zone off the list once a town stands in it", function()
+            local w = withTowns()
+            local count = { stop = 0, town = 0, zone = 0 }
+            for _, item in ipairs(Search.Candidates(w, "H")) do
+                count[item.kind] = count[item.kind] + 1
+            end
+            h.eq(count.stop, 8)
+            h.eq(count.town, 6, "three inn towns and Mike, November and Oscar")
+            h.eq(count.zone, 0, "Oscar stands in Lostland")
+            h.eq(Search.Exact(w, "Lostland", "H"), nil)
+            h.eq(Search.Exact(w, "Oscar", "H").map, 5)
+        end)
+    end)
+
+    h.describe("two stops of one name", function()
+        -- Booty Bay, Gadgetzan and Everlook each have one stop per faction, a
+        -- few yards apart. Kilo is that town. The enemy's stop is on the LOWER
+        -- ID, so a tie broken by ID alone would pick the one you cannot use.
+        local function withTwins()
+            local w = dofile("test/fake_world.lua")()
+            w.Nodes[11] = { name = "Kilo, Westland", f = "A", c = 1, x = 3000, y = 3000, map = 1, mx = 0.7, my = 0.7 }
+            w.Nodes[12] = { name = "Kilo, Westland", f = "H", c = 1, x = 3010, y = 3010,
+                            map = 1, mx = 0.699, my = 0.699 }
+            return w
+        end
+
+        h.it("offers only the stop this faction may use", function()
+            local w = withTwins()
+            local horde = Search.Find(w, "kilo", "H")
+            h.eq(#horde, 1, "the Alliance's Kilo is not offered to the Horde")
+            h.eq(horde[1].nodeID, 12)
+            h.eq(horde[1].enemy, nil)
+            local alliance = Search.Find(w, "kilo", "A")
+            h.eq(#alliance, 1)
+            h.eq(alliance[1].nodeID, 11)
+        end)
+        h.it("still offers an enemy stop that has no twin of your own", function()
+            local echo = Search.Find(withTwins(), "echo", "H")
+            h.eq(#echo, 1)
+            h.eq(echo[1].enemy, "A")
+        end)
+        h.it("pins the tie: the stop you may use wins, though the enemy's ID is lower", function()
+            local w = withTwins()
+            h.eq(Search.Exact(w, "Kilo", "H").nodeID, 12)
+            h.eq(Search.Exact(w, "Kilo", "A").nodeID, 11)
+            local any = Search.Find(w, "kilo")
+            h.eq(#any, 2, "with no faction, neither is an enemy, so both are offered")
+            h.eq(any[1].nodeID, 11, "and the lower ID comes first")
+            h.eq(Search.Exact(w, "Kilo").nodeID, 11)
+        end)
+    end)
+
     h.describe("Search.Candidates", function()
         h.it("offers every stop, every inn town, and a zone only when it holds neither", function()
             local count, names = { stop = 0, town = 0, zone = 0 }, {}

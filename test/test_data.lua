@@ -89,11 +89,16 @@ return function(h, loaded)
             end
         end)
         h.it("only lists names Search cannot already find", function()
+            -- Without the generated towns too: a row that names one of them
+            -- still earns its place, because hand-written data wins -- it
+            -- says what the name is ("Theramore Isle" is the Theramore stop,
+            -- "Kharanos" the inn town) and keeps the town from being offered
+            -- a second time.
             local without = {}
             for k, v in pairs(data) do
                 without[k] = v
             end
-            without.Inns = nil
+            without.Inns, without.Towns = nil, nil
             for bind in pairs(data.Inns) do
                 h.falsy(ns.Search.Exact(without, bind, nil), bind .. " already resolves; drop the row")
             end
@@ -117,7 +122,7 @@ return function(h, loaded)
             table.sort(zones)
             -- A new town row or flight stop in one of these makes this fail:
             -- take the zone off the list, since it is only a search word now.
-            h.eq(table.concat(zones, ", "), "Alterac Mountains, Darnassus, Deadwind Pass, Shen'dralas")
+            h.eq(table.concat(zones, ", "), "Alterac Mountains, Shen'dralas")
         end)
         h.it("leaves no zone that cannot be picked", function()
             local reached = {}
@@ -160,6 +165,44 @@ return function(h, loaded)
             end
             for _, t in pairs(towns) do
                 h.falsy(stops[t.name:lower():gsub("^the%s+", "") .. "@" .. t.map], t.name .. " is a flight stop")
+            end
+        end)
+        h.it("makes Darnassus, Kharanos and Sentinel Hill places, not zones", function()
+            for _, name in ipairs({ "Darnassus", "Kharanos", "Sentinel Hill" }) do
+                for _, faction in ipairs({ "A", "H" }) do
+                    local place = ns.Search.Exact(data, name, faction)
+                    h.truthy(place, name .. " cannot be found by the " .. faction)
+                    h.truthy(place.kind ~= "zone", name .. " is still only a zone")
+                end
+            end
+            h.eq(ns.Search.Exact(data, "Darnassus", "H").enemy, "A", "a capital takes its own flight stop's faction")
+            h.eq(ns.Search.Exact(data, "Sentinel Hill", "H").nodeID, 4, "the stop, not a town beside it")
+        end)
+    end)
+
+    h.describe("no place offered twice", function()
+        -- Stronger than "no two of one name within 300 yards": two rows with
+        -- one name and one zone would read the same at any distance. The two
+        -- ends of a tunnel share a name 217 yards apart (Timbermaw Hold) but
+        -- not a zone, and are two places.
+        h.it("never offers two rows that read the same", function()
+            for _, faction in ipairs({ "A", "H" }) do
+                local seen, rows = {}, 0
+                for _, item in ipairs(ns.Search.Candidates(data, faction)) do
+                    local label = item.name .. " @ " .. tostring(item.zone)
+                    h.falsy(seen[label], faction .. ": " .. label .. " is offered twice")
+                    seen[label] = true
+                    rows = rows + 1
+                end
+                h.truthy(rows > 200, "a check that saw no rows proves nothing")
+            end
+        end)
+        h.it("hides the other faction's stop where one of your own has its name", function()
+            for _, name in ipairs({ "Booty Bay", "Gadgetzan", "Everlook" }) do
+                local found = ns.Search.Find(data, name, "H")
+                h.eq(found[1].name, name)
+                h.eq(found[1].enemy, nil, name .. ": the Horde's own stop")
+                h.truthy(not found[2] or found[2].name ~= name, name .. " is offered twice to the Horde")
             end
         end)
     end)

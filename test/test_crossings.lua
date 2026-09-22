@@ -362,8 +362,10 @@ return function(h, loaded)
             end
         end)
         h.it("leaves a city by its gate", function()
+            -- Sentinel Hill by name: "Westfall" alone now finds Moonbrook first, a
+            -- town off the road, and this test is about the gate, not the town.
             local r = ns.Route.Plan(data, { faction = "A", known = {}, from = place("Stormwind City", "A"),
-                                            to = place("Westfall", "A") })
+                                            to = place("Sentinel Hill", "A") })
             local t = texts(r)
             h.eq(t[1], "Ride to the Stormwind gates")
             h.eq(t[2], "Ride to the Westfall bridge")

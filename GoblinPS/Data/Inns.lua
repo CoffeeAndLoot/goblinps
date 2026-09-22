@@ -9,9 +9,13 @@
 --                                      map coords (0..1), APPROXIMATE until
 --                                      checked from docs/manual-test-checklist.md.
 --                                      A town is also a destination the planner
---                                      offers, as "<name> · <zone>".
+--                                      offers, as "<name> · <zone>". It wins
+--                                      over the game's own town of its name
+--                                      (Data/Towns.lua), which is not offered.
 --   town = "<town row's name>"         an inn building inside a town listed here
 -- Add a row whenever the addon prints "Hearth: unknown inn (...)".
+-- Every row here wins by name over a generated town: "Theramore Isle" is the
+-- Theramore stop, and the game's own Theramore Isle label is not offered too.
 local _, ns = ...
 ns.Data = ns.Data or {}
 
