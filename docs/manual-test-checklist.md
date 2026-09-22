@@ -317,6 +317,9 @@ Measured in game so far:
 
 - [x] the Mulgore pass (Mulgore and the Barrens): 41.8, 58.6 on The Barrens'
       map, 2026-09-22. The guess on Mulgore's map was about 160 yd off.
+- [x] the Thunder Bluff lifts (Thunder Bluff and Mulgore): the west lifts,
+      31.8, 66.1 on Thunder Bluff's map, 2026-09-22. The guess on Mulgore's map
+      was about 314 yd off.
 
 Regenerate this table after correcting rows:
 
