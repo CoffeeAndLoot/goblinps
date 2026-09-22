@@ -489,10 +489,9 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       If it is still full width, the font measured 0 (see the line above)
 - [ ] A scrolling line: look at its right edge while it scrolls -- the client
       may draw its own "..." there; say whether it reads well
-- [ ] The About box shows the version from the TOC, not "(version unknown)"
-- [ ] Escape with the settings panel open: note whether it closes only the
-      panel or the planner too (the client closes every UISpecialFrames
-      window at once)
+- [ ] One Escape closes the settings panel and the planner together (that is
+      how the client's Escape list works): say whether that is acceptable, or
+      whether Escape should close only the panel
 
 ## Flight paths survive a reload
 

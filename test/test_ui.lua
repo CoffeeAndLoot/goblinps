@@ -987,8 +987,11 @@ return function(h)
 
         -- The rows sit 2 px inside the list and each label 6 px inside its
         -- row, on both sides: 16 px of insets, mirrored from Planner.lua's
-        -- ROW_EDGE and LABEL_EDGE.
+        -- ROW_EDGE and LABEL_EDGE. SLACK mirrors Planner.lua's own constant:
+        -- a few pixels past the widest label so client rounding never clips
+        -- the longest name into "...".
         local INSETS = 16
+        local SLACK = 4
         local function labelOf(item)
             return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
         end
@@ -1007,7 +1010,8 @@ return function(h)
             h.truthy(math.abs(tl[5] + g.resultsList.top * fh) < 1e-9, "and its top")
             h.truthy(math.abs(br[5] + g.resultsList.bottom * fh) < 1e-9, "and its bottom")
             local width = br[4] - tl[4]
-            h.truthy(math.abs(width - (widest + INSETS)) < 1e-9, "the widest name plus the rows' insets")
+            h.truthy(math.abs(width - (widest + INSETS + SLACK)) < 1e-9,
+                     "the widest name plus the rows' insets and slack")
             h.truthy(width < (g.resultsList.right - g.resultsList.left) * w, "narrower than the geometry")
             for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
                 h.truthy(#labelOf(item) * Fake.CHAR_WIDTH <= width - INSETS, labelOf(item) .. " still fits its row")
@@ -2878,6 +2882,33 @@ return function(h)
             h.falsy(ui.frame:IsShown(), "the gear puts it away again")
         end)
 
+        h.it("outranks the drop-down list on their shared DIALOG strata", function()
+            -- Both the settings panel and the results list are DIALOG
+            -- strata; level is what breaks the tie within one strata.
+            -- Client report 2026-09-22: the panel defaulted to the
+            -- planner's own frame level while the list sat at the
+            -- planner's level + 3, so the list could be reopened over an
+            -- open panel and cover it, taking its clicks.
+            openPlanner()
+            Fake.Click(Planner.Debug().gear)
+            h.truthy(Settings.Debug().frame:IsShown())
+            h.eq(Settings.Debug().frame:GetFrameStrata(), Planner.Debug().results:GetFrameStrata(),
+                 "same strata: only the level can settle who draws on top")
+            h.truthy(Settings.Debug().frame:GetFrameLevel() > Planner.Debug().results:GetFrameLevel(),
+                     "the panel must outrank the list, or the list can cover it and steal its clicks")
+            Fake.Click(Planner.Debug().gear)
+        end)
+
+        h.it("keeps the drop-down list shut behind it while it is up", function()
+            openPlanner()
+            Fake.Click(Planner.Debug().gear)
+            h.truthy(Settings.Debug().frame:IsShown())
+            Fake.Click(Planner.Debug().dropdown)
+            h.falsy(Planner.Debug().results:IsShown(),
+                     "opening the panel already dismissed the list; the dropdown must not reopen it")
+            Fake.Click(Planner.Debug().gear)
+        end)
+
         h.it("opens from /gps settings, bringing the planner up under it", function()
             local pui = Planner.Debug()
             if pui.frame:IsShown() then
@@ -2902,7 +2933,8 @@ return function(h)
             h.truthy(GoblinPSSettings == ui.frame)
             GoblinPSSettings:Hide()
             h.falsy(ui.frame:IsShown(), "Escape's entry for the panel")
-            h.truthy(Planner.Debug().frame:IsShown(), "is the panel's alone")
+            h.truthy(Planner.Debug().frame:IsShown(),
+                     "a direct :Hide() closes only the panel, not the planner too")
             SlashCmdList.GOBLINPS("settings")
             pressEscape()
             h.falsy(ui.frame:IsShown(), "Escape")

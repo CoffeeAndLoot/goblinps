@@ -87,7 +87,7 @@ GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
 GoblinPS/Strip.lua           # pure: the route strip as data -- badges, spacing, tooltips, solid/dashed legs
-GoblinPS/Marquee.lua          # pure: the dash's scrolling text, a character window
+GoblinPS/Marquee.lua         # pure: the dash's scrolling text, a character window
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences, arrival radii and their ranges
 GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
@@ -101,7 +101,7 @@ GoblinPS/Widgets.lua         # plain controls in the gadget palette; NO Blizzard
                               # three-slice stretcher that both windows read their geometry through
 GoblinPS/Planner.lua         # the window; draws Strip.lua's layout and decides nothing; no coordinate
                               # is hand-typed here -- every position comes from ns.Data.ArtGeometry.planner.wide
-GoblinPS/Settings.lua         # the settings panel behind the gear; plain, no art yet, so its spacing is its own
+GoblinPS/Settings.lua        # the settings panel behind the gear; plain, no art yet, so its spacing is its own
 GoblinPS/Dash.lua            # the small draggable device shown when Start Route closes the planner; arrow, distance, ETA
 GoblinPS/Data/Art.lua        # GENERATED: texture coordinates AND placement geometry (ns.Data.ArtGeometry) for
                               # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json

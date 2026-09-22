@@ -19,3 +19,7 @@ comes off this list.
   range. Until then the warning lives where it always has -- in amber, in the
   stop's tooltip and printed under the strip. It stays a warning, never a
   reroute.
+- **Shorter step text on the dash:** run step names through
+  Search.Label/ShortName before scrolling, so a line only scrolls when it is
+  genuinely long. (Left over from the marquee entry when plan 9 built the
+  scrolling.)

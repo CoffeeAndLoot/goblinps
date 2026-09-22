@@ -20,6 +20,10 @@ local ROW = 18
 -- edges together, which the rows that fit are counted against.
 local ROW_EDGE, LABEL_EDGE = 2, 6
 local ROW_INSET = 2 * ROW_EDGE
+-- A few pixels past the widest label's measured width, so the client
+-- rounding that width down at render time never clips the longest name
+-- into "...".
+local SLACK = 4
 
 local ui          -- built on first open
 local state = {}  -- to = place, plan = Core.PlanRoute's answer
@@ -289,6 +293,16 @@ local function rowLabel(item)
 end
 
 local function showResults()
+    -- The settings panel sits above this list (Settings.Open sets its frame
+    -- level for exactly that), but a higher level only wins a DRAW -- it does
+    -- not stop this list from opening under the panel and being clickable
+    -- through the gap at its edges. Opening the panel already dismisses the
+    -- list (gear's OnClick calls dismiss()); while the panel is up, the
+    -- dropdown button must not be able to reopen it.
+    local settings = ns.Settings.Debug()
+    if settings and settings.frame:IsShown() then
+        return
+    end
     local items = candidates()
     if #items == 0 then
         hideResults()
@@ -451,11 +465,11 @@ function Planner.ApplyLayout()
     W.PlaceCircle(ui.dropdown, f, g.dropdownButton)
     W.PlaceRect(ui.toBox, f, g.toBox)
     -- Only a little wider than the longest name: the width measured at build
-    -- plus the rows' insets, never past the geometry. Left, top and bottom
-    -- are the geometry's. The widest name is data and the font sets its
-    -- width, so no coordinate is typed here.
+    -- plus the rows' insets and SLACK, never past the geometry. Left, top
+    -- and bottom are the geometry's. The widest name is data and the font
+    -- sets its width, so no coordinate is typed here.
     local list = g.resultsList
-    local hug = ((ui.results.labelWidth or math.huge) + 2 * (ROW_EDGE + LABEL_EDGE)) / f:GetWidth()
+    local hug = ((ui.results.labelWidth or math.huge) + 2 * (ROW_EDGE + LABEL_EDGE) + SLACK) / f:GetWidth()
     W.PlaceRect(ui.results, f, { left = list.left, top = list.top, bottom = list.bottom,
                                  right = math.min(list.right, list.left + hug) })
     -- How many of the MAX_RESULTS pooled rows actually fit the list's own

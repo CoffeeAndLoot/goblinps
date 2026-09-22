@@ -199,6 +199,13 @@ function Settings.Open(anchor)
     end
     ui.frame:ClearAllPoints()
     ui.frame:SetPoint("CENTER", anchor or UIParent, "CENTER", 0, 0)
+    -- The panel and the planner's results list are both DIALOG strata, so
+    -- only their frame level settles who draws on top. Left at its default,
+    -- this frame sits at the planner's own level -- the same tie the list's
+    -- children broke by going to level + 3 -- so the list could be reopened
+    -- over an open panel and cover it, taking its clicks (client report
+    -- 2026-09-22). +10 clears that and everything else on the planner.
+    ui.frame:SetFrameLevel((anchor and anchor:GetFrameLevel() or 0) + 10)
     Settings.Refresh()
     ui.frame:Show()
 end
