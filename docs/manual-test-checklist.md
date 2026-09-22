@@ -523,6 +523,8 @@ still unconfirmed.
       pointing at the same place in the world. **If it turns the wrong way,
       flip Trip.ROTATION_SIGN and nothing else**
 - [ ] The compass ring's N stays north as you turn
+- [ ] Turning in place, the arrow and compass swing smoothly, not in
+      half-second jumps; on a step advance the arrow glides to the new target
 - [ ] Blizzard's map pin moves to each new step as the dash advances, not
       only to the first one when GO is pressed
 - [ ] Walk to the first step's target: the dash advances to the next step

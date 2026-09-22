@@ -1659,11 +1659,62 @@ return function(h)
                 h.eq(ui.compass.rotation, -0.4, "default sign turns opposite facing")
                 local saved = ns.Trip.ROTATION_SIGN
                 ns.Trip.ROTATION_SIGN = -1
+                -- The arrow was already showing before this second Tick, so
+                -- aimArrow no longer snaps it -- Steer does the turning now.
                 Dash.Tick("tick")
-                h.eq(ui.compass.rotation, 0.4,
+                Dash.Steer(1)
+                h.truthy(math.abs(ui.compass.rotation - 0.4) < 1e-4,
                      "flipping ROTATION_SIGN, the checklist's own remedy for the arrow, must flip the compass with it")
                 ns.Trip.ROTATION_SIGN = saved
                 facing = 0
+            end)
+
+            h.it("turns the arrow between ticks as you turn", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(-100, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(ui.arrow.rotation, 0, "first sight snaps exactly")
+                facing = 0.5
+                Dash.Steer(0.016)
+                local target = ns.Trip.ArrowAngle(ns.Trip.Bearing(ns.Core.Here(), plan.result.steps[1].to), facing)
+                h.truthy(ui.arrow.rotation < 0 and ui.arrow.rotation > target,
+                         "one frame should move toward the target but not all the way, got "
+                         .. tostring(ui.arrow.rotation))
+                Dash.Steer(1)
+                h.truthy(math.abs(ui.arrow.rotation - target) < 1e-4, "a full second lands on the target")
+                facing = 0
+            end)
+
+            h.it("never spins the long way round", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(100, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(ui.arrow.rotation, math.pi, "the target sits due south of us, so the arrow starts near +pi")
+                -- Swings the target to just past -pi -- the same physical
+                -- direction, on the other side of the wrap.
+                facing = 2 * math.pi - 0.01
+                Dash.Steer(0.05)
+                h.truthy(math.abs(ui.arrow.rotation - math.pi) < 0.5,
+                         "one small step must not swing the arrow the long way round, got "
+                         .. tostring(ui.arrow.rotation))
+                facing = 0
+            end)
+
+            h.it("does not steer while the arrow is hidden or no trip runs", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                facing = nil
+                standAt(-100, 0)
+                Dash.Tick("tick")
+                h.falsy(ui.arrow:IsShown(), "sanity: unknown facing hides the arrow")
+                Dash.Steer(1)
+                h.falsy(state.arrowAngle, "steering does nothing while the arrow is hidden")
+                facing = 0
+                Dash.Stop()
+                Dash.Steer(1)   -- must not error with no trip running and the dash hidden
+                h.falsy(Dash.Debug().frame:IsShown())
             end)
 
             h.it("does not advance or stray while on a zeppelin", function()
