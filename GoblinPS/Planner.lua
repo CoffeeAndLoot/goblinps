@@ -266,19 +266,9 @@ local function dismiss()
     hideResults()
 end
 
-local function pick(item)
-    hideResults()
-    state.to = item
-    ns.Core.Remember(item.name)
-    ui.toBox:SetText(item.name)
-    ui.toBox:ClearFocus()
-    W.UpdatePlaceholder(ui.toBox)
-    replan()
-end
-
 -- Every match for the text, however many: the list shows `fit` of them at a
 -- time and the wheel moves over the rest. With an empty box, the recent
--- destinations.
+-- destinations, then the zone browser's rows.
 local function candidates()
     local text = ui.toBox:GetText()
     if text ~= "" then
@@ -287,6 +277,9 @@ local function candidates()
     local out = {}
     for _, name in ipairs(ns.Core.Recents()) do
         out[#out + 1] = ns.Search.Exact(ns.Data, name, ns.Core.Faction())
+    end
+    for _, zone in ipairs(ns.Search.Zones(ns.Data, ns.Core.Faction())) do
+        out[#out + 1] = zone
     end
     return out
 end
@@ -297,8 +290,12 @@ local FACTION_NAME = { A = "Alliance", H = "Horde" }
 -- the zone it stands in, or the place alone when the zone has its name
 -- (Orgrimmar in Orgrimmar); "Sentinel Hill · Westfall (Alliance)" for the
 -- other faction's stop, "Deadwind Pass (zone)" for a zone that holds no
--- place. The drop-down's width is measured over this too.
+-- place, "Ashenvale (6)" for the zone browser's way into a zone. The
+-- drop-down's width is measured over this too.
 local function rowLabel(item)
+    if item.kind == "browse" then
+        return item.name .. " (" .. item.count .. ")"
+    end
     local label = item.name
     if item.zone and item.zone ~= item.name then
         label = label .. " · " .. item.zone
@@ -360,6 +357,30 @@ local function showResults()
     end
     drawResults()
     ui.results:Show()
+end
+
+-- A zone browser row is a way in, never a destination: it puts the zone's
+-- name in the box, exactly as typing it would, and the list shows the
+-- zone's places. Nothing is planned and nothing is remembered.
+local function browse(item)
+    ui.toBox:SetText(item.name)
+    W.UpdatePlaceholder(ui.toBox)
+    ui.toBox:SetFocus()
+    showResults()
+end
+
+local function pick(item)
+    if item.kind == "browse" then
+        browse(item)
+        return
+    end
+    hideResults()
+    state.to = item
+    ns.Core.Remember(item.name)
+    ui.toBox:SetText(item.name)
+    ui.toBox:ClearFocus()
+    W.UpdatePlaceholder(ui.toBox)
+    replan()
 end
 
 local function wireBox(box)
@@ -821,9 +842,12 @@ local function build()
     -- the list at the geometry's full width.
     local ruler = results.rows[1].label
     local widest = 0
-    for _, item in ipairs(ns.Search.Candidates(ns.Data, ns.Core.Faction())) do
-        ruler:SetText(rowLabel(item))
-        widest = math.max(widest, ruler:GetUnboundedStringWidth())
+    for _, list in ipairs({ ns.Search.Candidates(ns.Data, ns.Core.Faction()),
+                            ns.Search.Zones(ns.Data, ns.Core.Faction()) }) do
+        for _, item in ipairs(list) do
+            ruler:SetText(rowLabel(item))
+            widest = math.max(widest, ruler:GetUnboundedStringWidth())
+        end
     end
     ruler:SetText("")
     results.labelWidth = widest > 0 and widest or nil

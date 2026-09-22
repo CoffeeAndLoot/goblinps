@@ -117,6 +117,27 @@ function Search.Candidates(data, faction)
     return list
 end
 
+-- The zone browser: every zone that holds something to pick, A to Z, each
+-- with how many it holds (a zone that holds no place holds its own "(zone)"
+-- row, so it counts one). A row here is a way in, never a destination: its
+-- kind is "browse", and picking one searches for the zone's name, which
+-- lists the zone's places (Find's zone rank).
+function Search.Zones(data, faction)
+    local count = {}
+    for _, item in ipairs(Search.Candidates(data, faction)) do
+        count[item.map] = (count[item.map] or 0) + 1
+    end
+    local out = {}
+    for map, n in pairs(count) do
+        local p = data.Places[map]
+        if p then
+            out[#out + 1] = { kind = "browse", name = p.name, map = map, count = n }
+        end
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
 -- Which of two same-named places comes first: a place this faction may use,
 -- then a stop, then a town, then a zone; among stops the lowest nodeID, among
 -- towns the lowest townID (the two ends of a tunnel share a name).

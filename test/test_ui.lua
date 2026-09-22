@@ -1232,6 +1232,71 @@ return function(h)
             Fake.Click(ui.results.rows[1])
             h.eq(state.to.nodeID, 4)
         end)
+
+        h.it("with the box empty, lists the recent destinations, then every zone with its count", function()
+            local ui = open()
+            local saved = GoblinPSDB.recents
+            GoblinPSDB.recents = { "Delta", "Juliet" }
+            Fake.Type(ui.toBox, "")
+            h.eq(labels(ui), "Delta · Eastland | Juliet · Westland | Eastland (1) | Isle (2) | Lostland (1)")
+            h.eq(ui.results.footer:GetText(), "1-5 of 7")
+            Fake.Wheel(ui.results, -1)
+            Fake.Wheel(ui.results, -1)
+            h.eq(ui.results.rows[4].label:GetText(), "Northland (2)")
+            h.eq(ui.results.rows[5].label:GetText(), "Westland (6)")
+            GoblinPSDB.recents = saved
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("the dropdown opens the same browser", function()
+            local ui = open()
+            ui.toBox:SetText("")
+            Fake.MouseDown(ui.frame) -- the list starts put away
+            Fake.Click(ui.dropdown)
+            h.truthy(ui.results:IsShown())
+            local items = ui.results.items
+            h.eq(items[1].name, GoblinPSDB.recents[1], "the newest recent first")
+            h.truthy(items[1].kind ~= "browse", "a recent is a place")
+            h.eq(items[#items].kind, "browse")
+            h.eq(items[#items].name, "Westland", "and the last zone, A to Z, at the end")
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("a zone row fills the box and lists that zone's places, and is never routed to", function()
+            local ui, state = open()
+            local saved, to, plan = GoblinPSDB.recents, state.to, state.plan
+            GoblinPSDB.recents = {} -- the five zones fill the list exactly
+            ui.toBox:SetText("")
+            ui.toBox.scripts.OnEditFocusGained(ui.toBox)
+            h.eq(ui.results.rows[5].label:GetText(), "Westland (6)")
+            Fake.Click(ui.results.rows[5])
+            h.eq(ui.toBox:GetText(), "Westland", "exactly as typing it would")
+            h.truthy(ui.toBox.focused, "the box keeps the search going")
+            h.truthy(ui.results:IsShown())
+            h.eq(labels(ui), table.concat(WESTLAND, " | ", 1, 5), "the zone's places")
+            h.truthy(state.to == to and state.plan == plan, "nothing was planned")
+            h.eq(#GoblinPSDB.recents, 0, "and nothing remembered")
+            GoblinPSDB.recents = saved
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("Enter on a zone row at the top browses too, and never routes", function()
+            local ui, state = open()
+            local saved, to = GoblinPSDB.recents, state.to
+            GoblinPSDB.recents = {}
+            Fake.Type(ui.toBox, "")
+            h.eq(ui.results.rows[1].label:GetText(), "Eastland (1)")
+            ui.toBox.scripts.OnEnterPressed(ui.toBox)
+            h.eq(ui.toBox:GetText(), "Eastland")
+            h.eq(labels(ui), "Delta · Eastland")
+            h.truthy(state.to == to, "nothing was planned")
+            GoblinPSDB.recents = saved
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
     end)
 
     h.describe("the route strip", function()

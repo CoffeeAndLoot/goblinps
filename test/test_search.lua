@@ -174,6 +174,25 @@ return function(h, loaded)
             h.eq(any[1].nodeID, 11, "and the lower ID comes first")
             h.eq(Search.Exact(w, "Kilo").nodeID, 11)
         end)
+        h.it("is counted once in the zone browser", function()
+            for _, zone in ipairs(Search.Zones(withTwins(), "H")) do
+                if zone.name == "Westland" then
+                    h.eq(zone.count, 7, "six places and one Kilo, not two")
+                end
+            end
+        end)
+    end)
+
+    h.describe("Search.Zones", function()
+        h.it("lists every zone A to Z with how many places it holds", function()
+            local out = {}
+            for i, zone in ipairs(Search.Zones(world, "H")) do
+                h.eq(zone.kind, "browse", zone.name .. " is a way in, not a destination")
+                out[i] = zone.name .. " " .. zone.count
+            end
+            h.eq(table.concat(out, ", "), "Eastland 1, Isle 2, Lostland 1, Northland 2, Westland 6",
+                 "Lostland holds only its own (zone) row")
+        end)
     end)
 
     h.describe("Search.Candidates", function()
