@@ -487,10 +487,25 @@ function Dash.Scroll(elapsed)
     if not ui or not ui.frame:IsShown() then
         return
     end
+    -- Read every frame, so a change in the settings panel shows at once. Off
+    -- (nil) builds every line as fitting: nothing moves and a long line
+    -- truncates, as it did before the marquee.
+    local step = ns.Core.ScrollStep()
     for _, line in ipairs(ui.lines) do
         local shown = line.fs:GetText() or ""
-        if not line.marquee or shown ~= line.drawn then
-            line.marquee = ns.Marquee.New(shown, line.fs:GetUnboundedStringWidth() <= line.slot)
+        -- New text starts from itself. A new speed starts the same line again
+        -- from its own text, not from what is on screen, which may be
+        -- mid-scroll -- so the FontString gets its whole text back before
+        -- the fit is measured.
+        local restart = (not line.marquee or shown ~= line.drawn) and shown
+                        or (line.step ~= step and line.marquee.text)
+        if restart then
+            if restart ~= shown then
+                line.fs:SetText(restart)
+                shown = restart
+            end
+            line.marquee = ns.Marquee.New(restart, not step or line.fs:GetUnboundedStringWidth() <= line.slot, step)
+            line.step = step
         end
         local text = ns.Marquee.Advance(line.marquee, elapsed)
         if text ~= shown then

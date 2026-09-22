@@ -20,7 +20,11 @@ local W = ns.Widgets
 -- because text in the game cannot be clicked open.
 Settings.FEEDBACK_URL = nil
 
-Settings.SIZE = { 320, 368 }
+-- The stack, top to bottom: PAD 12 + title 26 + six rows 6 x 24 + the
+-- transport note 28 + Reset 28 + the amber note 28 + 8 + version 18 +
+-- tagline 16 + feedback 16 + the address 22 = 346, then Close's own 20 and
+-- PAD 12 at the bottom: 378, and 14 spare so nothing touches Close.
+Settings.SIZE = { 320, 392 }
 local PAD = 12      -- the panel's margin on every side
 local TITLE = 26    -- the heading's line
 local ROW = 24      -- one number row
@@ -36,7 +40,7 @@ local function minutes(seconds)
     return math.floor(seconds / 60 + 0.5)
 end
 
--- The five numbers, top to bottom. Each reads and writes through Core in the
+-- The six rows, top to bottom. Each reads and writes through Core in the
 -- unit it shows. ns.Core is looked up when a row is used: Core loads last.
 local ROWS = {
     { label = "Hearthstone must save", range = ns.Prefs.HEARTH_MINUTES,
@@ -58,6 +62,22 @@ arrival("fly", "Flight arrival")
 arrival("transport", "Boat, zeppelin, tram arrival",
         "No tighter than 100 yd: some dock positions are still estimates, and a trip could never arrive.")
 arrival("hearth", "Hearthstone arrival")
+
+-- The scrolling text is a list, not a number: the row steps through its
+-- positions in Prefs.SCROLL and shows each by name.
+local SCROLL_NAMES = { off = "Off", slow = "Slow", normal = "Normal", fast = "Fast" }
+ROWS[#ROWS + 1] = {
+    label = "Scrolling text", range = { min = 1, max = #ns.Prefs.SCROLL, step = 1 },
+    get = function()
+        for i, name in ipairs(ns.Prefs.SCROLL) do
+            if name == ns.Core.Scroll() then
+                return i
+            end
+        end
+    end,
+    set = function(i) ns.Core.SetScroll(ns.Prefs.SCROLL[i]) end,
+    show = function(i) return SCROLL_NAMES[ns.Prefs.SCROLL[i]] end,
+}
 
 -- Paint every value, grey out a button at its end, and fill the About box.
 -- Safe to call at any time; /gps hearth calls it so an open panel keeps up.
