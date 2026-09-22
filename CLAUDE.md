@@ -286,4 +286,4 @@ commit; re-read files before editing.
   `max_line_length = false` entry to make a real warning on hand-written
   code go away; fix the code, or, if the check itself is wrong, say so and
   change the check.
-- **A destination is a place, never a zone.** Every destination is a point with a name and a map position -- a flight stop, an inn town, and later a quest. A zone name is only a search word that finds the places in it (decided 2026-09-22: a zone destination routed to its border and read as broken).
+- **A destination is a place; a zone is offered only when it holds no place.** Every destination is a point with a name and a map position -- a flight stop (the other faction's too, marked, and ridden to, never flown to), an inn town, and later a quest. A zone name is otherwise only a search word that finds the places in it (decided 2026-09-22: a zone destination routed to its border and read as broken). A zone with no stop and no town is offered as itself so that no zone is out of reach; `test/test_data.lua` lists exactly which ones.

@@ -19,6 +19,10 @@ ns.Data.Inns = {
     ["Grom'gol Base Camp"]     = { stop = "Grom'gol" },
     ["Theramore Isle"]         = { stop = "Theramore" },
     ["Feathermoon Stronghold"] = { stop = "Feathermoon" },
+    -- A bind reported as the zone's own name no longer resolves to the zone
+    -- (a zone that holds places is not a destination), and Stormwind's
+    -- flight stop is named "Stormwind", not "Stormwind City".
+    ["Stormwind City"]         = { stop = "Stormwind" },
 
     ["Razor Hill"]        = { map = 1411, mx = 0.515, my = 0.416 }, -- Durotar
     ["Bloodhoof Village"] = { map = 1412, mx = 0.466, my = 0.611 }, -- Mulgore

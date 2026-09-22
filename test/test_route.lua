@@ -6,9 +6,9 @@ return function(h, loaded)
     local nearDelta = { name = "Delta Inn", c = 0, x = 5000, y = 5100, map = 2 }
     local nearCharlie = { name = "Charlie Field", c = 1, x = 5000, y = 9100, map = 1 }
 
-    -- Graph still takes a zone destination (its kind == "zone" rule), though
-    -- Search no longer offers one; so these tests build it by hand, the
-    -- centre of the zone, the way Search once did.
+    -- Graph's kind == "zone" rule serves a zone that holds no place, the only
+    -- zone Search offers; these tests build one by hand, the centre of the
+    -- zone, as Search does, to test the rule on zones that do have places.
     local function zone(map)
         local c, x, y = loaded.ns.Geo.ToWorld(world.Places, map, 0.5, 0.5)
         return { kind = "zone", name = world.Places[map].name, c = c, x = x, y = y, map = map, mx = 0.5, my = 0.5 }
@@ -128,6 +128,26 @@ return function(h, loaded)
                 h.truthy(r, "a route must be found")
                 h.eq(r.raw[1].to.key, "mid_a")
             end
+        end)
+    end)
+
+    h.describe("an enemy flight stop", function()
+        h.it("is ridden to, never flown to: the Horde may not use an Alliance flight master", function()
+            -- A flight Charlie -> Echo would win by far if Graph let the Horde take it.
+            local w = dofile("test/fake_world.lua")()
+            w.Flights[#w.Flights + 1] = { 3, 5, 10, 10 }
+            local echo = loaded.ns.Search.Find(w, "echo", "H", 1)[1]
+            h.eq(echo.enemy, "A")
+            local r = Route.Plan(w, { faction = "H", known = { [1] = true, [2] = true, [3] = true, [5] = true },
+                                      from = nearAlpha, to = echo })
+            h.truthy(r, "an enemy stop is still somewhere to go")
+            for _, s in ipairs(r.steps) do
+                h.falsy(s.kind == "fly" and s.to.nodeID == 5, "a flight lands at the enemy stop")
+            end
+            h.eq(r.steps[#r.steps].kind, "ride")
+            local alliance = Route.Plan(w, { faction = "A", known = { [3] = true, [5] = true },
+                                             from = nearCharlie, to = echo })
+            h.eq(kinds(alliance), "ride,fly", "the check can fail: the Alliance does fly there")
         end)
     end)
 

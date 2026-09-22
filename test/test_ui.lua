@@ -245,20 +245,22 @@ return function(h)
         h.it("lists the places in a zone when you type the zone's name", function()
             local ui = Planner.Debug()
             Fake.Type(ui.toBox, "westland")
-            local want = { "Alpha", "Bravo", "Charlie", "Juliet", "Quiet Hollow" }
-            for i, name in ipairs(want) do
-                h.eq(ui.results.rows[i].label:GetText(), name .. " · Westland", "row " .. i)
+            local want = { "Alpha · Westland", "Bravo · Westland", "Charlie · Westland",
+                           "Echo · Westland (Alliance)", "Juliet · Westland" }
+            for i, label in ipairs(want) do
+                h.eq(ui.results.rows[i].label:GetText(), label, "row " .. i)
             end
             ui.toBox:SetText("Delta")
             ui.toBox:ClearFocus()
         end)
 
-        h.it("never offers a zone in a row", function()
+        h.it("offers a zone in a row only when it holds no place", function()
             local ui = Planner.Debug()
             Fake.Type(ui.toBox, "land")
+            h.eq(ui.results.rows[1].label:GetText(), "Lostland (zone)", "Lostland holds no stop and no town")
             local shown = 0
-            for _, row in ipairs(ui.results.rows) do
-                if row:IsShown() then
+            for i, row in ipairs(ui.results.rows) do
+                if row:IsShown() and i > 1 then
                     shown = shown + 1
                     h.truthy(row.item.kind ~= "zone", row.label:GetText() .. " is a zone")
                     for _, place in pairs(ns.Data.Places) do
@@ -274,10 +276,21 @@ return function(h)
         h.it("drops the zone from a row when the place has the zone's own name", function()
             local ui = Planner.Debug()
             ns.Data.Inns.Isle = { map = 3, mx = 0.5, my = 0.6 } -- a city named after its zone, like Orgrimmar
-            Fake.Type(ui.toBox, "isle")
-            h.eq(ui.results.rows[1].label:GetText(), "Isle")
-            h.eq(ui.results.rows[2].label:GetText(), "Foxtrot · Isle")
-            ns.Data.Inns.Isle = nil
+            local ok, err = pcall(function()
+                Fake.Type(ui.toBox, "isle")
+                h.eq(ui.results.rows[1].label:GetText(), "Isle")
+                h.eq(ui.results.rows[2].label:GetText(), "Foxtrot · Isle")
+            end)
+            ns.Data.Inns.Isle = nil -- put the fixture back even when an assertion failed
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+            h.truthy(ok, err)
+        end)
+
+        h.it("marks the other faction's flight stop in its row", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "echo")
+            h.eq(ui.results.rows[1].label:GetText(), "Echo · Westland (Alliance)")
             ui.toBox:SetText("Delta")
             ui.toBox:ClearFocus()
         end)
@@ -1049,7 +1062,11 @@ return function(h)
         local INSETS = 16
         local SLACK = 4
         local function labelOf(item)
-            return item.name .. ((item.zone and item.zone ~= item.name) and (" · " .. item.zone) or "")
+            local label = item.name .. ((item.zone and item.zone ~= item.name) and (" · " .. item.zone) or "")
+            if item.kind == "zone" then
+                return label .. " (zone)"
+            end
+            return label .. ((item.enemy == "A" and " (Alliance)") or (item.enemy == "H" and " (Horde)") or "")
         end
 
         h.it("draws the drop-down only a little wider than its longest name", function()
@@ -1060,7 +1077,7 @@ return function(h)
             for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
                 widest = math.max(widest, #labelOf(item) * Fake.CHAR_WIDTH)
             end
-            h.eq(widest, 120, "Quiet Hollow · Westland is the widest label (its dot is two bytes)")
+            h.eq(widest, 135, "Echo · Westland (Alliance) is the widest label (its dot is two bytes)")
             local tl, br = ui.results.points[1], ui.results.points[2]
             h.truthy(math.abs(tl[4] - g.resultsList.left * w) < 1e-9, "its left edge stays the geometry's")
             h.truthy(math.abs(tl[5] + g.resultsList.top * fh) < 1e-9, "and its top")
@@ -1289,26 +1306,30 @@ return function(h)
         end)
 
         h.it("says so on the tooltip when the crossings table has a hole", function()
-            local ui = pickTo("lostland") -- the first place in Lostland: Kilo
+            local ui = pickTo("lostland") -- the zone itself: it holds no place
             local b = ui.strip.badges[2]
             b.scripts.OnEnter(b)
-            h.eq(GameTooltip.lines[1].text, "Ride toward Kilo (no mapped path)")
+            h.eq(GameTooltip.lines[1].text, "Ride toward Lostland (no mapped path)")
             h.eq(#GameTooltip.lines, 2, "a straight line has no zone detail")
             GameTooltip:Hide()
         end)
 
-        h.it("names the signpost after the place searched for", function()
+        h.it("names the signpost after the place searched for, not the last crossing", function()
+            -- Gatehouse stands 20 yards past the North Gate, a ride too short
+            -- to keep, so the route's last step goes to the gate: the label
+            -- can only read Gatehouse if the planner hands the Strip the
+            -- destination's own name.
             local ui, state = Planner.Debug()
-            Fake.Type(ui.toBox, "northland")
-            h.eq(ui.results.rows[1].label:GetText(), "Hotel · Northland", "the search's first row is a place in it")
+            Fake.Type(ui.toBox, "gatehouse")
+            h.eq(ui.results.rows[1].label:GetText(), "Gatehouse · Northland")
             Fake.Click(ui.results.rows[1])
             local steps = state.plan.result.steps
-            h.eq(ns.Route.StepText(steps[1]), "Ride to the North Gate", "through the crossing")
+            h.eq(ns.Route.StepText(steps[#steps]), "Ride to the North Gate",
+                 "the fixture route to Gatehouse really ends at the crossing")
             local last = ui.strip.badges[#steps + 1]
-            h.eq(last.label:GetText(), state.to.name)
-            h.eq(last.label:GetText(), "Hotel")
+            h.eq(last.label:GetText(), "Gatehouse")
             last.scripts.OnEnter(last)
-            h.eq(GameTooltip.lines[1].text, "Ride to Hotel")
+            h.eq(GameTooltip.lines[1].text, "Ride to the North Gate")
             GameTooltip:Hide()
             pickTo("delt")
         end)
@@ -1612,13 +1633,13 @@ return function(h)
         end)
         h.it("takes a zone's name to the first place in it, all the way there", function()
             local from = #printed
-            SlashCmdList.GOBLINPS("to northland")
-            h.truthy(printed[from + 1]:find("To Hotel: ", 1, true), printed[from + 1])
+            SlashCmdList.GOBLINPS("to eastland")
+            h.truthy(printed[from + 1]:find("To Delta: ", 1, true), printed[from + 1])
             local saw = false
             for i = from + 2, #printed do
-                saw = saw or printed[i]:find("Ride to Hotel", 1, true) ~= nil
+                saw = saw or printed[i]:find("Ride to Delta", 1, true) ~= nil
             end
-            h.truthy(saw, "the route goes on past the North Gate to Hotel")
+            h.truthy(saw, "the route goes on past the East Dock to Delta")
         end)
     end)
 

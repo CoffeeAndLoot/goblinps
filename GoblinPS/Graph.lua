@@ -135,7 +135,7 @@ function Graph.Build(data, opts)
     end
     table.sort(keys)
 
-    -- Unused since 2026-09-22 (destinations are places); a future quest destination is an ordinary point.
+    -- Only for a zone that holds no place (Search offers no other); a future quest destination is a point.
     -- A zone destination means "anywhere in the zone": a point already in it
     -- has arrived, so its leg to DEST costs nothing (Route drops a leg that
     -- short). A stop or an exact spot is travelled to as usual.

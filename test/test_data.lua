@@ -102,6 +102,31 @@ return function(h, loaded)
             h.eq(ns.Search.Exact(data, "The Crossroads", "H").nodeID, 25)
             h.eq(ns.Search.Exact(data, "Brill", "H").kind, "town")
             h.eq(ns.Search.Exact(data, "Gallows' End Tavern", "H").name, "Brill", "the inn building is its town")
+            h.eq(ns.Search.Exact(data, "Stormwind City", "A").name, "Stormwind", "a bind reported as the zone")
+        end)
+    end)
+
+    h.describe("the places the planner offers", function()
+        h.it("offers a zone only where it holds no stop and no inn town, and these are all of them", function()
+            local zones = {}
+            for _, item in ipairs(ns.Search.Candidates(data, "H")) do
+                if item.kind == "zone" then
+                    zones[#zones + 1] = item.name
+                end
+            end
+            table.sort(zones)
+            -- A new town row or flight stop in one of these makes this fail:
+            -- take the zone off the list, since it is only a search word now.
+            h.eq(table.concat(zones, ", "), "Alterac Mountains, Darnassus, Deadwind Pass, Shen'dralas")
+        end)
+        h.it("leaves no zone that cannot be picked", function()
+            local reached = {}
+            for _, item in ipairs(ns.Search.Candidates(data, "H")) do
+                reached[item.map] = true
+            end
+            for map, place in pairs(data.Places) do
+                h.truthy(reached[map], place.name .. " (" .. map .. ") has no candidate at all")
+            end
         end)
     end)
 

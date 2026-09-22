@@ -1,6 +1,7 @@
 local _, ns = ...
 
--- Pure lookup of destinations by name: flight stops and inn towns, never zones.
+-- Pure lookup of destinations by name: flight stops, inn towns, and a zone
+-- only when it holds neither.
 local Search = {}
 ns.Search = Search
 
@@ -25,9 +26,21 @@ local function zoneOf(data, map)
     return place and place.name
 end
 
-local function fromNode(data, id, n)
+local function legal(n, faction)
+    return not faction or n.f == "N" or n.f == faction
+end
+
+-- enemy is the stop's faction letter when this faction may not fly from it.
+-- It is still a place to go: Graph only refuses to fly there.
+local function fromNode(data, id, n, faction)
     return { kind = "stop", nodeID = id, name = Search.ShortName(n.name), zone = zoneOf(data, n.map),
+             enemy = not legal(n, faction) and n.f or nil,
              c = n.c, x = n.x, y = n.y, map = n.map, mx = n.mx, my = n.my }
+end
+
+local function fromZone(data, map, p)
+    local c, x, y = ns.Geo.ToWorld(data.Places, map, 0.5, 0.5)
+    return { kind = "zone", name = p.name, zone = p.name, c = c, x = x, y = y, map = map, mx = 0.5, my = 0.5 }
 end
 
 -- An inn row with its own map position is a town; nil for one on a map we
@@ -44,25 +57,39 @@ local function fromInn(data, bind, inn)
              c = c, x = x, y = y, map = inn.map, mx = inn.mx, my = inn.my }
 end
 
-local function legal(n, faction)
-    return not faction or n.f == "N" or n.f == faction
-end
-
--- Every destination the search can offer: every flight stop this faction may
--- use (nil means any) and every inn town. A destination is a place, never a
--- zone: a zone destination routed only to its border. The planner measures
--- its drop-down over this.
+-- Every destination the search can offer: every flight stop, the other
+-- faction's marked enemy (faction nil means none is), and every inn town.
+-- A zone is offered only when it holds no stop and no town, so that no zone
+-- is out of reach; one that holds a place is only a search word, because a
+-- zone destination routes to its border. The planner measures its
+-- drop-down over this.
 function Search.Candidates(data, faction)
-    local list = {}
+    local list, held = {}, {}
     for id, n in pairs(data.Nodes) do
-        if legal(n, faction) then
-            list[#list + 1] = fromNode(data, id, n)
-        end
+        list[#list + 1] = fromNode(data, id, n, faction)
     end
     for bind, inn in pairs(data.Inns or {}) do
         list[#list + 1] = fromInn(data, bind, inn)
     end
+    for _, item in ipairs(list) do
+        held[item.map] = true
+    end
+    for map, p in pairs(data.Places) do
+        if not held[map] then
+            list[#list + 1] = fromZone(data, map, p)
+        end
+    end
     return list
+end
+
+-- Which of two same-named places comes first: a stop this faction may use,
+-- then the lowest nodeID, then a town, then a zone.
+local ORDER = { stop = 1, town = 2, zone = 3 }
+local function before(a, b)
+    local aEnemy, bEnemy = a.enemy ~= nil, b.enemy ~= nil
+    if aEnemy ~= bEnemy then return bEnemy end
+    if a.kind ~= b.kind then return ORDER[a.kind] < ORDER[b.kind] end
+    return (a.nodeID or 0) < (b.nodeID or 0)
 end
 
 -- Case-insensitive plain-text search. Names that start with the text come
@@ -88,7 +115,7 @@ function Search.Find(data, text, faction, limit)
     table.sort(ranked, function(a, b)
         if a.rank ~= b.rank then return a.rank < b.rank end
         if a.name ~= b.name then return a.name < b.name end
-        return (a.nodeID or math.huge) < (b.nodeID or math.huge)
+        return before(a, b)
     end)
     local out = {}
     for i = 1, math.min(limit or 8, #ranked) do
@@ -103,10 +130,11 @@ local function plain(name)
 end
 
 -- Whole-name match over the same places Find offers, used for the hearthstone
--- bind name, the recents and a saved trip. Nil when unknown, and for a zone.
--- A bind name that is an inn beside a stop, or an inn building in a town,
--- follows its row to that place. The lowest nodeID wins a name tie, a stop
--- before a town; faction nil means any. skipInns is internal: set on the
+-- bind name, the recents and a saved trip. Nil when unknown, and for a zone
+-- that holds places. A bind name that is an inn beside a stop, or an inn
+-- building in a town, follows its row to that place. On a name tie a stop
+-- this faction may use wins, then the lowest nodeID, then a town, then a
+-- zone; faction nil means any. skipInns is internal: set on the
 -- recursive call so an inn that (wrongly) names itself cannot recurse forever.
 function Search.Exact(data, name, faction, skipInns)
     local needle = plain(name)
@@ -123,8 +151,7 @@ function Search.Exact(data, name, faction, skipInns)
     end
     local best
     for _, item in ipairs(Search.Candidates(data, faction)) do
-        if plain(item.name) == needle
-            and (not best or (item.nodeID or math.huge) < (best.nodeID or math.huge)) then
+        if plain(item.name) == needle and (not best or before(item, best)) then
             best = item
         end
     end

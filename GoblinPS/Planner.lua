@@ -287,14 +287,25 @@ local function candidates()
     return out
 end
 
+local FACTION_NAME = { A = "Alliance", H = "Horde" }
+
 -- What a result row says, "Splintertree Post · Ashenvale": the place and
 -- the zone it stands in, or the place alone when the zone has its name
--- (Orgrimmar in Orgrimmar). The drop-down's width is measured over this too.
+-- (Orgrimmar in Orgrimmar); "Sentinel Hill · Westfall (Alliance)" for the
+-- other faction's stop, "Deadwind Pass (zone)" for a zone that holds no
+-- place. The drop-down's width is measured over this too.
 local function rowLabel(item)
+    local label = item.name
     if item.zone and item.zone ~= item.name then
-        return item.name .. " · " .. item.zone
+        label = label .. " · " .. item.zone
     end
-    return item.name
+    if item.kind == "zone" then
+        return label .. " (zone)"
+    end
+    if FACTION_NAME[item.enemy] then
+        return label .. " (" .. FACTION_NAME[item.enemy] .. ")"
+    end
+    return label
 end
 
 local function showResults()
