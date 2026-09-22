@@ -429,6 +429,8 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       Crossroads to Silverpine Forest ran end to end in game -- ground legs,
       the zeppelin and the zone crossings -- with every step advancing as it
       should. The mid-trip `/gps` half is not yet looked at)
+- [x] Close sits on the upper-right rivet and the gear on the bottom-right
+      corner plate (moved at the owner's request; seen in game 2026-09-21)
 - [ ] `/gps selftest` lists the fifteen strip textures, all `ok`
 - [ ] Nothing reads past the brass or overlaps: names under the end badges
       stay on the glass
