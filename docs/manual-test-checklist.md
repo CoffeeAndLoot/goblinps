@@ -453,6 +453,47 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       (seen right in game 2026-09-21, a route to Mount Hyjal)
 - [x] Crossing names under the badges and on the dash's glass drop their leading "the" ("Mor'shan Rampart"); tooltips still read as sentences ("Walk to the Mor'shan Rampart")
 
+## Settings, scrolling dash text, a narrower drop-down (plan 9)
+
+**Needs a full game restart, not `/reload`:** the TOC gained `Marquee.lua` and
+`Settings.lua`, and the client reads the file list only at startup. Built
+2026-09-22; not yet run in the client.
+
+- [ ] The gear opens the settings panel over the planner; the gear again,
+      Close, and Escape each close it; closing the planner closes it too
+- [ ] `/gps settings` with the planner closed opens the planner and the panel over it
+- [ ] Every row's - and + change its value by one step; each stops at its end
+      and that button greys out there
+- [ ] The hearthstone row and `/gps hearth` agree: change one, the other shows it
+- [ ] Reset to defaults puts back 5 min, 40, 150, 800 and 300 yd
+- [ ] The panel looks decent without art -- or ask Codex for some (`docs/later.md`)
+- [ ] Every label and value reads in full; the transport note and the amber
+      line about saved data wrap inside the panel, not past it
+- [ ] About shows "GoblinPS 2026.09.22.1". If it says "(version unknown)",
+      `C_AddOns.GetAddOnMetadata` is one more API present on this build that
+      does not answer: note it in CLAUDE.md's list
+- [ ] The feedback line reads "Feedback: a GitHub page is coming soon." and
+      no address is shown
+- [ ] Lower "Boat, zeppelin, tram arrival" (say to 300 yd) and take a
+      zeppelin: the dash advances only once you are that close to the far
+      dock. Note how far from the dock's coordinates you really step off --
+      that is the measurement the 800-yard default waits for
+- [ ] A long step line on the dash (a long crossing name) holds about 1.5 s,
+      then creeps left a character at a time, wraps round through a gap, and
+      holds again; a short one holds still. If nothing ever scrolls,
+      `GetUnboundedStringWidth` answers 0 on this build: say so
+- [ ] On a step advance the new line starts at its beginning, never mid-name
+- [ ] The glass's destination scrolls the same way when it is too long
+- [ ] Type in the planner's box: the drop-down is only a little wider than the
+      longest name, its left edge where it was, and no name in it is cut off.
+      If it is still full width, the font measured 0 (see the line above)
+- [ ] A scrolling line: look at its right edge while it scrolls -- the client
+      may draw its own "..." there; say whether it reads well
+- [ ] The About box shows the version from the TOC, not "(version unknown)"
+- [ ] Escape with the settings panel open: note whether it closes only the
+      panel or the planner too (the client closes every UISpecialFrames
+      window at once)
+
 ## Flight paths survive a reload
 
 **Blocked by the client** (2026-09-21): build 1.60.1.69913 writes every

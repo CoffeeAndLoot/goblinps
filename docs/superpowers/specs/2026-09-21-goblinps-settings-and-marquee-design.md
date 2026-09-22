@@ -2,6 +2,8 @@
 
 Status: **asked for by the owner at 23:33 on 2026-09-21, then they went to bed.** No section was approved one by one. Every decision below that the owner did not state is marked **Ruling** and gathered at the end, so it can be overturned in the morning. This spec amends `2026-09-19-goblinps-design.md` and `2026-09-21-goblinps-planner-redesign-design.md`.
 
+Built 2026-09-22 by `docs/superpowers/plans/2026-09-22-goblinps-settings-and-marquee.md` -- not yet run in the client.
+
 ## What the owner asked for
 
 1. **Scrolling text on the dash.** This is `docs/later.md`'s "LED/LCD radio" entry: a line too long for its opening creeps sideways instead of being cut off.
