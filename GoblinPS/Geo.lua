@@ -24,4 +24,34 @@ function Geo.Distance(a, b)
     return math.sqrt(dx * dx + dy * dy)
 end
 
+-- The closest of every crossing and dock to a world position (c, x, y),
+-- compared in world yards on the same continent only. `data` is the data
+-- root: Places (so each candidate's map coords can be converted the same way
+-- as the player's own), Crossings and Docks. Returns { name, yards }, or nil
+-- when nothing shares this continent -- the caller (Core.WhereLine) drops the
+-- "nearest" part of the line in that case rather than naming something an
+-- ocean away.
+function Geo.Nearest(data, c, x, y)
+    local best, bestYards
+
+    local function consider(name, map, mx, my)
+        local pc, px, py = Geo.ToWorld(data.Places, map, mx, my)
+        if pc ~= c then
+            return
+        end
+        local yards = Geo.Distance({ c = c, x = x, y = y }, { c = pc, x = px, y = py })
+        if not bestYards or yards < bestYards then
+            bestYards, best = yards, { name = name, yards = yards }
+        end
+    end
+
+    for _, crossing in ipairs(data.Crossings or {}) do
+        consider(crossing.name, crossing.map, crossing.mx, crossing.my)
+    end
+    for _, dock in pairs(data.Docks or {}) do
+        consider(dock.name, dock.map, dock.mx, dock.my)
+    end
+    return best
+end
+
 return Geo

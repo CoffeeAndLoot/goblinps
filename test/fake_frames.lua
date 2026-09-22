@@ -228,7 +228,16 @@ function Region:SetDrawLayer(layer) self.drawLayer = layer end
 function Region:GetCenter() return 100, 100 end
 function Region:GetEffectiveScale() return 1 end
 function Region:ClearFocus()
+    self.focused = false
     if self.scripts.OnEditFocusLost then self.scripts.OnEditFocusLost(self) end
+end
+-- Modelled, not swallowed: the where-am-I box calls this explicitly so
+-- Ctrl+C works without a click first, and a test must be able to see that
+-- focus landed and that it fired the box's own OnEditFocusGained (which is
+-- what highlights the text). Verified present on SimpleEditBoxAPIDocumentation.lua.
+function Region:SetFocus()
+    self.focused = true
+    if self.scripts.OnEditFocusGained then self.scripts.OnEditFocusGained(self) end
 end
 -- Modelled, not swallowed: the feedback box selects its whole address when
 -- it takes focus, so the player can copy it, and a test must see that it did.

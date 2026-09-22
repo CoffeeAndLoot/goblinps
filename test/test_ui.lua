@@ -17,6 +17,8 @@ return function(h)
     -- files that draw it.
     assert(loadfile("GoblinPS/Data/Art.lua"))("GoblinPS", ns)
     local where = { map = 1, mx = 0.89, my = 0.9 } -- world 1000, 1100: beside Alpha
+    ---@type string|nil
+    local subzone = "Camp Taurajo" -- what GetSubZoneText/GetMinimapZoneText would answer
     local pins, loginCallbacks = {}, {}
     -- The one user waypoint the client holds, as { map, x, y }, and how many
     -- times it has been cleared.
@@ -45,6 +47,7 @@ return function(h)
             return range[1], range[2]
         end,
         PlayerMapPosition = function() return where.map, where.mx, where.my end,
+        SubZone = function() return subzone end,
         HearthBindName = function() return nil end,
         TaxiNodes = function() return {} end,
         OpenTaxiNodes = function() return openNodes end,
@@ -1418,6 +1421,23 @@ return function(h)
         end)
     end)
 
+    h.describe("Core.WhereLine", function()
+        h.it("gives the exact expected line at a known position with a subzone", function()
+            h.eq(ns.Core.WhereLine(),
+                "Westland (1) 89.0, 90.0 · Camp Taurajo · nearest: West Dock, 8400 yd")
+        end)
+        h.it("drops the subzone part when there is none", function()
+            subzone = nil
+            h.eq(ns.Core.WhereLine(), "Westland (1) 89.0, 90.0 · nearest: West Dock, 8400 yd")
+            subzone = "Camp Taurajo"
+        end)
+        h.it("gives the can't-tell line with no position", function()
+            where.map = nil
+            h.eq(ns.Core.WhereLine(), "GoblinPS: can't tell where you are.")
+            where.map = 1
+        end)
+    end)
+
     h.describe("the minimap button and the compartment", function()
         h.it("appears at login at the saved angle, and hides on request", function()
             h.eq(#loginCallbacks, 1)
@@ -1440,6 +1460,58 @@ return function(h)
             local before = ui.frame:IsShown()
             GoblinPS_OnAddonCompartmentClick()
             h.eq(ui.frame:IsShown(), not before)
+        end)
+        h.it("left-click still toggles the planner", function()
+            local ui = Planner.Debug()
+            local before = ui.frame:IsShown()
+            GoblinPSMinimapButton.scripts.OnClick(GoblinPSMinimapButton, "LeftButton")
+            h.eq(ui.frame:IsShown(), not before)
+            GoblinPSMinimapButton.scripts.OnClick(GoblinPSMinimapButton, "LeftButton") -- restore, for tests that follow
+            h.eq(ui.frame:IsShown(), before)
+        end)
+        h.it("the tooltip tells you right-click copies your position", function()
+            GoblinPSMinimapButton.scripts.OnEnter(GoblinPSMinimapButton)
+            local found = false
+            for _, line in ipairs(GameTooltip.lines) do
+                if line.text == "Right-click to copy where you are." then
+                    found = true
+                end
+            end
+            h.truthy(found)
+            GameTooltip:Hide()
+        end)
+    end)
+
+    h.describe("the where-am-I copy box", function()
+        local function box() return ns.MinimapButton.Debug() end
+        local EXPECTED = "Westland (1) 89.0, 90.0 · Camp Taurajo · nearest: West Dock, 8400 yd"
+
+        h.it("right-click shows the line, highlighted and focused", function()
+            GoblinPSMinimapButton.scripts.OnClick(GoblinPSMinimapButton, "RightButton")
+            local ui = box()
+            h.truthy(ui.frame:IsShown())
+            h.eq(ui.edit:GetText(), EXPECTED)
+            h.truthy(ui.edit.focused, "SetFocus was called so Ctrl+C works without a click")
+            h.truthy(ui.edit.highlighted ~= nil, "focus gained highlights the whole line")
+        end)
+        h.it("a second right-click hides it", function()
+            GoblinPSMinimapButton.scripts.OnClick(GoblinPSMinimapButton, "RightButton")
+            h.falsy(box().frame:IsShown())
+        end)
+        h.it("/gps where shows it", function()
+            SlashCmdList.GOBLINPS("where")
+            h.truthy(box().frame:IsShown())
+            h.eq(box().edit:GetText(), EXPECTED)
+        end)
+        h.it("typing does not change the text", function()
+            local ui = box()
+            Fake.Type(ui.edit, "garbage")
+            h.eq(ui.edit:GetText(), EXPECTED)
+        end)
+        h.it("Escape hides it", function()
+            local ui = box()
+            ui.edit.scripts.OnEscapePressed(ui.edit)
+            h.falsy(ui.frame:IsShown())
         end)
     end)
 

@@ -203,8 +203,10 @@ Restart the game first: the TOC changed.
 - [ ] A second character on the same account: its "Flight paths known" is
       its own; layout, window position, recents and the minimap button angle
       are shared
-- [ ] Right-clicking the minimap button does nothing; left-click opens the
-      planner
+- [ ] Right-clicking the minimap button opens the where-am-I copy box
+      (below); left-click still opens the planner
+- [ ] Right-click the minimap button: the where-am-I box opens with the line
+      selected; Ctrl+C then paste works; Escape closes it
 - [ ] The Tall/Wide button flips the layout; nothing overlaps, nothing is cut
       off, the steps stay; the choice survives `/reload`
 - [ ] Drag the window; its position survives `/reload`
@@ -315,8 +317,18 @@ the desk. So the 50 still want walking eventually; these six want it first.
 
 Measured in game so far:
 
+To measure one: stand on it, right-click the GoblinPS minimap button (or
+`/gps where`), Ctrl+C, and paste the line to Claude.
+
 - [x] the Mulgore pass (Mulgore and the Barrens): 41.8, 58.6 on The Barrens'
       map, 2026-09-22. The guess on Mulgore's map was about 160 yd off.
+- [x] the Thunder Bluff lifts (Thunder Bluff and Mulgore): the west lifts,
+      31.8, 66.1 on Thunder Bluff's map, 2026-09-22. The guess on Mulgore's map
+      was about 314 yd off.
+- [x] Control: the Crossroads flight master read 51.5, 30.3 in game against 51.5,
+      30.4 in the generated data, 2026-09-22. The in-game readout and our map
+      coordinates agree, so crossing readings plug straight in. Flight masters
+      come from game data and need no walking.
 
 Regenerate this table after correcting rows:
 

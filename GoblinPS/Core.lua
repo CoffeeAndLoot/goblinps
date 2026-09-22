@@ -71,6 +71,32 @@ function Core.CloseOnEscape(frame, globalName)
     table.insert(UISpecialFrames, globalName)
 end
 
+-- One line to copy while walking a crossing or dock: the zone, its UiMap ID,
+-- the map coords the way the in-game map shows them, the subzone and the
+-- nearest known crossing or dock. Pure past the two API calls: everything
+-- else is Geo, so this is exercised in the UI fake test alongside the rest of
+-- Core, not the frame-free pure suite (Core.lua cannot load without ns.API).
+function Core.WhereLine()
+    local map, mx, my = API.PlayerMapPosition(ns.Data.Places)
+    if not map then
+        return "GoblinPS: can't tell where you are."
+    end
+    local place = ns.Data.Places[map]
+    local line = ("%s (%d) %.1f, %.1f"):format(place.name, map, mx * 100, my * 100)
+
+    local subzone = API.SubZone()
+    if subzone and subzone ~= place.name then
+        line = line .. " · " .. subzone
+    end
+
+    local c, x, y = Geo.ToWorld(ns.Data.Places, map, mx, my)
+    local near = c and Geo.Nearest(ns.Data, c, x, y)
+    if near then
+        line = line .. (" · nearest: %s, %d yd"):format(near.name, math.floor(near.yards + 0.5))
+    end
+    return line
+end
+
 -- ---- planning ----
 
 local function here()
@@ -384,6 +410,8 @@ local function slash(msg)
         ns.MinimapButton.SetHidden(not Core.MinimapPrefs().hide)
         say(Core.MinimapPrefs().hide and "Minimap button hidden. /gps minimap shows it again."
             or "Minimap button shown.")
+    elseif command == "where" then
+        ns.MinimapButton.ShowWhere()
     else
         say("/gps              open the planner")
         say("/gps to <place>   print a route in chat")
@@ -393,6 +421,7 @@ local function slash(msg)
         say("/gps settings     open the settings panel")
         say("/gps probe zones  check the zone level ranges against the client")
         say("/gps selftest     check textures and fonts")
+        say("/gps where        copy your position, to correct crossings and docks")
     end
 end
 

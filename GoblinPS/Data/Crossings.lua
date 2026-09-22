@@ -28,7 +28,7 @@ ns.Data.Crossings = {
     -- Kalimdor: cities
     { a = 1454, b = 1411, name = "Orgrimmar's front gate", map = 1411, mx = 0.455, my = 0.120 }, -- Orgrimmar, Durotar
     { a = 1454, b = 1413, name = "Orgrimmar's west gate", map = 1454, mx = 0.170, my = 0.630, unverified = true }, -- Orgrimmar, The Barrens
-    { a = 1456, b = 1412, name = "the Thunder Bluff lifts", map = 1412, mx = 0.385, my = 0.310, cross = 30 }, -- Thunder Bluff, Mulgore
+    { a = 1456, b = 1412, name = "the Thunder Bluff lifts", map = 1456, mx = 0.318, my = 0.661, cross = 30 }, -- Thunder Bluff, Mulgore; the west lifts, measured in game 2026-09-22 (the guess was ~314 yd off)
     { a = 1457, b = 1438, name = "the Darnassus gate", map = 1438, mx = 0.365, my = 0.540 },     -- Darnassus, Teldrassil
     -- Kalimdor: zones
     { a = 1411, b = 1413, name = "the Southfury bridge", map = 1411, mx = 0.345, my = 0.425 },   -- Durotar, The Barrens

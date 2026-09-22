@@ -68,6 +68,24 @@ function API.OnTaxi()
     return UnitOnTaxi and UnitOnTaxi("player") and true or false
 end
 
+-- The subzone text under the minimap, or nil when the client has none. The
+-- ONLY place that calls GetSubZoneText and GetMinimapZoneText, both verified
+-- present on build 1.60.1.69913 in ZoneScriptDocumentation.lua: neither is
+-- Nilable, both answer "" rather than nothing at all, so "" is read here as
+-- "no answer" and GetMinimapZoneText -- the name Blizzard's Minimap.lua shows
+-- over the minimap -- is tried next. That fallback is our choice, not a copy of
+-- Blizzard's: their ZoneText.lua falls back to GetZoneText instead.
+function API.SubZone()
+    if not (GetSubZoneText and GetMinimapZoneText) then
+        return nil
+    end
+    local text = GetSubZoneText()
+    if text == "" then
+        text = GetMinimapZoneText()
+    end
+    return text ~= "" and text or nil
+end
+
 -- The level range the client itself draws on the world map ("Ashenvale
 -- (18-30)"), for one UiMap. Blizzard's own AreaLabelDataProvider reads it the
 -- same way and treats a zero as "no range", and the documentation marks the
