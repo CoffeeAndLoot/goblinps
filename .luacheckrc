@@ -4,12 +4,12 @@ self = false
 globals = {
     "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB", "GoblinPSCharDB",
     "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames",
-    "GoblinPSMinimapButton", "GoblinPSPlanner", "GoblinPSSettings",
+    "GoblinPSMinimapButton", "GoblinPSPlanner", "GoblinPSSettings", "GoblinPSWhereBox",
 }
 read_globals = {
     "print",
     "UnitFactionGroup", "GetBindLocation", "UnitLevel", "UnitName", "GetRealmName",
-    "GetPlayerFacing", "UnitOnTaxi",
+    "GetPlayerFacing", "UnitOnTaxi", "GetSubZoneText", "GetMinimapZoneText",
     "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint", "C_AddOns",
     "CreateFrame", "Enum",
     "UIParent", "Minimap", "GameTooltip", "GetCursorPosition",

@@ -3,9 +3,9 @@
   "workspace.ignoreDir": [".remember", ".superpowers", "tools", "docs"],
   "diagnostics.globals": [
     "SLASH_GOBLINPS1", "SlashCmdList", "GoblinPSDB", "GoblinPSCharDB",
-    "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames", "GoblinPSMinimapButton", "GoblinPSPlanner", "GoblinPSSettings",
+    "GoblinPS_OnAddonCompartmentClick", "UISpecialFrames", "GoblinPSMinimapButton", "GoblinPSPlanner", "GoblinPSSettings", "GoblinPSWhereBox",
     "UnitFactionGroup", "GetBindLocation", "UnitLevel", "UnitName", "GetRealmName",
-    "GetPlayerFacing", "UnitOnTaxi",
+    "GetPlayerFacing", "UnitOnTaxi", "GetSubZoneText", "GetMinimapZoneText",
     "C_TaxiMap", "C_Map", "C_Item", "C_SuperTrack", "UiMapPoint", "C_AddOns",
     "CreateFrame", "Enum",
     "UIParent", "Minimap", "GameTooltip", "GetCursorPosition"
