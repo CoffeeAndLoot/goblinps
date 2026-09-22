@@ -984,6 +984,55 @@ return function(h)
             h.falsy(ui.go.enabled)
             FreshPlanner.Toggle()
         end)
+
+        -- The rows sit 2 px inside the list and each label 6 px inside its
+        -- row, on both sides: 16 px of insets, mirrored from Planner.lua's
+        -- ROW_EDGE and LABEL_EDGE.
+        local INSETS = 16
+        local function labelOf(item)
+            return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
+        end
+
+        h.it("draws the drop-down only a little wider than its longest name", function()
+            local ui = Planner.Debug()
+            Planner.ApplyLayout()
+            local g, w, fh = ns.Data.ArtGeometry.planner.wide, ui.frame:GetWidth(), ui.frame:GetHeight()
+            local widest = 0
+            for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
+                widest = math.max(widest, #labelOf(item) * Fake.CHAR_WIDTH)
+            end
+            h.eq(widest, 110, "Charlie  (flight stop) is the widest name the fake world offers")
+            local tl, br = ui.results.points[1], ui.results.points[2]
+            h.truthy(math.abs(tl[4] - g.resultsList.left * w) < 1e-9, "its left edge stays the geometry's")
+            h.truthy(math.abs(tl[5] + g.resultsList.top * fh) < 1e-9, "and its top")
+            h.truthy(math.abs(br[5] + g.resultsList.bottom * fh) < 1e-9, "and its bottom")
+            local width = br[4] - tl[4]
+            h.truthy(math.abs(width - (widest + INSETS)) < 1e-9, "the widest name plus the rows' insets")
+            h.truthy(width < (g.resultsList.right - g.resultsList.left) * w, "narrower than the geometry")
+            for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
+                h.truthy(#labelOf(item) * Fake.CHAR_WIDTH <= width - INSETS, labelOf(item) .. " still fits its row")
+            end
+        end)
+
+        h.it("never draws the drop-down wider than the geometry, however long the names", function()
+            local savedPlanner, savedWidth = ns.Planner, Fake.CHAR_WIDTH
+            Fake.CHAR_WIDTH = 100
+            local ok, err = pcall(function()
+                local FreshPlanner = assert(loadfile("GoblinPS/Planner.lua"))("GoblinPS", ns)
+                ns.Planner = savedPlanner
+                FreshPlanner.Toggle()
+                local ui = FreshPlanner.Debug()
+                local g, w = ns.Data.ArtGeometry.planner.wide, ui.frame:GetWidth()
+                local width = ui.results.points[2][4] - ui.results.points[1][4]
+                h.truthy(math.abs(width - (g.resultsList.right - g.resultsList.left) * w) < 1e-9,
+                         "capped at the geometry's width")
+                FreshPlanner.Toggle()
+            end)
+            ns.Planner, Fake.CHAR_WIDTH = savedPlanner, savedWidth
+            -- The fresh window took the global Escape name; give it back.
+            GoblinPSPlanner = Planner.Debug().frame
+            h.truthy(ok, err)
+        end)
     end)
 
     h.describe("the route strip", function()

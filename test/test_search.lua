@@ -56,6 +56,24 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("Search.Candidates", function()
+        h.it("offers every zone and every stop the faction may use", function()
+            local zones, stops, names = 0, 0, {}
+            for _, item in ipairs(Search.Candidates(world, "H")) do
+                if item.kind == "zone" then
+                    zones = zones + 1
+                else
+                    stops = stops + 1
+                end
+                names[item.name] = true
+            end
+            h.eq(zones, 5)
+            h.eq(stops, 7)
+            h.falsy(names.Echo, "an Alliance stop is not offered to the Horde")
+            h.truthy(names.Charlie, "a neutral one is")
+        end)
+    end)
+
     h.describe("Search.Exact", function()
         h.it("finds a bind name that matches a stop", function()
             h.eq(Search.Exact(world, "delta").nodeID, 4)
