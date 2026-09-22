@@ -300,12 +300,15 @@ commit; re-read files before editing.
   hearthstone and a tunnel's through leg are never charged. The penalty
   steers the router but is never shown: every edge keeps its real `seconds`,
   and the player is only ever shown real travel time, never the penalty.
-  Only a chosen end of a leg excuses it from the circle -- where you stand,
-  where the hearthstone lands you, where you are going, or a stopover -- so
-  every enemy town stays reachable on purpose; a gate, a tunnel mouth or a
-  flight master on the way is never exempt (exempting any end let an
-  Alliance walk go in at Orgrimmar's front gate and out at its west gate
-  unwarned). No code guesses a town's faction (the nearest-flight-master
+  A leg is excused from a circle only when it is leaving it -- it starts
+  inside and never comes closer to the centre than where it starts -- or
+  when it ends at your destination or a stopover inside it, so every enemy
+  town stays reachable on purpose. Anything else is charged: a gate, a
+  tunnel mouth or a flight master on the way, and a replan from a town's
+  edge that cuts through its middle. (Excusing any end let an Alliance walk
+  go in at Orgrimmar's front gate and out at its west gate unwarned;
+  excusing where you stand let a replan 145 yd from Silverwind walk through
+  its centre; charging both ends of a gate doubled detours to 20 minutes.) No code guesses a town's faction (the nearest-flight-master
   guess made caves and rivers into towns). A route that walks through a town
   is fixed by marking it, or with a `Data/Stopovers.lua` row measured in
   game, never by removing the edge or shrinking the radius until a test
