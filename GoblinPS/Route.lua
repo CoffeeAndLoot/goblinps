@@ -97,7 +97,8 @@ local function solve(data, opts)
 end
 
 -- The graph prices the hearthstone at Graph.HEARTH_SECONDS: the cast and the
--- loading screen. It cannot price the half-hour cooldown, so on its own the
+-- loading screen. It cannot price the cooldown (an hour on this build, less with
+-- a guild's Hasty Hearth perk; API.lua reads the live one), so on its own the
 -- router will spend the stone to save twenty seconds. `opts.hearthSaving` is
 -- the least it must save to be worth taking; plan both ways and keep the
 -- hearthstone only when it earns its keep. Nil or 0 means the old behaviour,
