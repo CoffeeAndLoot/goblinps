@@ -20,6 +20,11 @@ local ROW = 18
 -- edges together, which the rows that fit are counted against.
 local ROW_EDGE, LABEL_EDGE = 2, 6
 local ROW_INSET = 2 * ROW_EDGE
+-- The footer's own slot at the bottom of the list, "6-10 of 23": one line of
+-- the rows' small font (GameFontHighlightSmall, 10 px on this build's
+-- Fonts.xml) with room for its descenders. The rows that fit are counted
+-- with this slot kept free, so the footer never sits on a row.
+local FOOTER = 14
 -- A few pixels past the widest label's measured width, so the client
 -- rounding that width down at render time never clips the longest name
 -- into "...".
@@ -271,14 +276,13 @@ local function pick(item)
     replan()
 end
 
--- Matches for the text; with an empty box, the recent destinations. Asks for
--- only as many as the list's own box can show (ui.results.fit), not the
--- pool size, so Enter still picks the first of what is actually on screen.
+-- Every match for the text, however many: the list shows `fit` of them at a
+-- time and the wheel moves over the rest. With an empty box, the recent
+-- destinations.
 local function candidates()
     local text = ui.toBox:GetText()
-    local fit = ui.results.fit or Planner.MAX_RESULTS
     if text ~= "" then
-        return ns.Search.Find(ns.Data, text, ns.Core.Faction(), fit)
+        return ns.Search.Find(ns.Data, text, ns.Core.Faction())
     end
     local out = {}
     for _, name in ipairs(ns.Core.Recents()) do
@@ -308,6 +312,35 @@ local function rowLabel(item)
     return label
 end
 
+-- Paint the `fit` rows from the list's window onto its items, and the footer
+-- when there is more than fits. The window is results.offset, 0 at the top.
+local function drawResults()
+    local r = ui.results
+    local fit = r.fit or Planner.MAX_RESULTS
+    local shown = 0
+    for i = 1, Planner.MAX_RESULTS do
+        local row, item = r.rows[i], (i <= fit) and r.items[r.offset + i] or nil
+        row.item = item
+        row:SetShown(item ~= nil)
+        if item then
+            row.label:SetText(rowLabel(item))
+            shown = shown + 1
+        end
+    end
+    local more = #r.items > fit
+    r.footer:SetText(more and ((r.offset + 1) .. "-" .. (r.offset + shown) .. " of " .. #r.items) or "")
+    r.footer:SetShown(more)
+end
+
+-- One notch of the wheel moves the window one row, clamped at both ends.
+-- delta is the client's: 1 for a notch up, -1 for a notch down.
+local function scrollResults(delta)
+    local r = ui.results
+    local last = math.max(0, #r.items - (r.fit or Planner.MAX_RESULTS))
+    r.offset = math.max(0, math.min(last, r.offset - delta))
+    drawResults()
+end
+
 local function showResults()
     -- The settings panel sits above this list (Settings.Open sets its frame
     -- level for exactly that), but a higher level only wins a DRAW -- it does
@@ -319,20 +352,13 @@ local function showResults()
     if settings and settings.frame:IsShown() then
         return
     end
-    local items = candidates()
-    if #items == 0 then
+    -- A fresh list always starts at its top: typing resets the window.
+    ui.results.items, ui.results.offset = candidates(), 0
+    if #ui.results.items == 0 then
         hideResults()
         return
     end
-    local fit = ui.results.fit or Planner.MAX_RESULTS
-    for i = 1, Planner.MAX_RESULTS do
-        local row, item = ui.results.rows[i], (i <= fit) and items[i] or nil
-        row.item = item
-        row:SetShown(item ~= nil)
-        if item then
-            row.label:SetText(rowLabel(item))
-        end
-    end
+    drawResults()
     ui.results:Show()
 end
 
@@ -352,7 +378,9 @@ local function wireBox(box)
         end
     end)
     box:SetScript("OnEnterPressed", function(self)
-        local first = candidates()[1]
+        -- The top row on screen, wherever the wheel has moved the list to.
+        local r = ui.results
+        local first = r:IsShown() and r.items[r.offset + 1] or candidates()[1]
         if first then
             pick(first)
         else
@@ -494,8 +522,10 @@ function Planner.ApplyLayout()
     -- PlaceRect above). Client report 2026-09-21: typing "a" dropped all
     -- 8 rows and two (Booty Bay, Brackenwall Village) hung below the
     -- list's panel, because showResults() always filled every pooled row.
+    -- The footer's slot is kept free: 109.7 px of list at 416 px tall, less
+    -- the insets and the footer, still holds 5 rows.
     ui.results.fit = math.max(1, math.min(Planner.MAX_RESULTS, math.floor(
-        ((g.resultsList.bottom - g.resultsList.top) * f:GetHeight() - ROW_INSET) / ROW)))
+        ((g.resultsList.bottom - g.resultsList.top) * f:GetHeight() - ROW_INSET - FOOTER) / ROW)))
     W.PlaceRect(ui.screen, f, g.screen)
     W.PlaceRect(ui.go, f, g.goButton)
     W.PlaceLine(ui.total, f, g.totalLine)
@@ -753,6 +783,20 @@ local function build()
     results:Hide()
     results.rows = {}
     results.fit = Planner.MAX_RESULTS -- ApplyLayout narrows this once geometry is known
+    results.items, results.offset = {}, 0
+    -- The wheel scrolls the list. EnableMouseWheel is present on build
+    -- 1.60.1.69913 (SimpleScriptRegionAPIDocumentation.lua) and Blizzard's
+    -- own UI sets OnMouseWheel scripts with SetScript; without the enable the
+    -- client never delivers the wheel to this frame.
+    results:EnableMouseWheel(true)
+    results:SetScript("OnMouseWheel", function(_, delta) scrollResults(delta) end)
+    -- "6-10 of 23", in its own slot under the rows: bounded by two anchors,
+    -- one line, truncated. Hidden when everything fits.
+    results.footer = W.Text(results, "dim", nil, "RIGHT")
+    results.footer:SetHeight(FOOTER)
+    results.footer:SetPoint("BOTTOMLEFT", ROW_EDGE + LABEL_EDGE, ROW_EDGE)
+    results.footer:SetPoint("BOTTOMRIGHT", -(ROW_EDGE + LABEL_EDGE), ROW_EDGE)
+    results.footer:Hide()
     for i = 1, Planner.MAX_RESULTS do
         local row = CreateFrame("Button", nil, results)
         row:SetHeight(ROW)

@@ -980,7 +980,8 @@ return function(h)
             -- panel, because showResults() always filled all MAX_RESULTS
             -- rows regardless of how tall the list's own box is.
             -- ROW mirrors Planner.lua's private row-height constant (18px);
-            -- it has no other home to be read from.
+            -- it has no other home to be read from. The footer's slot is
+            -- read off the footer, which is given an explicit height.
             -- No Toggle() here: it flips the window's own shown/hidden state,
             -- which the tests after this one rely on to stay in step (Toggle
             -- hiding the frame is what fires OnHide's hideResults for the
@@ -990,8 +991,9 @@ return function(h)
             local ui = ns.Planner.Debug()
             local g = ns.Data.ArtGeometry.planner.wide
             local listHeight = (g.resultsList.bottom - g.resultsList.top) * ui.frame:GetHeight()
-            -- Real numbers at 416px: (109.69 - 4) / 18 floors to 5.
-            h.eq(ui.results.fit, 5, "5 rows fit the 416px-tall window's list")
+            local footerTop = listHeight - 2 - ui.results.footer:GetHeight()
+            -- Real numbers at 416px: (109.69 - 4 - 14) / 18 floors to 5.
+            h.eq(ui.results.fit, 5, "5 rows fit the 416px-tall window's list, the footer's slot kept free")
             Fake.Type(ui.toBox, "a") -- matches more than fit in the fake world
             h.truthy(ui.results:IsShown())
             local shown, hidden = 0, 0
@@ -999,8 +1001,8 @@ return function(h)
                 if row:IsShown() then
                     shown = shown + 1
                     local bottom = 2 + i * ROW -- TOPLEFT offset (2 + (i-1)*ROW) plus the row's own height
-                    h.truthy(bottom <= listHeight,
-                              "row " .. i .. " bottom edge must stay inside the list's own height")
+                    h.truthy(bottom <= footerTop,
+                              "row " .. i .. " bottom edge must stay above the footer's slot")
                 else
                     hidden = hidden + 1
                 end
@@ -1142,6 +1144,93 @@ return function(h)
             -- The fresh window took the global Escape name; give it back.
             GoblinPSPlanner = Planner.Debug().frame
             h.truthy(ok, err)
+        end)
+    end)
+
+    h.describe("the results list scrolls, and browses zones", function()
+        local function open()
+            if not Planner.Debug().frame:IsShown() then
+                Planner.Toggle()
+            end
+            return Planner.Debug()
+        end
+        local function labels(ui)
+            local out = {}
+            for _, row in ipairs(ui.results.rows) do
+                if row:IsShown() then
+                    out[#out + 1] = row.label:GetText()
+                end
+            end
+            return table.concat(out, " | ")
+        end
+        local WESTLAND = { "Alpha · Westland", "Bravo · Westland", "Charlie · Westland",
+                           "Echo · Westland (Alliance)", "Juliet · Westland", "Quiet Hollow · Westland" }
+
+        h.it("keeps the footer in its own slot at the bottom of the list, bounded", function()
+            local ui = open()
+            local footer = ui.results.footer
+            h.eq(footer:GetHeight(), 14)
+            h.eq(#footer.points, 2, "two horizontal anchors, so it truncates")
+            h.eq(footer.points[1][1], "BOTTOMLEFT")
+            h.eq(footer.points[1][4], 8, "the label's own inset: row edge 2 plus label edge 6")
+            h.eq(footer.points[1][5], 2, "on the list's bottom edge, inside its inset")
+            h.eq(footer.points[2][1], "BOTTOMRIGHT")
+            h.eq(footer.points[2][4], -8)
+            h.eq(footer.points[2][5], 2)
+            h.eq(footer.wordWrap, false, "one line")
+            h.truthy(footer.points[1][2] == nil and footer.parent == ui.results, "it lives on the list")
+        end)
+
+        h.it("shows only what fits, and says where the window is when there is more", function()
+            local ui = open()
+            Fake.Type(ui.toBox, "westland")
+            h.eq(labels(ui), table.concat(WESTLAND, " | ", 1, 5))
+            h.truthy(ui.results.footer:IsShown())
+            h.eq(ui.results.footer:GetText(), "1-5 of 6")
+        end)
+
+        h.it("scrolls one row a notch on the wheel, and clamps at both ends", function()
+            local ui = open()
+            h.truthy(ui.results.mouseWheel, "the list asked the client for the wheel")
+            Fake.Wheel(ui.results, -1)
+            h.eq(labels(ui), table.concat(WESTLAND, " | ", 2, 6), "one notch down, one row on")
+            h.eq(ui.results.footer:GetText(), "2-6 of 6")
+            Fake.Wheel(ui.results, -1)
+            h.eq(ui.results.footer:GetText(), "2-6 of 6", "clamped at the bottom")
+            h.eq(ui.results.rows[5].label:GetText(), WESTLAND[6])
+            Fake.Wheel(ui.results, 1)
+            Fake.Wheel(ui.results, 1)
+            h.eq(ui.results.footer:GetText(), "1-5 of 6", "clamped at the top")
+            h.eq(ui.results.rows[1].label:GetText(), WESTLAND[1])
+        end)
+
+        h.it("hides the footer when everything fits", function()
+            local ui = open()
+            Fake.Type(ui.toBox, "delt")
+            h.eq(labels(ui), "Delta · Eastland")
+            h.falsy(ui.results.footer:IsShown())
+        end)
+
+        h.it("starts again at the top whenever you type", function()
+            local ui = open()
+            Fake.Type(ui.toBox, "westland")
+            Fake.Wheel(ui.results, -1)
+            h.eq(ui.results.rows[1].label:GetText(), WESTLAND[2])
+            Fake.Type(ui.toBox, "westlan")
+            h.eq(ui.results.rows[1].label:GetText(), WESTLAND[1])
+            h.eq(ui.results.footer:GetText(), "1-5 of 6")
+        end)
+
+        h.it("Enter picks the top row on screen, wherever the wheel left it", function()
+            local ui, state = open()
+            Fake.Type(ui.toBox, "westland")
+            Fake.Wheel(ui.results, -1)
+            ui.toBox.scripts.OnEnterPressed(ui.toBox)
+            h.eq(state.to.nodeID, 2, "Bravo, the top row shown, not Alpha above it")
+            -- put the destination back for the tests that follow
+            Fake.Type(ui.toBox, "delt")
+            Fake.Click(ui.results.rows[1])
+            h.eq(state.to.nodeID, 4)
         end)
     end)
 

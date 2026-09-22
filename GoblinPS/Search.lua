@@ -130,7 +130,7 @@ end
 
 -- Case-insensitive plain-text search. Names that start with the text come
 -- first, then names that contain it, then places whose zone's name contains
--- it; alphabetical inside each group.
+-- it; alphabetical inside each group. Every match, unless a limit is given.
 function Search.Find(data, text, faction, limit)
     local needle = (text or ""):lower()
     if needle == "" then
@@ -154,7 +154,7 @@ function Search.Find(data, text, faction, limit)
         return before(a, b)
     end)
     local out = {}
-    for i = 1, math.min(limit or 8, #ranked) do
+    for i = 1, math.min(limit or #ranked, #ranked) do
         out[i] = ranked[i]
     end
     return out
