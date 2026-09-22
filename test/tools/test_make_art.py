@@ -126,6 +126,14 @@ class TestGeometryExport(unittest.TestCase):
                     "arrow"):
             self.assertIn(key, lua, f"{key} is missing; Dash.lua would have to guess it")
 
+    def test_the_arrow_carries_its_own_centre(self):
+        # The arrow turns about its own centre, which the artist may set apart
+        # from the glass's, so it must reach the addon as the JSON gives it.
+        lua = make_art.geometry_lua()
+        arrow = make_art.geometry()["_assembly"]["arrow"]
+        self.assertEqual(lua["arrow"]["cx"], arrow["cx"])
+        self.assertEqual(lua["arrow"]["cy"], arrow["cy"])
+
     def test_it_reports_the_crop_as_a_fraction_of_the_device(self):
         # Dash.lua sizes the compass by multiplying the device's width by this
         # number and nothing else, so it has to BE the crop's width against

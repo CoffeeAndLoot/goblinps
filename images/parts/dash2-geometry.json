@@ -63,12 +63,12 @@
       "file": "arrow.png",
       "sha256": "8370624f28db9903d483a89d174ae680b918b8d1c3ff3f350ec709999e341ee2",
       "cx": 0.50390625,
-      "cy": 0.36640625,
+      "cy": 0.29453125,
       "display_size_pixels": [
         461,
         461
       ],
-      "rotation_pivot": "centre of glass; do not rotate about centre of 1024x1280 canvas"
+      "rotation_pivot": "own centre at (cx * canvas width, cy * canvas height); raised independently of glass centre"
     },
     "stop_button": {
       "sprite_canvas": [

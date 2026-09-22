@@ -183,7 +183,9 @@ def geometry_lua():
         # How wide the cropped compass is against the whole device, so the
         # addon can size it without knowing anything about the crop.
         "compassCrop": {"share": (box[2] - box[0]) / w},
-        "arrow": {"share": g["_assembly"]["arrow"]["display_size_pixels"][0] / w},
+        # The arrow turns about its own centre, which need not be the glass's.
+        "arrow": {"share": g["_assembly"]["arrow"]["display_size_pixels"][0] / w,
+                  "cx": g["_assembly"]["arrow"]["cx"], "cy": g["_assembly"]["arrow"]["cy"]},
         "stepsText": rect(g["_assembly"]["steps_text_safe_box"]),
         "etaText": rect(g["_assembly"]["eta_text_safe_box"]),
         "destination": rect(g["destination_line"]),

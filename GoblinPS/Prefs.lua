@@ -23,6 +23,9 @@ local _, ns = ...
 --
 -- `arrive`: the player's arrival radii in yards, { ride, fly, transport,
 -- hearth }, set from the settings panel and repaired here.
+--
+-- `scroll`: how fast a dash line too long for its opening scrolls, by name
+-- from Prefs.SCROLL, set from the settings panel and repaired here.
 local Prefs = {}
 ns.Prefs = Prefs
 
@@ -48,6 +51,22 @@ Prefs.ARRIVE = {
                   kinds = { "zeppelin", "boat", "tram" } },
     hearth    = { default = ARRIVE.hearth, min = 100, max = 1000, step = 50, kinds = { "hearth" } },
 }
+
+-- The dash's scrolling text, slowest first after off, and seconds per
+-- character for each. `off` has no step: nothing moves, long lines truncate.
+Prefs.SCROLL = { "off", "slow", "normal", "fast" }
+Prefs.SCROLL_STEP = { slow = 0.3, normal = 0.2, fast = 0.12 }
+Prefs.SCROLL_DEFAULT = "normal"
+
+-- Where `name` sits in Prefs.SCROLL, or nil when it is not a speed at all.
+function Prefs.ScrollIndex(name)
+    for i, known in ipairs(Prefs.SCROLL) do
+        if name == known then
+            return i
+        end
+    end
+    return nil
+end
 
 -- Returns db (or a new table) with every missing preference filled in.
 function Prefs.Init(db)
@@ -82,6 +101,10 @@ function Prefs.Init(db)
             db.arrive[key] = range.default
         end
     end
+    -- A name the panel could not have set was never the player's choice.
+    if not Prefs.ScrollIndex(db.scroll) then
+        db.scroll = Prefs.SCROLL_DEFAULT
+    end
     return db
 end
 
@@ -93,9 +116,11 @@ function Prefs.Step(value, range, direction)
     return math.max(range.min, math.min(range.max, v))
 end
 
--- Reset to defaults: the hearthstone's saving and every arrival radius.
+-- Reset to defaults: the hearthstone's saving, every arrival radius and the
+-- scrolling text.
 function Prefs.Reset(db)
     db.hearthSaving = Prefs.HEARTH_SAVING_DEFAULT
+    db.scroll = Prefs.SCROLL_DEFAULT
     db.arrive = {}
     for key, range in pairs(Prefs.ARRIVE) do
         db.arrive[key] = range.default

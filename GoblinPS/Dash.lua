@@ -131,20 +131,23 @@ local function build()
     end
 
     -- The compass and the arrow turn, so each is a square texture centred on
-    -- the dial. SetRotation turns a texture about its own middle, and Task 1
-    -- cropped the compass so that its middle IS the dial.
+    -- a point. SetRotation turns a texture about its own middle, and Task 1
+    -- cropped the compass so that its middle IS the dial. The arrow has its
+    -- own centre in the geometry, which the artist may set apart from the
+    -- dial's; without one it falls back to the dial.
     -- The `or` half of this is only reached when the generated geometry is
     -- absent: a rough guess at the dial's centre, not a coordinate from the
     -- art.
     local dial = g and { x = g.glass.cx, y = g.glass.cy } or { x = 0.5, y = 0.4 }
-    local function centreOnDial(region, share)
+    local arrowAt = (g and g.arrow.cx and g.arrow.cy) and { x = g.arrow.cx, y = g.arrow.cy } or dial
+    local function centreAt(region, share, at)
         local side = f:GetWidth() * share
         region:SetSize(side, side)
         region:ClearAllPoints()
         -- `f`, not `artLayer`: artLayer is sized by SetAllPoints and so has no
         -- resolved size during build(). See Widgets.PlaceLine's note.
         region:SetPoint("CENTER", f, "TOPLEFT",
-                        dial.x * f:GetWidth(), -dial.y * f:GetHeight())
+                        at.x * f:GetWidth(), -at.y * f:GetHeight())
     end
 
     local compass = artLayer:CreateTexture(nil, "BORDER")
@@ -156,7 +159,7 @@ local function build()
     end
     -- 0.55 is only reached when the generated geometry is absent: a rough
     -- guess at the compass's share of the device, not a measured fraction.
-    centreOnDial(compass, g and g.compassCrop.share or 0.55)
+    centreAt(compass, g and g.compassCrop.share or 0.55, dial)
 
     local arrow = artLayer:CreateTexture(nil, "ARTWORK")
     local arrowPart = ns.Data.Art and ns.Data.Art["arrow"]
@@ -168,7 +171,7 @@ local function build()
     end
     -- 0.45 is only reached when the generated geometry is absent: a rough
     -- guess at the arrow's share of the device, not a measured fraction.
-    centreOnDial(arrow, g and g.arrow.share or 0.45)
+    centreAt(arrow, g and g.arrow.share or 0.45, arrowAt)
 
     -- images/parts/dash2-notes.md states the order: glass, compass, arrow,
     -- steps insert, ETA insert, then housing. The five draw layers above and
@@ -484,10 +487,27 @@ function Dash.Scroll(elapsed)
     if not ui or not ui.frame:IsShown() then
         return
     end
+    -- Read every frame, so a change in the settings panel shows at once. Off
+    -- (nil) builds every line as fitting: nothing moves and a long line
+    -- truncates, as it did before the marquee.
+    local step = ns.Core.ScrollStep()
     for _, line in ipairs(ui.lines) do
         local shown = line.fs:GetText() or ""
-        if not line.marquee or shown ~= line.drawn then
-            line.marquee = ns.Marquee.New(shown, line.fs:GetUnboundedStringWidth() <= line.slot)
+        -- New text starts from itself. A new speed starts the same line again
+        -- from its own text, not from what is on screen, which may be
+        -- mid-scroll -- so the FontString gets its whole text back before
+        -- the fit is measured.
+        local restart = (not line.marquee or shown ~= line.drawn) and shown
+                        or (line.step ~= step and line.marquee.text)
+        if restart then
+            if restart ~= shown then
+                line.fs:SetText(restart)
+                shown = restart
+            end
+            line.marquee = ns.Marquee.New(restart, not step or line.fs:GetUnboundedStringWidth() <= line.slot, step)
+            -- The line's own copy, not the marquee's: off (nil) becomes Marquee.STEP inside the
+            -- marquee, so only this copy can see a change from off to on.
+            line.step = step
         end
         local text = ns.Marquee.Advance(line.marquee, elapsed)
         if text ~= shown then

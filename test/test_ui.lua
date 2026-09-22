@@ -1498,8 +1498,14 @@ return function(h)
         -- `if not ui then build() end`), so proving a texture-load fallback
         -- needs a genuinely fresh copy of the module, not Stop/Start again on
         -- the shared one. Shared by every "missing texture" test below.
+        -- loadfile re-runs `ns.Dash = Dash` as a side effect, so put the real
+        -- one straight back, as the FreshPlanner tests do for ns.Planner, and
+        -- drive the fresh copy only through the local this returns.
         local function freshDash()
-            return assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+            local saved = ns.Dash
+            local fresh = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+            ns.Dash = saved
+            return fresh
         end
 
         -- Marks `path` as a texture the fake will refuse to load, runs `fn`,
@@ -1750,7 +1756,7 @@ return function(h)
                          "the compass is sized from geometry.compassCrop.share")
             end)
 
-            h.it("centres the compass and the arrow on the dial, in real pixels", function()
+            h.it("centres the compass on the dial and the arrow on its own centre, in real pixels", function()
                 -- Seen in the client 2026-09-20: both sat up and to the left,
                 -- clear off the device, because the offsets were computed from
                 -- a frame sized by SetAllPoints -- which has no size until the
@@ -1764,15 +1770,55 @@ return function(h)
                 Dash.Start(plan)
                 local ui = Dash.Debug()
                 local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
+                local centres = { compass = g.glass, arrow = g.arrow }
                 for _, name in ipairs({ "compass", "arrow" }) do
-                    local pt = ui[name].points[1]
+                    local pt, at = ui[name].points[1], centres[name]
                     h.eq(pt[1], "CENTER", name .. " turns about its own middle")
+                    h.truthy(pt[2] == ui.frame, name .. " is placed on the frame given an explicit size")
                     h.eq(pt[3], "TOPLEFT", name .. " is offset from the device's corner")
-                    h.truthy(math.abs(pt[4] - g.glass.cx * w) < 1,
-                             name .. " sits at the dial's x, got " .. tostring(pt[4]))
-                    h.truthy(math.abs(pt[5] + g.glass.cy * h2) < 1,
-                             name .. " sits at the dial's y, got " .. tostring(pt[5]))
+                    h.truthy(math.abs(pt[4] - at.cx * w) < 1,
+                             name .. " sits at its centre's x, got " .. tostring(pt[4]))
+                    h.truthy(math.abs(pt[5] + at.cy * h2) < 1,
+                             name .. " sits at its centre's y, got " .. tostring(pt[5]))
                 end
+            end)
+
+            h.it("moves the arrow with its own centre and leaves the compass on the dial", function()
+                -- Today the arrow's centre equals the glass's, so the test
+                -- above cannot tell the two apart. Move one and not the other.
+                local g = ns.Data.ArtGeometry
+                local savedCy = g.arrow.cy
+                g.arrow.cy = savedCy - 0.09
+                local ok, err = pcall(function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    local h2 = ui.frame:GetHeight()
+                    h.truthy(math.abs(ui.arrow.points[1][5] + g.arrow.cy * h2) < 1,
+                             "the arrow follows arrow.cy, got " .. tostring(ui.arrow.points[1][5]))
+                    h.truthy(math.abs(ui.compass.points[1][5] + g.glass.cy * h2) < 1,
+                             "the compass stays on the glass centre")
+                    FreshDash.Stop()
+                end)
+                g.arrow.cy = savedCy
+                h.truthy(ok, err)
+            end)
+
+            h.it("puts the arrow on the dial when the geometry gives it no centre", function()
+                local g = ns.Data.ArtGeometry
+                local savedCx, savedCy = g.arrow.cx, g.arrow.cy
+                g.arrow.cx, g.arrow.cy = nil, nil
+                local ok, err = pcall(function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    local pt = ui.arrow.points[1]
+                    h.truthy(math.abs(pt[4] - g.glass.cx * ui.frame:GetWidth()) < 1, "the dial's x")
+                    h.truthy(math.abs(pt[5] + g.glass.cy * ui.frame:GetHeight()) < 1, "the dial's y")
+                    FreshDash.Stop()
+                end)
+                g.arrow.cx, g.arrow.cy = savedCx, savedCy
+                h.truthy(ok, err)
             end)
 
             h.it("stacks the housing above the art and the text above the housing", function()
@@ -2499,6 +2545,63 @@ return function(h)
                 Dash.Refresh()
             end)
 
+            h.it("holds every line still with scrolling off", function()
+                ns.Core.SetScroll("off")
+                local ok, err = pcall(function()
+                    Dash.Start(longPlan)
+                    local ui = Dash.Debug()
+                    Dash.Scroll(0)
+                    Dash.Scroll(Marquee.HOLD + 20 * Marquee.STEP)
+                    h.eq(ui.steps[1]:GetText(), full, "a long line never moves")
+                    h.eq(ui.destination:GetText(), LONG, "nor does the glass")
+                end)
+                ns.Core.SetScroll("normal")
+                h.truthy(ok, err)
+            end)
+
+            h.it("scrolls at the chosen speed: fast drops a character every 0.12 s", function()
+                ns.Core.SetScroll("fast")
+                local ok, err = pcall(function()
+                    Dash.Start(longPlan)
+                    local ui = Dash.Debug()
+                    Dash.Scroll(0)
+                    Dash.Scroll(Marquee.HOLD + 0.01)
+                    h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full, "after HOLD")
+                    Dash.Scroll(0.12)
+                    h.eq(ui.steps[1]:GetText(), full:sub(3) .. Marquee.GAP .. full, "then every 0.12 s")
+                    Dash.Scroll(0.12)
+                    h.eq(ui.steps[1]:GetText(), full:sub(4) .. Marquee.GAP .. full)
+                end)
+                ns.Core.SetScroll("normal")
+                h.truthy(ok, err)
+            end)
+
+            h.it("restarts a line at once when the speed changes mid-scroll", function()
+                local ok, err = pcall(function()
+                    Dash.Start(longPlan)
+                    local ui = Dash.Debug()
+                    Dash.Scroll(0)
+                    Dash.Scroll(Marquee.HOLD + 3 * Marquee.STEP)
+                    h.truthy(ui.steps[1]:GetText() ~= full, "well into the name at normal")
+                    ns.Core.SetScroll("slow")
+                    Dash.Scroll(0.01)
+                    h.eq(ui.steps[1]:GetText(), full, "a new speed starts the line again from its start")
+                    Dash.Scroll(Marquee.HOLD)
+                    h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full)
+                    Dash.Scroll(0.2)
+                    h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full, "slow is not normal's 0.2 s")
+                    Dash.Scroll(0.1)
+                    h.eq(ui.steps[1]:GetText(), full:sub(3) .. Marquee.GAP .. full, "it is 0.3 s")
+                    ns.Core.SetScroll("off")
+                    Dash.Scroll(0.01)
+                    h.eq(ui.steps[1]:GetText(), full, "turning it off puts the line back at its start and holds it")
+                    Dash.Scroll(5)
+                    h.eq(ui.steps[1]:GetText(), full)
+                end)
+                ns.Core.SetScroll("normal")
+                h.truthy(ok, err)
+            end)
+
             h.it("rides the dash's own OnUpdate, with no timer of its own", function()
                 Dash.Start(longPlan)
                 local ui = Dash.Debug()
@@ -2947,7 +3050,7 @@ return function(h)
         h.it("stacks its rows down the panel, every line bounded, nothing under Close", function()
             SlashCmdList.GOBLINPS("settings")
             local ui = Settings.Debug()
-            local labels = { "Hearthstone must save", "Ground arrival", "Flight arrival",
+            local labels = { "Hearthstone must save", "Scrolling text", "Ground arrival", "Flight arrival",
                              "Boat, zeppelin, tram arrival", "Hearthstone arrival" }
             h.eq(#ui.rows, #labels)
             local lastY = 0
@@ -2966,7 +3069,7 @@ return function(h)
                 h.truthy(row.minus.points[1][2] == row.value, "and - just left of the value")
                 h.truthy(row.label.points[2][2] == row.minus, "the label stops short of -")
             end
-            local texts = { ui.title, ui.honest, ui.version, ui.tagline, ui.feedback, ui.rows[4].note }
+            local texts = { ui.title, ui.honest, ui.version, ui.tagline, ui.feedback, ui.rows[5].note }
             for _, row in ipairs(ui.rows) do
                 texts[#texts + 1] = row.label
                 texts[#texts + 1] = row.value
@@ -3005,16 +3108,57 @@ return function(h)
             end
             h.eq(GoblinPSDB.hearthSaving, 30 * 60, "the hearth row stores seconds")
             h.eq(GoblinPSDB.arrive.transport, 1000)
+            h.eq(GoblinPSDB.scroll, "fast", "the scrolling row stores the speed's name")
         end)
 
-        h.it("Reset to defaults puts all five back", function()
+        h.it("steps the scrolling text through Off, Slow, Normal and Fast, and drives Core.Scroll", function()
+            local ui = Settings.Debug()
+            Fake.Click(ui.reset)
+            local row = ui.rows[2]
+            h.eq(row.label:GetText(), "Scrolling text")
+            h.eq(row.value:GetText(), "Normal")
+            h.eq(ns.Core.Scroll(), "normal")
+            Fake.Click(row.plus)
+            h.eq(row.value:GetText(), "Fast")
+            h.eq(ns.Core.Scroll(), "fast")
+            h.eq(ns.Core.ScrollStep(), 0.12)
+            h.falsy(row.plus:IsEnabled(), "Fast is the end of the list")
+            Fake.Click(row.plus)
+            h.eq(ns.Core.Scroll(), "fast", "and + stops there")
+            for _, want in ipairs({ "Normal", "Slow", "Off", "Off" }) do
+                Fake.Click(row.minus)
+                h.eq(row.value:GetText(), want)
+            end
+            h.eq(ns.Core.Scroll(), "off")
+            h.eq(ns.Core.ScrollStep(), nil, "off has no step")
+            h.falsy(row.minus:IsEnabled(), "Off is the other end")
+            h.truthy(row.plus:IsEnabled())
+            Fake.Click(ui.reset)
+            h.eq(ns.Core.Scroll(), "normal", "Reset brings it back to Normal")
+            h.eq(row.value:GetText(), "Normal")
+        end)
+
+        h.it("ignores a scroll name not in the list, and a bad saved one cannot break the panel", function()
+            local ui = Settings.Debug()
+            Fake.Click(ui.reset)
+            ns.Core.SetScroll("warp")
+            h.eq(ns.Core.Scroll(), "normal", "SetScroll ignores a name not in Prefs.SCROLL")
+            GoblinPSDB.scroll = "warp" -- as if a save held one
+            local ok, err = pcall(Settings.Refresh)
+            h.truthy(ok, err)
+            h.eq(ui.rows[2].value:GetText(), "Normal", "a bad value reads as the default")
+            Fake.Click(ui.reset)
+        end)
+
+        h.it("Reset to defaults puts all six back", function()
             local ui = Settings.Debug()
             Fake.Click(ui.reset)
             h.eq(GoblinPSDB.hearthSaving, ns.Prefs.HEARTH_SAVING_DEFAULT)
             for key, range in pairs(ns.Prefs.ARRIVE) do
                 h.eq(GoblinPSDB.arrive[key], range.default, key)
             end
-            local want = { "5 min", "40 yd", "150 yd", "800 yd", "300 yd" }
+            h.eq(GoblinPSDB.scroll, "normal")
+            local want = { "5 min", "Normal", "40 yd", "150 yd", "800 yd", "300 yd" }
             for i, row in ipairs(ui.rows) do
                 h.eq(row.value:GetText(), want[i], "row " .. i .. " shows its default")
             end
@@ -3038,7 +3182,7 @@ return function(h)
 
         h.it("an arrival change reaches Trip.Check: 30 yards out advances at 40, not at 20", function()
             local ui = Settings.Debug()
-            local ground = ui.rows[2]
+            local ground = ui.rows[3]
             Fake.Click(ground.minus)
             Fake.Click(ground.minus)
             h.eq(ground.value:GetText(), "20 yd")
@@ -3095,8 +3239,8 @@ return function(h)
             h.eq(ui.honest:GetText(),
                  "On this beta build, settings last until you reload: the client does not load saved data yet.")
             h.eq(ui.honest.wordWrap, true, "a sentence that long wraps inside the panel")
-            h.truthy(ui.rows[4].note:GetText():find("100 yd", 1, true), "the transport floor gives its reason")
-            h.eq(ui.rows[2].note, nil, "only the transport row carries a note")
+            h.truthy(ui.rows[5].note:GetText():find("100 yd", 1, true), "the transport floor gives its reason")
+            h.eq(ui.rows[3].note, nil, "only the transport row carries a note")
             Settings.Close()
         end)
     end)

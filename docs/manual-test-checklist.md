@@ -492,6 +492,8 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [ ] One Escape closes the settings panel and the planner together (that is
       how the client's Escape list works): say whether that is acceptable, or
       whether Escape should close only the panel
+- [ ] Settings > Scrolling text: Off stops every line moving (long ones truncate); Slow, Normal and Fast change the speed at once
+- [ ] The dash arrow sits above the destination name and distance and turns in place without covering them (after Codex raises it; until then it is unchanged)
 
 ## Flight paths survive a reload
 

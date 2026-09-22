@@ -14,12 +14,14 @@ local Marquee = {}
 ns.Marquee = Marquee
 
 Marquee.HOLD = 1.5   -- seconds the start is shown before it moves, and again after each lap
-Marquee.STEP = 0.2   -- seconds per character
+Marquee.STEP = 0.2   -- seconds per character, unless the caller names its own
 Marquee.GAP = "   "  -- between the end of the text and its start coming round again
 
--- A fresh marquee for `text`, at its start. `fits` is the caller's verdict.
-function Marquee.New(text, fits)
-    return { text = text or "", fits = fits and true or false, offset = 1, clock = 0 }
+-- A fresh marquee for `text`, at its start. `fits` is the caller's verdict;
+-- `step` is seconds per character, STEP when not given.
+function Marquee.New(text, fits, step)
+    return { text = text or "", fits = fits and true or false, offset = 1, clock = 0,
+             step = step or Marquee.STEP }
 end
 
 -- A byte in the middle of a UTF-8 character: showing from one would draw
@@ -36,7 +38,7 @@ function Marquee.Advance(m, dt)
     local tape = m.text .. Marquee.GAP
     m.clock = m.clock + (dt or 0)
     while true do
-        local wait = m.offset == 1 and Marquee.HOLD or Marquee.STEP
+        local wait = m.offset == 1 and Marquee.HOLD or m.step
         if m.clock < wait then
             break
         end

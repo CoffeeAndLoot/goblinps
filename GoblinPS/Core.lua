@@ -55,6 +55,15 @@ function Core.SetArrive(key, yards) prefs().arrive[key] = yards end
 -- The player's radii by Trip step kind; the dash hands this to Trip.Check.
 function Core.ArriveRadii() return Prefs.ArriveRadii(prefs()) end
 function Core.ResetSettings() Prefs.Reset(prefs()) end
+-- The dash's scrolling text: its name, and seconds per character (nil for off).
+function Core.Scroll() return prefs().scroll end
+-- A name not in Prefs.SCROLL is ignored: the panel could not have set it.
+function Core.SetScroll(name)
+    if Prefs.ScrollIndex(name) then
+        prefs().scroll = name
+    end
+end
+function Core.ScrollStep() return Prefs.SCROLL_STEP[prefs().scroll] end
 
 -- Escape closes a frame only through its global name.
 function Core.CloseOnEscape(frame, globalName)
