@@ -17,6 +17,7 @@ Data\Towns.lua
 Data\Links.lua
 Data\Inns.lua
 Data\Crossings.lua
+Data\Stopovers.lua
 Data\Zones.lua
 Data\Art.lua
 Travel.lua
