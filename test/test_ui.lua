@@ -1704,17 +1704,57 @@ return function(h)
 
             h.it("does not steer while the arrow is hidden or no trip runs", function()
                 Dash.Start(plan)
-                local ui, state = Dash.Debug()
-                facing = nil
-                standAt(-100, 0)
+                local ui = Dash.Debug()
+                standAt(-100, 0); facing = 0
                 Dash.Tick("tick")
-                h.falsy(ui.arrow:IsShown(), "sanity: unknown facing hides the arrow")
+                h.truthy(ui.arrow:IsShown(), "sanity: the arrow is up before we hide it")
+                ui.arrow:Hide()
+                local before = ui.arrow.rotation
+                facing = 1.2   -- a different target; Steer must not chase it while hidden
                 Dash.Steer(1)
-                h.falsy(state.arrowAngle, "steering does nothing while the arrow is hidden")
+                h.eq(ui.arrow.rotation, before, "steering does nothing while the arrow is hidden")
                 facing = 0
                 Dash.Stop()
                 Dash.Steer(1)   -- must not error with no trip running and the dash hidden
                 h.falsy(Dash.Debug().frame:IsShown())
+            end)
+
+            h.it("glides, not snaps, when a step advances", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                standAt(-5000, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(ui.arrow.rotation, 0, "sanity: first sight snaps to step 1's target, due north")
+                standAt(-20, 20)
+                Dash.Tick("tick")
+                h.eq(state.index, 2, "sanity: arriving moved the step index on")
+                h.eq(ui.arrow.rotation, 0, "sanity: the advance tick itself does not move the arrow")
+                Dash.Steer(0.016)
+                local target = ns.Trip.ArrowAngle(ns.Trip.Bearing(ns.Core.Here(), plan.result.steps[2].to), facing)
+                h.truthy(ui.arrow.rotation < 0 and ui.arrow.rotation > target,
+                         "one frame after the advance should ease toward the new step's target but not reach it,"
+                         .. " got " .. tostring(ui.arrow.rotation))
+                Dash.Steer(1)
+                h.truthy(math.abs(ui.arrow.rotation - target) < 1e-4, "a full second lands on the new target")
+                facing = 0
+            end)
+
+            h.it("snaps when it comes back after a pause", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(-100, 0); facing = 0
+                Dash.Tick("tick")
+                h.truthy(ui.arrow:IsShown(), "sanity: the arrow is up before the pause")
+                where.map = nil
+                Dash.Tick("tick")
+                h.falsy(ui.arrow:IsShown(), "no position pauses the trip and hides the arrow")
+                standAt(-100, 0)
+                Dash.Tick("tick")
+                h.truthy(ui.arrow:IsShown())
+                local target = ns.Trip.ArrowAngle(ns.Trip.Bearing(ns.Core.Here(), plan.result.steps[1].to), facing)
+                h.eq(ui.arrow.rotation, target,
+                     "coming back after a pause snaps exactly onto the target, no Steer needed")
+                facing = 0
             end)
 
             h.it("does not advance or stray while on a zeppelin", function()
