@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 ROOT = Path(__file__).resolve().parent
 LAYOUT = {'canvas': [1600, 1024],
     'title_plate': (480,100,1120,260), 'tagline_plate': (1120,910,1440,990),
-    'close_button': (1410,230,38), 'gear_button': (1320,230,38),
+    'close_button': (1503,223,38), 'gear_button': (1483,880,38),
     'to_box': (330,286,1328,374), 'dropdown_button': (1374,330,36),
     'results_list': (330,380,1410,650),
     'screen': (150,386,1440,778), 'strip_track': (230,480,1360,640),
