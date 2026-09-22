@@ -1,3 +1,22 @@
+# Planner button placement update (2026-09-21)
+
+Applied `docs/art-parts-brief-planner-buttons.md` through the builder.
+Only the two wide button records changed in the JSON; all other JSON content,
+including tall, matches the previous committed file (Git newline normalization).
+
+| Button | Source center | cx | cy | r (canvas width) |
+| --- | --- | --- | --- | --- |
+| Close | (1503, 223) | 0.939375 | 0.2177734375 | 0.02375 |
+| Gear | (1483, 880) | 0.926875 | 0.859375 | 0.02375 |
+
+Close is centered on the upper-right domed bolt, measured from the source art.
+Both retain a 38px radius. The gear's complete sprite box is (1445,842) to
+(1521,918), leaving 5px horizontally to the tagline box. Visual review confirms
+the gear sits within the corner brass and leaves the neighboring rivets visible.
+Every nontransparent gear pixel lies over frame alpha of at least 252/255
+(the source brass has a few almost-opaque pixels). Fresh wide previews show
+both placements. Runtime Art.lua/TGA regeneration is left to Claude as requested.
+
 # Current handoff: approved mockup layout (2026-09-21)
 
 This section supersedes the historical decisions below. See

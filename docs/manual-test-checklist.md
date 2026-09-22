@@ -419,9 +419,16 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [x] The total under the strip reads like "~15 min · free"
       (2026-09-21: "~14 min · free")
 - [ ] Type in the box: the results list drops over the screen and the amber
-      line stays visible under it
-- [ ] Start Route closes the planner and opens the dash; `/gps` mid-trip
+      line stays visible under it, and every row sits inside the list's
+      panel, none hanging below it
+      (seen failing in game 2026-09-21: typing "a" showed 8 rows and two,
+      Booty Bay and Brackenwall Village, hung below the panel)
+- [x] Start Route closes the planner and opens the dash; `/gps` mid-trip
       shows the trip's destination in the box
+      (2026-09-21: Start Route opened the dash, and a whole trip from the
+      Crossroads to Silverpine Forest ran end to end in game -- ground legs,
+      the zeppelin and the zone crossings -- with every step advancing as it
+      should. The mid-trip `/gps` half is not yet looked at)
 - [ ] `/gps selftest` lists the fifteen strip textures, all `ok`
 - [ ] Nothing reads past the brass or overlaps: names under the end badges
       stay on the glass
@@ -433,6 +440,8 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       middle names "Orgrimmar Zeppelin..." and "Undercity Zeppelin T..." truncate)
 - [ ] A 13-stop route: rings may touch and each badge's hover area overlaps
       its neighbour's; note whether the right tooltip comes up
+- [ ] No gold rectangle round Start Route or the search box, at rest or on hover
+- [ ] The scenery fills the frame's whole inside, edge to edge, behind the box and Start Route; nothing of the old dark tiled backing shows
 
 ## Flight paths survive a reload
 
@@ -443,6 +452,8 @@ GoblinPS. Re-run them after each beta update, starting with the marker test:
 means saves load again. The plan 7 resume items above are blocked the same
 way.
 
+- [ ] The four screen lines (names, total, amber line, idle status) read
+      clearly over the scenery now that the screen has no dark edge
 - [ ] Log in or `/reload`: chat says "No flight paths known this session:
       open any flight master's map." Open one, `/reload` again: while saves
       do not load, the line comes back; once they load, it stays quiet
@@ -523,6 +534,8 @@ still unconfirmed.
       pointing at the same place in the world. **If it turns the wrong way,
       flip Trip.ROTATION_SIGN and nothing else**
 - [ ] The compass ring's N stays north as you turn
+- [ ] Turning in place, the arrow and compass swing smoothly, not in
+      half-second jumps; on a step advance the arrow glides to the new target
 - [ ] Blizzard's map pin moves to each new step as the dash advances, not
       only to the first one when GO is pressed
 - [ ] Walk to the first step's target: the dash advances to the next step

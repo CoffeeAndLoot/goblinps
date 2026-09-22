@@ -33,14 +33,17 @@ function Widgets.Fill(frame, layer, color, alpha)
 end
 
 -- A frame with a one-pixel-style border: an outer fill and an inset fill.
+-- Both are opaque, so both are recorded as `f.fills`: art meant to show
+-- through the panel can only do so if its caller can hide them.
 function Widgets.Panel(parent, fill, border, inset)
     local f = CreateFrame("Frame", nil, parent)
-    Widgets.Fill(f, "BACKGROUND", border or "steel")
+    local outer = Widgets.Fill(f, "BACKGROUND", border or "steel")
     local inner = f:CreateTexture(nil, "BORDER")
     inner:SetPoint("TOPLEFT", inset or 2, -(inset or 2))
     inner:SetPoint("BOTTOMRIGHT", -(inset or 2), inset or 2)
     local r, g, b = rgb(fill)
     inner:SetColorTexture(r, g, b, 1)
+    f.fills = { outer, inner }
     return f
 end
 
@@ -120,12 +123,18 @@ end
 -- numbers in this plan; a squashed end cap is visible in one look, and the
 -- checklist asks for that look.
 --
+-- Once all three pieces load, every texture in `parent.fallback` is hidden:
+-- the art's rounded corners are transparent, so any flat colour left under it
+-- shows as a box round the control (seen in the client 2026-09-21, a gold
+-- rectangle round Start Route and the search box).
+--
 -- Returns { left, middle, right, capFraction, name }, or nil when the part is
 -- missing or will not load -- and every caller uses that, because a missing
--- texture must leave a working control. The table is also recorded as
--- `parent.slice`, so a later caller that only has the frame (SetButtonEnabled,
--- swapping in "button-disabled") can find and repoint the same three pieces
--- without the builder having kept the return value around.
+-- texture must leave a working control: the fallback then stays shown. The
+-- table is also recorded as `parent.slice`, so a later caller that only has
+-- the frame (SetButtonEnabled, swapping in "button-disabled") can find and
+-- repoint the same three pieces without the builder having kept the return
+-- value around.
 function Widgets.Stretch3(parent, name, capFraction, capAspect)
     local part = ns.Data.Art and ns.Data.Art[name]
     if not part then
@@ -165,6 +174,9 @@ function Widgets.Stretch3(parent, name, capFraction, capAspect)
     local slice = { left = left, middle = middle, right = right,
                     capFraction = capFraction, capAspect = capAspect, name = name }
     parent.slice = slice
+    for _, t in ipairs(parent.fallback or {}) do
+        t:Hide()
+    end
     -- Legal to measure here and nowhere else: every caller builds its control
     -- with an explicit SetSize (W.Button, W.EditBox) and three-slices it
     -- before the layout has re-anchored anything, so this height is real.
@@ -240,10 +252,13 @@ local function reslice(slice, part)
     return true
 end
 
+-- A flat button: steel edge, brass face, a white wash on hover. All three are
+-- the fallback for art, recorded as `b.fallback` so Stretch3 can hide them:
+-- left under art with transparent corners, they show as a box round it.
 function Widgets.Button(parent, text, width, height, onClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(width, height)
-    Widgets.Fill(b, "BACKGROUND", "steel")
+    local edge = Widgets.Fill(b, "BACKGROUND", "steel")
     local face = b:CreateTexture(nil, "BORDER")
     face:SetPoint("TOPLEFT", 1, -1)
     face:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -252,6 +267,7 @@ function Widgets.Button(parent, text, width, height, onClick)
     local hover = b:CreateTexture(nil, "HIGHLIGHT")
     hover:SetAllPoints(face)
     hover:SetColorTexture(1, 1, 1, 0.18)
+    b.fallback = { edge, face, hover }
     b.label = Widgets.Text(b, "steel", "GameFontNormalSmall", "CENTER")
     b.label:SetPoint("CENTER")
     b.label:SetText(text)
@@ -261,11 +277,10 @@ end
 
 -- Buttons go grey and stop answering clicks; SetEnabled exists on Button.
 -- `button.face` is the fallback: tinted here so it still shows the state
--- when no art loaded at all. When a three-slice sits over it (Stretch3
--- records `button.slice`), that art is opaque and would otherwise hide the
--- tint, so this also repoints the slice at the shipped "<name>-disabled"
--- part -- or leaves it showing whatever it already did if that part is
--- missing or will not load.
+-- when no art loaded at all. When a three-slice loaded (Stretch3 records
+-- `button.slice` and hides the face), the tint is never seen, so this also
+-- repoints the slice at the shipped "<name>-disabled" part -- or leaves it
+-- showing whatever it already did if that part is missing or will not load.
 -- A button's label takes the colour of what it sits on: steel on the flat
 -- brass face, green on the dark glass of the shipped button art, dim whenever
 -- the button is disabled. Seen in the client 2026-09-21: Tall, Here and GO
@@ -319,11 +334,15 @@ function Widgets.EditBox(parent, width, height, placeholder)
     e:SetFontObject("GameFontHighlightSmall")
     e:SetTextInsets(6, 6, 0, 0)
     e:SetMaxLetters(60)
-    Widgets.Fill(e, "BACKGROUND", "brass")
+    -- The flat box is the fallback for art, recorded as `e.fallback` so
+    -- Stretch3 can hide it: under art with transparent corners it shows as a
+    -- gold bar round the box.
+    local edge = Widgets.Fill(e, "BACKGROUND", "brass")
     local inner = e:CreateTexture(nil, "BORDER")
     inner:SetPoint("TOPLEFT", 1, -1)
     inner:SetPoint("BOTTOMRIGHT", -1, 1)
     inner:SetColorTexture(rgb("steel"))
+    e.fallback = { edge, inner }
     e.placeholder = Widgets.Text(e, "dim", "GameFontDisableSmall")
     e.placeholder:SetPoint("LEFT", 6, 0)
     e.placeholder:SetText(placeholder or "")

@@ -396,45 +396,113 @@ return function(h)
             -- branch passed because they all asked where it was and how big,
             -- and both were right. So ask the mechanism instead: whose frame
             -- is it on, at what layer, and is anything opaque over it there.
+            --
+            -- Since the owner's first look at plan 8 (2026-09-21) the scenery
+            -- fills the frame's whole opening, so it sits at the back of the
+            -- art layer and everything drawn over it must let it through.
             local ORDER = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
             ns.Planner.Toggle()
             ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             h.truthy(ui.backdrop, "the backdrop texture exists")
-            h.truthy(ui.backdrop.parent == ui.screen,
-                     "the scenery belongs to the screen it fills, not to a frame behind it")
-            h.eq(ui.backdrop.drawLayer, "ARTWORK",
-                 "art over colours: above the panel's fills, below the text drawn on it")
-            for _, r in ipairs(ui.screen.regions) do
-                if r ~= ui.backdrop then
-                    local opaque = r.colorTexture and r.colorTexture[4] >= 1
+            h.truthy(ui.backdrop.parent == ui.artLayer,
+                     "the scenery sits on the art layer, behind the whole opening")
+            h.eq(ui.backdrop.drawLayer, "BACKGROUND", "at the back of it")
+            h.eq(ui.frameArt.parent, ui.backdrop.parent, "the chassis shares its frame")
+            h.truthy(ORDER[ui.frameArt.drawLayer] > ORDER[ui.backdrop.drawLayer],
+                     "and is drawn over it, hiding the edge the opening tucks under the brass")
+            h.falsy(ui.panelArt:IsShown(), "the tiled backing is the fallback, and gives way")
+            h.eq(#ui.screen.fills, 2, "the screen records both of its fills")
+            for _, fill in ipairs(ui.screen.fills) do
+                h.falsy(fill:IsShown(), "the screen's opaque fills let the scenery through")
+            end
+            -- The art layer's own regions only cover it from a layer at or
+            -- above its own; every frame above the art layer covers it from
+            -- any layer at all.
+            for _, r in ipairs(ui.artLayer.regions) do
+                if r ~= ui.backdrop and r ~= ui.frameArt then
+                    local opaque = r.colorTexture and r.colorTexture[4] >= 1 and r:IsShown()
                     h.falsy(opaque and ORDER[r.drawLayer or "ARTWORK"] >= ORDER[ui.backdrop.drawLayer],
-                            "a fully opaque fill at or above the backdrop's layer would hide it, "
-                            .. "layer " .. tostring(r.drawLayer))
+                            "an opaque fill on the art layer would hide it, layer " .. tostring(r.drawLayer))
+                end
+            end
+            for _, frame in ipairs({ ui.content, ui.screen, ui.toBox, ui.go }) do
+                for _, r in ipairs(frame.regions) do
+                    local opaque = r.colorTexture and r.colorTexture[4] >= 1 and r:IsShown()
+                    h.falsy(opaque, "a shown opaque fill over the art layer would hide the scenery, layer "
+                            .. tostring(r.drawLayer))
                 end
             end
         end)
 
-        h.it("covers the screen with the backdrop without distorting it", function()
-            -- screen-backdrop is 2.5:1 scenery and the screen opening is not.
+        h.it("places the scenery at the frame's measured opening, in real pixels", function()
+            -- Pin the position, not just the size.
+            ns.Planner.Toggle()
+            ns.Planner.ApplyLayout()
+            local ui = ns.Planner.Debug()
+            local inner = ns.Data.ArtGeometry.planner.wide.interior
+            local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
+            local p1, p2 = ui.backdrop.points[1], ui.backdrop.points[2]
+            h.eq(#ui.backdrop.points, 2, "two corners, nothing else")
+            h.truthy(p1[1] == "TOPLEFT" and p1[2] == ui.frame and p2[1] == "BOTTOMRIGHT" and p2[2] == ui.frame,
+                     "anchored corner to corner on the window, which has a real size")
+            h.truthy(math.abs(p1[4] - inner.left * w) < 0.5, "left edge at the opening, got " .. tostring(p1[4]))
+            h.truthy(math.abs(-p1[5] - inner.top * fh) < 0.5, "top edge at the opening, got " .. tostring(-p1[5]))
+            h.truthy(math.abs(p2[4] - inner.right * w) < 0.5, "right edge at the opening, got " .. tostring(p2[4]))
+            h.truthy(math.abs(-p2[5] - inner.bottom * fh) < 0.5,
+                     "bottom edge at the opening, got " .. tostring(-p2[5]))
+        end)
+
+        h.it("hides a control's flat fallback once its art loads, and keeps it when the art will not", function()
+            -- Seen in the client 2026-09-21: a gold rectangle round Start
+            -- Route and the search box. The art's rounded corners are
+            -- transparent, so the flat colours left under it showed as a box,
+            -- and the white hover rectangle would have flashed one too.
+            ns.Planner.Toggle()
+            local ui = ns.Planner.Debug()
+            for _, control in ipairs({ { ui.go, 3, "Start Route" }, { ui.toBox, 2, "the search box" } }) do
+                local c, want, name = control[1], control[2], control[3]
+                h.truthy(c.slice, name .. " carries its art")
+                h.eq(#c.fallback, want, name .. " records every fallback texture")
+                for _, t in ipairs(c.fallback) do
+                    h.falsy(t:IsShown(), name .. ": a fallback left shown boxes in the art, layer "
+                            .. tostring(t.drawLayer))
+                end
+            end
+            h.truthy(ui.go.fallback[3].drawLayer == "HIGHLIGHT", "the hover rectangle is one of them")
+
+            local badPath = "Interface\\AddOns\\GoblinPS\\Media\\" .. ns.Data.Art["button"].file
+            Fake.missingTextures[badPath] = true
+            local b = W.Button(UIParent, "x", 120, 24)
+            local slice = W.Stretch3(b, "button", 0.25, 1.0)
+            Fake.missingTextures[badPath] = nil
+            h.falsy(slice, "the art failed, as arranged")
+            for _, t in ipairs(b.fallback) do
+                h.truthy(t:IsShown(), "with no art the flat button stays whole, layer " .. tostring(t.drawLayer))
+            end
+        end)
+
+        h.it("covers the frame's opening with the backdrop without distorting it", function()
+            -- screen-backdrop is 2.5:1 scenery and the frame's opening is not.
             -- Stretching it to fit would squash the mountains; the answer is
             -- to crop the overflow, centred, inside the part's own texture
-            -- coordinates. The mockup's opening is about 3.3:1, wider than
-            -- the scenery, so the overflow is height: the full width stays.
+            -- coordinates. The measured opening is about 2.17:1, narrower
+            -- than the scenery, so the overflow is width: the full height
+            -- stays.
             ns.Planner.Toggle()
             ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             h.truthy(ui.backdrop, "the backdrop texture exists")
             local l, r, t, b = unpack(ui.backdrop.texCoord)
             local part = ns.Data.Art["screen-backdrop"]
-            h.truthy(math.abs(l - part.l) < 0.0001 and math.abs(r - part.r) < 0.0001,
-                     "an opening wider than the scenery keeps its whole width")
-            h.truthy(t >= part.t - 0.0001 and b <= part.b + 0.0001,
+            h.truthy(math.abs(t - part.t) < 0.0001 and math.abs(b - part.b) < 0.0001,
+                     "an opening narrower than the scenery keeps its whole height")
+            h.truthy(l >= part.l - 0.0001 and r <= part.r + 0.0001,
                      "the cover-crop stays inside the part's own padding crop")
-            h.truthy(math.abs((t - part.t) - (part.b - b)) < 0.0001,
-                     "the crop is centred: equal slivers off top and bottom")
-            h.truthy(b - t < part.b - part.t,
-                     "2.5:1 scenery in a 3.3:1 opening loses height")
+            h.truthy(math.abs((l - part.l) - (part.r - r)) < 0.0001,
+                     "the crop is centred: equal slivers off left and right")
+            h.truthy(r - l < part.r - part.l,
+                     "2.5:1 scenery in a 2.17:1 opening loses width")
         end)
 
         h.it("crops the backdrop by the shipped canvas's aspect, not the master PNG's", function()
@@ -443,17 +511,16 @@ return function(h)
             -- Close, not equal -- and using the master's pixel size instead
             -- of the shipped canvas's still lands a crop that is centred and
             -- inside bounds (the test above stays green either way), just
-            -- the wrong SIZE: in the mockup's 3.3:1 opening it trims about 3%
-            -- of the art off top and bottom instead of about 12%.
-            -- Centredness cannot catch that; only the magnitude can.
+            -- the wrong SIZE. Centredness cannot catch that; only the
+            -- magnitude can.
             ns.Planner.Toggle()
             ns.Planner.ApplyLayout()
             local ui = ns.Planner.Debug()
             local part = ns.Data.Art["screen-backdrop"]
-            local g = ns.Data.ArtGeometry.planner.wide
+            local inner = ns.Data.ArtGeometry.planner.wide.interior
             local w, fh = ui.frame:GetWidth(), ui.frame:GetHeight()
-            local boxW = (g.screen.right - g.screen.left) * w
-            local boxH = (g.screen.bottom - g.screen.top) * fh
+            local boxW = (inner.right - inner.left) * w
+            local boxH = (inner.bottom - inner.top) * fh
             local span = part.r - part.l
             local tall = part.b - part.t
             -- The correct domain: part.cw/part.ch are the padded canvas's own
@@ -461,12 +528,16 @@ return function(h)
             -- master's.
             local partAspect = (part.cw * span) / (part.ch * tall)
             local boxAspect = boxW / boxH
-            h.truthy(boxAspect > partAspect, "the opening is wider than the scenery, so height is trimmed")
-            local wantKeep = tall * (partAspect / boxAspect)
-            local _, _, t, b = unpack(ui.backdrop.texCoord)
-            h.truthy(math.abs((b - t) - wantKeep) < 0.001,
+            h.truthy(partAspect > boxAspect, "the scenery is wider than the opening, so width is trimmed")
+            local wantKeep = span * (boxAspect / partAspect)
+            local l, r = unpack(ui.backdrop.texCoord)
+            h.truthy(math.abs((r - l) - wantKeep) < 0.001,
                      "trimmed span must match the shipped canvas's aspect: got "
-                     .. tostring(b - t) .. ", wanted " .. tostring(wantKeep))
+                     .. tostring(r - l) .. ", wanted " .. tostring(wantKeep))
+            -- The master's 1600x640 mixed with the padded canvas's fractions
+            -- keeps a different width, so this test can tell the domains apart.
+            local masterKeep = span * (boxAspect / ((1600 * span) / (640 * tall)))
+            h.truthy(math.abs(wantKeep - masterKeep) > 0.01, "the master's size gives a different crop")
         end)
 
         h.it("tiles the panel backing behind every opening, not just the screen", function()
@@ -806,6 +877,11 @@ return function(h)
             local ui = FreshPlanner.Debug()
             h.truthy(ui.frame:IsShown(), "a missing texture must not take the window with it")
             h.falsy(ui.backdrop, "a texture that would not load must not be laid over the colour")
+            h.truthy(ui.panelArt:IsShown(), "the tiled backing stays, as the fallback")
+            h.eq(#ui.screen.fills, 2, "the screen records both of its fills")
+            for _, fill in ipairs(ui.screen.fills) do
+                h.truthy(fill:IsShown(), "and the screen keeps its colours")
+            end
             -- the rest of the window is still usable with the backdrop missing
             Fake.Type(ui.toBox, "delt")
             h.truthy(ui.results:IsShown(), "the control must still work")
@@ -825,6 +901,42 @@ return function(h)
                  "anchored to the window, not to the box that has focus")
             h.truthy(math.abs(ui.results.points[1][4] - g.resultsList.left * w) < 1,
                      "and it sits where the geometry says")
+            Fake.MouseDown(GoblinPSPlanner) -- put the list away for the test that follows
+        end)
+
+        h.it("keeps every result row inside the list's box", function()
+            -- Client report 2026-09-21: typing "a" dropped 8 rows and two of
+            -- them (Booty Bay, Brackenwall Village) hung below the list's
+            -- panel, because showResults() always filled all MAX_RESULTS
+            -- rows regardless of how tall the list's own box is.
+            -- ROW mirrors Planner.lua's private row-height constant (18px);
+            -- it has no other home to be read from.
+            -- No Toggle() here: it flips the window's own shown/hidden state,
+            -- which the tests after this one rely on to stay in step (Toggle
+            -- hiding the frame is what fires OnHide's hideResults for the
+            -- "opens the whole list from the dropdown button" test right
+            -- after this one). ApplyLayout has already run in this suite.
+            local ROW = 18
+            local ui = ns.Planner.Debug()
+            local g = ns.Data.ArtGeometry.planner.wide
+            local listHeight = (g.resultsList.bottom - g.resultsList.top) * ui.frame:GetHeight()
+            -- Real numbers at 416px: (109.69 - 4) / 18 floors to 5.
+            h.eq(ui.results.fit, 5, "5 rows fit the 416px-tall window's list")
+            Fake.Type(ui.toBox, "a") -- matches more than fit in the fake world
+            h.truthy(ui.results:IsShown())
+            local shown, hidden = 0, 0
+            for i, row in ipairs(ui.results.rows) do
+                if row:IsShown() then
+                    shown = shown + 1
+                    local bottom = 2 + i * ROW -- TOPLEFT offset (2 + (i-1)*ROW) plus the row's own height
+                    h.truthy(bottom <= listHeight,
+                              "row " .. i .. " bottom edge must stay inside the list's own height")
+                else
+                    hidden = hidden + 1
+                end
+            end
+            h.eq(shown, ui.results.fit, "exactly fit rows are shown")
+            h.eq(shown + hidden, Planner.MAX_RESULTS)
             Fake.MouseDown(GoblinPSPlanner) -- put the list away for the test that follows
         end)
 
@@ -1659,10 +1771,101 @@ return function(h)
                 h.eq(ui.compass.rotation, -0.4, "default sign turns opposite facing")
                 local saved = ns.Trip.ROTATION_SIGN
                 ns.Trip.ROTATION_SIGN = -1
+                -- The arrow was already showing before this second Tick, so
+                -- aimArrow no longer snaps it -- Steer does the turning now.
                 Dash.Tick("tick")
-                h.eq(ui.compass.rotation, 0.4,
+                Dash.Steer(1)
+                h.truthy(math.abs(ui.compass.rotation - 0.4) < 1e-4,
                      "flipping ROTATION_SIGN, the checklist's own remedy for the arrow, must flip the compass with it")
                 ns.Trip.ROTATION_SIGN = saved
+                facing = 0
+            end)
+
+            h.it("turns the arrow between ticks as you turn", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(-100, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(ui.arrow.rotation, 0, "first sight snaps exactly")
+                facing = 0.5
+                Dash.Steer(0.016)
+                local target = ns.Trip.ArrowAngle(ns.Trip.Bearing(ns.Core.Here(), plan.result.steps[1].to), facing)
+                h.truthy(ui.arrow.rotation < 0 and ui.arrow.rotation > target,
+                         "one frame should move toward the target but not all the way, got "
+                         .. tostring(ui.arrow.rotation))
+                Dash.Steer(1)
+                h.truthy(math.abs(ui.arrow.rotation - target) < 1e-4, "a full second lands on the target")
+                facing = 0
+            end)
+
+            h.it("never spins the long way round", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(100, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(ui.arrow.rotation, math.pi, "the target sits due south of us, so the arrow starts near +pi")
+                -- Swings the target to just past -pi -- the same physical
+                -- direction, on the other side of the wrap.
+                facing = 2 * math.pi - 0.01
+                Dash.Steer(0.05)
+                h.truthy(math.abs(ui.arrow.rotation - math.pi) < 0.5,
+                         "one small step must not swing the arrow the long way round, got "
+                         .. tostring(ui.arrow.rotation))
+                facing = 0
+            end)
+
+            h.it("does not steer while the arrow is hidden or no trip runs", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(-100, 0); facing = 0
+                Dash.Tick("tick")
+                h.truthy(ui.arrow:IsShown(), "sanity: the arrow is up before we hide it")
+                ui.arrow:Hide()
+                local before = ui.arrow.rotation
+                facing = 1.2   -- a different target; Steer must not chase it while hidden
+                Dash.Steer(1)
+                h.eq(ui.arrow.rotation, before, "steering does nothing while the arrow is hidden")
+                facing = 0
+                Dash.Stop()
+                Dash.Steer(1)   -- must not error with no trip running and the dash hidden
+                h.falsy(Dash.Debug().frame:IsShown())
+            end)
+
+            h.it("glides, not snaps, when a step advances", function()
+                Dash.Start(plan)
+                local ui, state = Dash.Debug()
+                standAt(-5000, 0); facing = 0
+                Dash.Tick("tick")
+                h.eq(ui.arrow.rotation, 0, "sanity: first sight snaps to step 1's target, due north")
+                standAt(-20, 20)
+                Dash.Tick("tick")
+                h.eq(state.index, 2, "sanity: arriving moved the step index on")
+                h.eq(ui.arrow.rotation, 0, "sanity: the advance tick itself does not move the arrow")
+                Dash.Steer(0.016)
+                local target = ns.Trip.ArrowAngle(ns.Trip.Bearing(ns.Core.Here(), plan.result.steps[2].to), facing)
+                h.truthy(ui.arrow.rotation < 0 and ui.arrow.rotation > target,
+                         "one frame after the advance should ease toward the new step's target but not reach it,"
+                         .. " got " .. tostring(ui.arrow.rotation))
+                Dash.Steer(1)
+                h.truthy(math.abs(ui.arrow.rotation - target) < 1e-4, "a full second lands on the new target")
+                facing = 0
+            end)
+
+            h.it("snaps when it comes back after a pause", function()
+                Dash.Start(plan)
+                local ui = Dash.Debug()
+                standAt(-100, 0); facing = 0
+                Dash.Tick("tick")
+                h.truthy(ui.arrow:IsShown(), "sanity: the arrow is up before the pause")
+                where.map = nil
+                Dash.Tick("tick")
+                h.falsy(ui.arrow:IsShown(), "no position pauses the trip and hides the arrow")
+                standAt(-100, 0)
+                Dash.Tick("tick")
+                h.truthy(ui.arrow:IsShown())
+                local target = ns.Trip.ArrowAngle(ns.Trip.Bearing(ns.Core.Here(), plan.result.steps[1].to), facing)
+                h.eq(ui.arrow.rotation, target,
+                     "coming back after a pause snaps exactly onto the target, no Steer needed")
                 facing = 0
             end)
 

@@ -157,6 +157,7 @@ comes off that list.
 ## Plan 8 — the planner rebuilt to the mockup
 
 Built 2026-09-21 -- not yet run in the client.
+Amended 2026-09-21 after the first client look, at the owner's call: the scenery fills the frame's whole opening, not only the screen, and a control's flat fallback hides once its art loads.
 
 ### The window
 

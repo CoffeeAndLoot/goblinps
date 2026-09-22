@@ -1,5 +1,14 @@
 # Dash 2 art handoff
 
+Stop-cap finish updated at the owner's request: deeper worn red paint, fine
+scratches, chipped metal edges and a distressed white stop square. Built-in
+image-generation edit `4a865819-354c-4a9f-aa2f-8fb2ef7bef46` used the existing
+cap as reference with the prompt direction: change surface finish only to
+moderately worn goblin machinery, retain red paint, white symbol and front view.
+Pillow finishing normalized the cap to its original 224px art box and retained
+the original alpha mask on all three 256px states. Hover is brighter; pressed
+is darker. Authoring and shipped TGA textures were rebuilt with the previews.
+
 Transparency correction: removed a baked checkerboard in the enclosed gap
 between the left hose and bezel near nine o'clock (source bounds x117–165,
 y374–444). The source housing, authoring export, shipped housing TGA and
