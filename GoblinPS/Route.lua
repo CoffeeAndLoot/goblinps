@@ -1,11 +1,18 @@
 local _, ns = ...
 
--- Pure: shortest path by seconds, the "discover X" hint, and the plain text.
+-- Pure: shortest path by cost (seconds, plus Graph's penalty on a leg past an
+-- enemy town), the "discover X" hint, and the plain text.
 local Route = {}
 ns.Route = Route
 
 Route.MIN_RIDE_SECONDS = 5   -- shorter rides mean "you are already there"
 Route.HINT_MIN_SECONDS = 120 -- only mention a saving worth having
+
+-- What an edge costs the router. Graph.Build gives every edge a cost; a graph
+-- built by hand may give only seconds.
+local function costOf(edge)
+    return edge.cost or edge.seconds
+end
 
 -- Dijkstra with a linear scan; the graph has about a hundred stops.
 local function shortest(graph)
@@ -22,7 +29,7 @@ local function shortest(graph)
         end
         done[bestKey] = true
         for _, e in ipairs(graph.edges[bestKey] or {}) do
-            local nd = best + e.seconds
+            local nd = best + costOf(e)
             if nd < (dist[e.to] or math.huge) then
                 dist[e.to] = nd
                 prev[e.to] = { from = bestKey, edge = e }
@@ -33,12 +40,13 @@ local function shortest(graph)
 end
 
 -- One "Fly to X" per flight master visit; drop rides too short to mention,
--- but never the way through a tunnel: that step is the tunnel.
+-- but never the way through a tunnel (that step is the tunnel) and never a
+-- step past an enemy town (its warning must reach the player).
 local function tidy(raw)
     local steps = {}
     for _, s in ipairs(raw) do
         local last = steps[#steps]
-        local tooShort = s.kind == "ride" and not s.through and s.seconds < Route.MIN_RIDE_SECONDS
+        local tooShort = s.kind == "ride" and not s.through and not s.danger and s.seconds < Route.MIN_RIDE_SECONDS
         if last and last.kind == "fly" and s.kind == "fly" and last.to.key == s.from.key then
             last.to = s.to
             last.seconds = last.seconds + s.seconds
@@ -52,7 +60,8 @@ local function tidy(raw)
     return steps
 end
 
--- Returns { steps, raw, seconds, copper } or nil when there is no route.
+-- Returns { steps, raw, seconds, cost, copper } or nil when there is no
+-- route: seconds is the real travel time, cost what the router minimised.
 -- A step is { kind, from = stop, to = stop, seconds, copper }; a ground step
 -- also carries zone, walk, rough, through (the passage of a two-ended
 -- crossing) and danger ({ name, f }: the enemy town its straight line passes).
@@ -61,9 +70,10 @@ function Route.Find(graph)
     if not prev then
         return nil
     end
-    local raw, key = {}, "DEST"
+    local raw, key, cost = {}, "DEST", 0
     while prev[key] do
         local p = prev[key]
+        cost = cost + costOf(p.edge)
         table.insert(raw, 1, { kind = p.edge.kind, from = graph.stops[p.from], to = graph.stops[key],
                                seconds = p.edge.seconds, copper = p.edge.copper,
                                zone = p.edge.zone, walk = p.edge.walk, rough = p.edge.rough,
@@ -74,7 +84,7 @@ function Route.Find(graph)
     for _, s in ipairs(raw) do
         seconds, copper = seconds + s.seconds, copper + s.copper
     end
-    return { steps = tidy(raw), raw = raw, seconds = seconds, copper = copper }
+    return { steps = tidy(raw), raw = raw, seconds = seconds, cost = cost, copper = copper }
 end
 
 -- Zone by zone through crossings. Only when no such route exists, once more
@@ -109,6 +119,8 @@ end
 -- hearthstone only when it earns its keep. Nil or 0 means the old behaviour,
 -- always fastest. Refusing it never costs the player a route: the plain plan
 -- is returned instead, and it is the one the player would have had anyway.
+-- The saving is measured in cost, the router's own measure: a stone that
+-- keeps the player out of an enemy town saves them the town's penalty too.
 function Route.Plan(data, opts)
     local best = solve(data, opts)
     local bar = opts.hearthSaving or 0
@@ -119,7 +131,7 @@ function Route.Plan(data, opts)
         return best
     end
     local plain = solve(data, copy(opts, { hearth = false }))
-    if plain and plain.seconds - best.seconds < bar then
+    if plain and plain.cost - best.cost < bar then
         return plain
     end
     return best
@@ -128,7 +140,9 @@ end
 -- Would knowing every flight path help? Returns { names = { first two short
 -- names }, more = count of further unknown stops beyond those two (0 if
 -- none), seconds = saved or nil when there was no route at all }, or nil
--- when it would not.
+-- when it would not. It must help both ways: better by cost, the router's
+-- measure, and by real seconds, the only saving the hint may state. A route
+-- that only goes round an enemy town, no faster, earns no "save" line.
 function Route.Hint(data, opts, result)
     local all, o = {}, {}
     for id in pairs(data.Nodes) do
@@ -142,7 +156,8 @@ function Route.Hint(data, opts, result)
     if not better then
         return nil
     end
-    if result and result.seconds - better.seconds < Route.HINT_MIN_SECONDS then
+    if result and (result.cost - better.cost < Route.HINT_MIN_SECONDS
+                   or result.seconds - better.seconds < Route.HINT_MIN_SECONDS) then
         return nil
     end
     local all_names, seen, known = {}, {}, opts.known or {}

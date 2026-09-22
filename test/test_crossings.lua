@@ -450,6 +450,36 @@ return function(h, loaded)
             h.eq(towns, marked.H, "every town the owner marked Horde, and no other")
             h.eq(capitals, "Orgrimmar, Thunder Bluff, Undercity")
         end)
+        -- The reviewer's walk on 2026-09-22: an Alliance level 15 from the
+        -- Orgrimmar zeppelin tower to Astranaar went in at the front gate and
+        -- out at the west gate with no word of Orgrimmar, because every leg had
+        -- a gate inside the capital's circle and a gate was exempt.
+        h.it("never walks the Alliance through Orgrimmar unwarned: a gate is on the way, not the goal", function()
+            local c, x, y = ns.Geo.ToWorld(data.Places, 1411, 0.509, 0.140)
+            local walker = ns.Travel.For(15)
+            local opts = { faction = "A", known = {}, speed = walker.speed, walk = walker.walk,
+                           from = { name = "You", c = c, x = x, y = y, map = 1411, mx = 0.509, my = 0.140 },
+                           to = ns.Search.Exact(data, "Astranaar", "A") }
+            local orgrimmar
+            for _, enemy in ipairs(ns.Graph.Hostile(data, "A")) do
+                if enemy.name == "Orgrimmar" then
+                    orgrimmar = enemy
+                end
+            end
+            h.truthy(orgrimmar, "Orgrimmar's flight master is Horde")
+            h.eq(ns.Graph.HostileAt(data, "A", opts.from), nil, "the tower stands outside the circle")
+            local r = ns.Route.Plan(data, opts)
+            -- It goes round, by the Southfury bridge: about 105 seconds longer
+            -- on foot than through the capital, well inside its ten minutes.
+            h.eq(table.concat(texts(r), " / "),
+                 "Walk to the Southfury bridge / Walk to the Mor'shan Rampart / Walk to Astranaar")
+            for _, s in ipairs(r.steps) do
+                h.eq(s.danger, nil)
+                if not s.through and ns.Geo.SegmentDistance(s.from, s.to, orgrimmar) <= orgrimmar.radius then
+                    h.eq(s.danger and s.danger.name, "Orgrimmar", ns.Route.StepText(s) .. " passes Orgrimmar unwarned")
+                end
+            end
+        end)
         h.it("leaves a city by its gate", function()
             local r = ns.Route.Plan(data, { faction = "A", known = {}, from = place("Stormwind City", "A"),
                                             to = place("Westfall", "A") })

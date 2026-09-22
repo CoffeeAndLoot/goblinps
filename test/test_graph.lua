@@ -343,7 +343,8 @@ return function(h, loaded)
             h.eq(e.kind, "ride")
             h.eq(e.danger.name, "Keep")
             h.eq(e.danger.f, "A")
-            h.truthy(near(e.seconds, Graph.RideSeconds(west, east) + 600))
+            h.truthy(near(e.cost, Graph.RideSeconds(west, east) + 600), "the ten minutes steer the router")
+            h.truthy(near(e.seconds, Graph.RideSeconds(west, east)), "and are never shown as time")
         end)
         h.it("counts a leg that passes right at the radius, and not one a yard wider", function()
             local w = vale()
@@ -352,17 +353,43 @@ return function(h, loaded)
             w.Nodes[1].x = 5151
             local e = straight(w, "H", west, east)
             h.eq(e.danger, nil)
-            h.truthy(near(e.seconds, Graph.RideSeconds(west, east)), "and no penalty")
+            h.truthy(near(e.cost, Graph.RideSeconds(west, east)), "and no penalty")
         end)
         h.it("leaves the leg alone for the side whose town it is", function()
             local e = straight(vale(), "A", west, east)
             h.eq(e.danger, nil)
-            h.truthy(near(e.seconds, Graph.RideSeconds(west, east)))
+            h.truthy(near(e.cost, Graph.RideSeconds(west, east)))
         end)
         h.it("exempts a leg that starts or ends inside the circle: you are there, or going there", function()
             local gate = { name = "Keep Gate", c = 7, x = 5000, y = 5100, map = 20 }
             h.eq(straight(vale(), "H", west, gate).danger, nil, "going there on purpose")
             h.eq(straight(vale(), "H", gate, east).danger, nil, "leaving it")
+        end)
+        h.it("exempts the hearthstone's inn and a stopover inside the circle too", function()
+            local w = vale()
+            -- world (5000, 5100), 100 yards from Keep
+            w.Stopovers = { { name = "the keep yard", map = 20, mx = 0.5, my = 0.49 } }
+            local inn = { name = "Keep Inn", c = 7, x = 5000, y = 5100, map = 20 }
+            local g = Graph.Build(w, { faction = "H", known = {}, from = west, to = east, hearth = inn })
+            h.eq(edge(g, "HEARTH", "DEST").danger, nil, "you are there once the stone lands")
+            h.eq(edge(g, "START", "s1").danger, nil, "the owner put the stopover there on purpose")
+            h.eq(edge(g, "s1", "DEST").danger, nil)
+        end)
+        h.it("charges a leg to or from a crossing inside the circle: a gate is on the way, not the goal", function()
+            local w = vale()
+            -- world (5000, 5100), 100 yards from Keep: a gate in the town's own wall
+            w.Crossings = { { a = 20, b = 21, name = "Keep Gate", map = 20, mx = 0.5, my = 0.49 } }
+            local g = Graph.Build(w, { faction = "H", known = {}, from = west, to = east })
+            h.eq(edge(g, "START", "x1").danger.name, "Keep", "walking in to the gate")
+            h.eq(edge(g, "x1", "DEST").danger.name, "Keep", "and on out the far side")
+        end)
+        h.it("charges a leg from a flight master inside the circle", function()
+            local w = vale()
+            -- the Horde's own flight master, 100 yards from the enemy's
+            w.Nodes[6] = { name = "Camp, Vale", f = "H", c = 7, x = 5000, y = 5100, map = 20, mx = 0.5, my = 0.49 }
+            local g = Graph.Build(w, { faction = "H", known = { [6] = true }, from = west, to = east })
+            h.eq(edge(g, "f6", "DEST").danger.name, "Keep")
+            h.eq(edge(g, "START", "f6").danger.name, "Keep")
         end)
         h.it("never charges a flight, a boat, the hearthstone or a tunnel's passage, even over the town", function()
             local w = vale()
@@ -381,25 +408,30 @@ return function(h, loaded)
                                        hearth = inn })
             local fly = edge(g, "f4", "f5", "fly")
             h.eq(fly.seconds, 90)
+            h.eq(fly.cost, 90)
             h.eq(fly.danger, nil)
             h.eq(edge(g, "f4", "f5", "ride").danger.name, "Keep", "riding the same line is charged")
             local boat = edge(g, "west_dock", "east_dock", "boat")
             h.eq(boat.seconds, 120)
+            h.eq(boat.cost, 120)
             h.eq(boat.danger, nil)
             local hearth = edge(g, "START", "HEARTH", "hearth")
             h.eq(hearth.seconds, Graph.HEARTH_SECONDS)
+            h.eq(hearth.cost, Graph.HEARTH_SECONDS)
             h.eq(hearth.danger, nil)
             local through = edge(g, "x1", "x1far")
             h.eq(through.through, true)
             h.eq(through.danger, nil)
             h.truthy(near(through.seconds, Graph.RideSeconds(g.stops.x1, g.stops.x1far)))
+            h.eq(through.cost, through.seconds)
         end)
         h.it("tests a rough straight line the same way", function()
             local over = { name = "Over The Hill", c = 7, x = 5000, y = 1000, map = 21 }
             local e = straight(vale(), "H", west, over, { rough = true })
             h.eq(e.rough, true)
             h.eq(e.danger.name, "Keep")
-            h.truthy(near(e.seconds, Graph.RideSeconds(west, over) + 600))
+            h.truthy(near(e.cost, Graph.RideSeconds(west, over) + 600))
+            h.truthy(near(e.seconds, Graph.RideSeconds(west, over)))
         end)
         h.it("adds a stopover as an ordinary point in its zone, and the route goes round through it", function()
             local w = vale()
@@ -422,12 +454,69 @@ return function(h, loaded)
             h.eq(r.steps[2].to.key, "DEST")
             h.eq(r.steps[1].danger, nil)
             h.eq(r.steps[2].danger, nil)
+            h.truthy(near(r.seconds, r.steps[1].seconds + r.steps[2].seconds))
+            h.eq(r.cost, r.seconds, "going round pays no penalty")
         end)
         h.it("still goes straight through with no way round, the danger on its step", function()
             local r = loaded.ns.Route.Find(Graph.Build(vale(), { faction = "H", known = {}, from = west, to = east }))
             h.eq(#r.steps, 1)
             h.eq(r.steps[1].danger.name, "Keep")
             h.eq(r.raw[1].danger.name, "Keep")
+            h.truthy(near(r.steps[1].seconds, Graph.RideSeconds(west, east)), "the step's time is the real ride")
+            h.truthy(near(r.seconds, Graph.RideSeconds(west, east)), "and so is the route's")
+            h.truthy(near(r.cost, Graph.RideSeconds(west, east) + 600), "the penalty lives only in cost")
+        end)
+        h.it("never drops a step past an enemy town as too short to mention", function()
+            local Route = loaded.ns.Route
+            local graph = {
+                stops = { START = { key = "START", name = "Start" }, DEST = { key = "DEST", name = "Dest" } },
+                edges = { START = { { to = "DEST", kind = "ride", seconds = 3, cost = 603, copper = 0,
+                                      danger = { name = "Keep", f = "A" } } } },
+            }
+            local r = Route.Find(graph)
+            h.eq(#r.steps, 1, "the warning must reach the player")
+            h.eq(r.steps[1].danger.name, "Keep")
+            h.eq(r.seconds, 3)
+            h.eq(r.cost, 603)
+        end)
+        -- Two points 400 yards apart either side of Keep: about 46 seconds'
+        -- ride straight past it at the default speed.
+        local south = { name = "South", c = 7, x = 5000, y = 5200, map = 20 }
+        local north = { name = "North", c = 7, x = 5000, y = 4800, map = 20 }
+        h.it("spends the hearthstone to keep out of an enemy town when the penalty clears the bar", function()
+            -- The inn is 10 yards from North: 20 seconds by stone against 46
+            -- straight past Keep, a real saving under the 120-second bar but a
+            -- saving in cost of over ten minutes.
+            local inn = { name = "North Inn", c = 7, x = 5000, y = 4790, map = 20 }
+            local r = loaded.ns.Route.Plan(vale(), { faction = "H", known = {}, from = south, to = north,
+                                                     hearth = inn, hearthSaving = 120 })
+            h.eq(r.steps[1].kind, "hearth")
+            for _, s in ipairs(r.steps) do
+                h.eq(s.danger, nil)
+            end
+        end)
+        local function forts(w, flight)
+            w.Nodes[4] = { name = "Westfort, Vale", f = "H", c = 7, x = 5000, y = 5200, map = 20, mx = 0.48, my = 0.5 }
+            w.Nodes[5] = { name = "Eastfort, Vale", f = "H", c = 7, x = 5000, y = 4800, map = 20, mx = 0.52, my = 0.5 }
+            w.Flights = { { 4, 5, 0, flight } }
+            return w
+        end
+        h.it("states a hint's saving in real minutes, never the penalty", function()
+            local w = forts(vale(), 90)
+            w.Nodes[4].y, w.Nodes[4].mx = 9000, 0.1   -- at West
+            w.Nodes[5].y, w.Nodes[5].mx = 1000, 0.9   -- at East
+            local opts = { faction = "H", known = {}, from = west, to = east }
+            local result = loaded.ns.Route.Plan(w, opts)
+            local hint = loaded.ns.Route.Hint(w, opts, result)
+            h.truthy(hint, "a 90-second flight beats a 15-minute ride")
+            h.truthy(near(hint.seconds, Graph.RideSeconds(west, east) - 90))
+        end)
+        h.it("offers no hint that would only dodge a town and save no real time", function()
+            -- The flight takes 60 seconds against a 46-second ride past Keep:
+            -- better by cost, slower by the clock, so there is nothing to save.
+            local w = forts(vale(), 60)
+            local opts = { faction = "H", known = {}, from = south, to = north }
+            h.eq(loaded.ns.Route.Hint(w, opts, loaded.ns.Route.Plan(w, opts)), nil)
         end)
     end)
 end

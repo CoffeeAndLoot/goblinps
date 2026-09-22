@@ -19,8 +19,13 @@ When one leg passes two hostile places, it is named after the surer source: a fl
 A place is hostile only to the other faction. Neutral towns (no `f`) are never hostile.
 
 ## 2. The penalty
-- In `Graph.Build`, each ride edge p->q is tested against every hostile place on the same continent. If the straight segment passes within the place's radius, the edge gains `Graph.HOSTILE_SECONDS` (**Ruling: 600**, ten minutes) and carries `danger = { name, f }`. It takes the first hostile place, in stable order, as its name.
-- **Exemptions.** A hostile place is ignored for an edge when either end of the edge lies inside its circle. You are already there, or going there on purpose (an enemy town you picked, or a stopover you placed inside one knowingly). That keeps a trip TO Silverwind Refuge from being impossible.
+**Revised 2026-09-22 after review:** the exemption covers only the ends the player chose, and the penalty is a routing cost that is never shown as time.
+
+- In `Graph.Build`, each ride edge p->q is tested against every hostile place on the same continent. If the straight segment passes within the place's radius, the edge carries `danger = { name, f }`. It takes the first hostile place, in stable order, as its name.
+- **The penalty steers but never shows.** Every edge keeps its real `seconds` and gains a `cost`: its seconds, plus `Graph.HOSTILE_SECONDS` (**Ruling: 600**, ten minutes) on a `danger` edge. `Route.Find`'s Dijkstra minimises cost. Its result carries both `seconds` (the real travel time, the sum of the steps' real seconds, which is all the player is ever shown: totals, step times, tooltips, the ETA) and `cost`. Putting the penalty in `seconds` showed a phantom ten minutes everywhere.
+- **Comparisons.** `Route.Plan`'s hearthstone bar compares cost, the router's own measure: a stone that keeps the player out of an enemy town saves them the town's penalty too. `Route.Hint` offers a hint only when the better route beats the current one by `HINT_MIN_SECONDS` both in cost and in real seconds, and states the saving in real seconds. A route that only goes round a town, no faster, earns no "save" line (its saving would read as nothing or less).
+- `tidy`'s too-short rule never drops a step carrying `danger`: its warning must reach the player.
+- **Exemptions.** A hostile place is ignored for an edge only when an end the player chose lies inside its circle: START (you are there), HEARTH (the stone lands you there), DEST (an enemy town you picked) or a stopover (placed inside one knowingly). That keeps a trip TO Silverwind Refuge from being impossible. A crossing end, a tunnel mouth or a flight master inside the circle gets the plain segment test and no exemption: it is on the way, not the goal. Exempting "either end" let an Alliance level 15 walk from the Orgrimmar zeppelin tower to Astranaar go in at Orgrimmar's front gate and out at its west gate with no warning; it now goes round by the Southfury bridge.
 - It is a penalty, not a ban, so a destination is never made unreachable. The router takes a way round whenever one exists within ten minutes.
 - Flights, boats, zeppelins, trams and the hearthstone are never penalised. Through edges (tunnels) are not either: they are one passage.
 - Rough straight-line edges get the same test.
@@ -47,9 +52,9 @@ A place is hostile only to the other faction. Neutral towns (no `f`) are never h
 ## Tests
 - **Pure geometry:** segment-to-point distance (`Geo.SegmentDistance`) at the ends, in the middle and past both ends.
 - **Graph:**
-  - an edge through a hostile circle carries `danger` and costs 600 s more;
+  - an edge through a hostile circle carries `danger` and costs 600 s more, its `seconds` unchanged;
   - an edge that misses the circle does not;
-  - an edge with an end inside the circle is exempt;
+  - an edge with START, HEARTH, DEST or a stopover inside the circle is exempt; one with only a crossing end or a flight master inside is not;
   - a friendly or neutral town is never hostile;
   - flights and through edges are never penalised;
   - given a stopover beside the circle, the route goes round it.

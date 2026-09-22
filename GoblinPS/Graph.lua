@@ -102,10 +102,21 @@ function Graph.HostileAt(data, faction, point)
     return nil
 end
 
+-- Is this end of a leg one the player chose: where they stand (START), where
+-- the hearthstone lands them (HEARTH), where they are going (DEST), or a
+-- stopover the owner placed? Only such an end, inside a circle, excuses the
+-- leg from it. A gate, a tunnel mouth or a flight master is only on the way:
+-- exempting those let an Alliance walk go in at Orgrimmar's front gate and
+-- out at its west gate unwarned (review, 2026-09-22).
+local function chosen(stop)
+    return stop.key == "START" or stop.key == "HEARTH" or stop.key == "DEST" or stop.stopover == true
+end
+
 -- The first of these hostile places (one continent's, in Graph.Hostile's
 -- order) that the straight leg p->q passes within its radius of, as
--- { name, f }; nil when none does. A place is ignored when either end of the
--- leg is inside its circle: you are already there, or going there on purpose.
+-- { name, f }; nil when none does. A place is ignored when a chosen end of
+-- the leg is inside its circle: you are already there, or going there on
+-- purpose.
 local function dangerOn(hostile, p, q)
     local Geo = ns.Geo
     local x0, x1 = math.min(p.x, q.x), math.max(p.x, q.x)
@@ -115,7 +126,9 @@ local function dangerOn(hostile, p, q)
         -- The box round the leg, widened by r, is a cheap no for most places:
         -- it halves what the test costs Graph.Build (measured 2026-09-22).
         local near = h.x >= x0 - r and h.x <= x1 + r and h.y >= y0 - r and h.y <= y1 + r
-        if near and Geo.SegmentDistance(p, q, h) <= r and Geo.Distance(p, h) > r and Geo.Distance(q, h) > r then
+        if near and Geo.SegmentDistance(p, q, h) <= r
+                and not (chosen(p) and Geo.Distance(p, h) <= r)
+                and not (chosen(q) and Geo.Distance(q, h) <= r) then
             return { name = h.name, f = h.f }
         end
     end
@@ -137,6 +150,9 @@ local function addEdge(edges, from, to, edge)
     end
     edge.to = to
     edge.copper = edge.copper or 0
+    -- What the router minimises: the real seconds, plus the penalty on a leg
+    -- past an enemy town. The penalty steers; it is never shown as time.
+    edge.cost = edge.seconds + (edge.danger and Graph.HOSTILE_SECONDS or 0)
     list[#list + 1] = edge
 end
 
@@ -196,8 +212,9 @@ end
 -- Returns { stops = { [key] = stop }, edges = { [key] = { edge, ... } } }
 -- with the special keys START, DEST and HEARTH. A ride edge carries zone (the
 -- UiMap it is walked in), walk, danger ({ name, f }: the enemy town its
--- straight line passes, already priced in at Graph.HOSTILE_SECONDS) and, in
--- rough mode, rough. The edge between the two ends of a two-ended crossing
+-- straight line passes) and, in rough mode, rough. Every edge carries its
+-- real seconds and a cost, the same plus Graph.HOSTILE_SECONDS on a danger
+-- edge: the router minimises cost, the player is shown seconds. The edge between the two ends of a two-ended crossing
 -- also carries through = true, and its zone is the one being entered; it is
 -- one passage, never charged for a town. Data/Stopovers.lua rows are stops
 -- keyed "s1", "s2"...
@@ -304,16 +321,12 @@ function Graph.Build(data, opts)
                     else
                         danger = dangerOn(hostile[p.c], p, q)
                     end
-                    if danger then
-                        seconds = seconds + Graph.HOSTILE_SECONDS
-                    end
                     addEdge(edges, pk, qk, { kind = "ride", seconds = seconds, zone = zone, walk = opts.walk,
                                              danger = danger })
                 elseif opts.rough and p.c == q.c and (pk == "START" or pk == "HEARTH" or qk == "DEST") then
                     local danger = dangerOn(hostile[p.c], p, q)
-                    addEdge(edges, pk, qk, { kind = "ride", walk = opts.walk, rough = true, danger = danger,
-                                             seconds = Graph.RideSeconds(p, q, speed)
-                                                 + (danger and Graph.HOSTILE_SECONDS or 0) })
+                    addEdge(edges, pk, qk, { kind = "ride", seconds = Graph.RideSeconds(p, q, speed),
+                                             walk = opts.walk, rough = true, danger = danger })
                 end
             end
         end
