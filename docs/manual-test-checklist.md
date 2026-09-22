@@ -449,8 +449,9 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       its neighbour's; note whether the right tooltip comes up
 - [ ] No gold rectangle round Start Route or the search box, at rest or on hover
 - [ ] The scenery fills the frame's whole inside, edge to edge, behind the box and Start Route; nothing of the old dark tiled backing shows
-- [ ] A route to a zone: the signpost is labelled with the zone you searched for, and its tooltip still names the crossing you walk to (seen wrong in game 2026-09-21: "the Tirisfal-...", "Darkwhisp...")
-- [ ] Crossing names under the badges and on the dash's glass drop their leading "the" ("Mor'shan Rampart"); tooltips still read as sentences ("Walk to the Mor'shan Rampart")
+- [x] A route to a zone: the signpost is labelled with the zone you searched for, and its tooltip still names the crossing you walk to (seen wrong in game 2026-09-21: "the Tirisfal-...", "Darkwhisp...")
+      (seen right in game 2026-09-21, a route to Mount Hyjal)
+- [x] Crossing names under the badges and on the dash's glass drop their leading "the" ("Mor'shan Rampart"); tooltips still read as sentences ("Walk to the Mor'shan Rampart")
 
 ## Flight paths survive a reload
 
@@ -461,6 +462,7 @@ GoblinPS. Re-run them after each beta update, starting with the marker test:
 means saves load again. The plan 7 resume items above are blocked the same
 way.
 
+      (seen right in game 2026-09-21, a route to Mount Hyjal)
 - [ ] The four screen lines (names, total, amber line, idle status) read
       clearly over the scenery now that the screen has no dark edge
 - [ ] Log in or `/reload`: chat says "No flight paths known this session:
