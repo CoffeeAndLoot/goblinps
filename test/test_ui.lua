@@ -1498,8 +1498,14 @@ return function(h)
         -- `if not ui then build() end`), so proving a texture-load fallback
         -- needs a genuinely fresh copy of the module, not Stop/Start again on
         -- the shared one. Shared by every "missing texture" test below.
+        -- loadfile re-runs `ns.Dash = Dash` as a side effect, so put the real
+        -- one straight back, as the FreshPlanner tests do for ns.Planner, and
+        -- drive the fresh copy only through the local this returns.
         local function freshDash()
-            return assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+            local saved = ns.Dash
+            local fresh = assert(loadfile("GoblinPS/Dash.lua"))("GoblinPS", ns)
+            ns.Dash = saved
+            return fresh
         end
 
         -- Marks `path` as a texture the fake will refuse to load, runs `fn`,
@@ -1750,7 +1756,7 @@ return function(h)
                          "the compass is sized from geometry.compassCrop.share")
             end)
 
-            h.it("centres the compass and the arrow on the dial, in real pixels", function()
+            h.it("centres the compass on the dial and the arrow on its own centre, in real pixels", function()
                 -- Seen in the client 2026-09-20: both sat up and to the left,
                 -- clear off the device, because the offsets were computed from
                 -- a frame sized by SetAllPoints -- which has no size until the
@@ -1764,15 +1770,55 @@ return function(h)
                 Dash.Start(plan)
                 local ui = Dash.Debug()
                 local w, h2 = ui.frame:GetWidth(), ui.frame:GetHeight()
+                local centres = { compass = g.glass, arrow = g.arrow }
                 for _, name in ipairs({ "compass", "arrow" }) do
-                    local pt = ui[name].points[1]
+                    local pt, at = ui[name].points[1], centres[name]
                     h.eq(pt[1], "CENTER", name .. " turns about its own middle")
+                    h.truthy(pt[2] == ui.frame, name .. " is placed on the frame given an explicit size")
                     h.eq(pt[3], "TOPLEFT", name .. " is offset from the device's corner")
-                    h.truthy(math.abs(pt[4] - g.glass.cx * w) < 1,
-                             name .. " sits at the dial's x, got " .. tostring(pt[4]))
-                    h.truthy(math.abs(pt[5] + g.glass.cy * h2) < 1,
-                             name .. " sits at the dial's y, got " .. tostring(pt[5]))
+                    h.truthy(math.abs(pt[4] - at.cx * w) < 1,
+                             name .. " sits at its centre's x, got " .. tostring(pt[4]))
+                    h.truthy(math.abs(pt[5] + at.cy * h2) < 1,
+                             name .. " sits at its centre's y, got " .. tostring(pt[5]))
                 end
+            end)
+
+            h.it("moves the arrow with its own centre and leaves the compass on the dial", function()
+                -- Today the arrow's centre equals the glass's, so the test
+                -- above cannot tell the two apart. Move one and not the other.
+                local g = ns.Data.ArtGeometry
+                local savedCy = g.arrow.cy
+                g.arrow.cy = savedCy - 0.09
+                local ok, err = pcall(function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    local h2 = ui.frame:GetHeight()
+                    h.truthy(math.abs(ui.arrow.points[1][5] + g.arrow.cy * h2) < 1,
+                             "the arrow follows arrow.cy, got " .. tostring(ui.arrow.points[1][5]))
+                    h.truthy(math.abs(ui.compass.points[1][5] + g.glass.cy * h2) < 1,
+                             "the compass stays on the glass centre")
+                    FreshDash.Stop()
+                end)
+                g.arrow.cy = savedCy
+                h.truthy(ok, err)
+            end)
+
+            h.it("puts the arrow on the dial when the geometry gives it no centre", function()
+                local g = ns.Data.ArtGeometry
+                local savedCx, savedCy = g.arrow.cx, g.arrow.cy
+                g.arrow.cx, g.arrow.cy = nil, nil
+                local ok, err = pcall(function()
+                    local FreshDash = freshDash()
+                    FreshDash.Start(plan)
+                    local ui = FreshDash.Debug()
+                    local pt = ui.arrow.points[1]
+                    h.truthy(math.abs(pt[4] - g.glass.cx * ui.frame:GetWidth()) < 1, "the dial's x")
+                    h.truthy(math.abs(pt[5] + g.glass.cy * ui.frame:GetHeight()) < 1, "the dial's y")
+                    FreshDash.Stop()
+                end)
+                g.arrow.cx, g.arrow.cy = savedCx, savedCy
+                h.truthy(ok, err)
             end)
 
             h.it("stacks the housing above the art and the text above the housing", function()

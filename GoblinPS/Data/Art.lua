@@ -56,6 +56,8 @@ ns.Data.Art = {
 
 ns.Data.ArtGeometry = {
     ["arrow"] = {
+        ["cx"] = 0.503906,
+        ["cy"] = 0.366406,
         ["share"] = 0.450195
     },
     ["canvas"] = {

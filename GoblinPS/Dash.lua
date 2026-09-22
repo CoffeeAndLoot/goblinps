@@ -131,20 +131,23 @@ local function build()
     end
 
     -- The compass and the arrow turn, so each is a square texture centred on
-    -- the dial. SetRotation turns a texture about its own middle, and Task 1
-    -- cropped the compass so that its middle IS the dial.
+    -- a point. SetRotation turns a texture about its own middle, and Task 1
+    -- cropped the compass so that its middle IS the dial. The arrow has its
+    -- own centre in the geometry, which the artist may set apart from the
+    -- dial's; without one it falls back to the dial.
     -- The `or` half of this is only reached when the generated geometry is
     -- absent: a rough guess at the dial's centre, not a coordinate from the
     -- art.
     local dial = g and { x = g.glass.cx, y = g.glass.cy } or { x = 0.5, y = 0.4 }
-    local function centreOnDial(region, share)
+    local arrowAt = (g and g.arrow.cx and g.arrow.cy) and { x = g.arrow.cx, y = g.arrow.cy } or dial
+    local function centreAt(region, share, at)
         local side = f:GetWidth() * share
         region:SetSize(side, side)
         region:ClearAllPoints()
         -- `f`, not `artLayer`: artLayer is sized by SetAllPoints and so has no
         -- resolved size during build(). See Widgets.PlaceLine's note.
         region:SetPoint("CENTER", f, "TOPLEFT",
-                        dial.x * f:GetWidth(), -dial.y * f:GetHeight())
+                        at.x * f:GetWidth(), -at.y * f:GetHeight())
     end
 
     local compass = artLayer:CreateTexture(nil, "BORDER")
@@ -156,7 +159,7 @@ local function build()
     end
     -- 0.55 is only reached when the generated geometry is absent: a rough
     -- guess at the compass's share of the device, not a measured fraction.
-    centreOnDial(compass, g and g.compassCrop.share or 0.55)
+    centreAt(compass, g and g.compassCrop.share or 0.55, dial)
 
     local arrow = artLayer:CreateTexture(nil, "ARTWORK")
     local arrowPart = ns.Data.Art and ns.Data.Art["arrow"]
@@ -168,7 +171,7 @@ local function build()
     end
     -- 0.45 is only reached when the generated geometry is absent: a rough
     -- guess at the arrow's share of the device, not a measured fraction.
-    centreOnDial(arrow, g and g.arrow.share or 0.45)
+    centreAt(arrow, g and g.arrow.share or 0.45, arrowAt)
 
     -- images/parts/dash2-notes.md states the order: glass, compass, arrow,
     -- steps insert, ETA insert, then housing. The five draw layers above and
