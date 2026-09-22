@@ -24,6 +24,7 @@ Graph.lua
 Route.lua
 Strip.lua
 Trip.lua
+Marquee.lua
 Known.lua
 Prefs.lua
 Widgets.lua
