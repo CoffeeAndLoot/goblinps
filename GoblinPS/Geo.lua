@@ -24,6 +24,22 @@ function Geo.Distance(a, b)
     return math.sqrt(dx * dx + dy * dy)
 end
 
+-- Yards from world position p to the straight segment a-b; math.huge unless
+-- all three are on one continent. A ride leg is a straight line, so this is
+-- how close one passes to a place.
+function Geo.SegmentDistance(a, b, p)
+    if not a or not b or not p or a.c ~= b.c or a.c ~= p.c then
+        return math.huge
+    end
+    local dx, dy = b.x - a.x, b.y - a.y
+    local t, length2 = 0, dx * dx + dy * dy
+    if length2 > 0 then
+        t = math.max(0, math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2))
+    end
+    local ex, ey = a.x + t * dx - p.x, a.y + t * dy - p.y
+    return math.sqrt(ex * ex + ey * ey)
+end
+
 -- The closest of every crossing (either end of a tunnel) and dock to a world position (c, x, y),
 -- compared in world yards on the same continent only. `data` is the data
 -- root: Places (so each candidate's map coords can be converted the same way
