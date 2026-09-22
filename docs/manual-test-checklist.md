@@ -413,9 +413,14 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       "Zeppelin to Undercity Zeppelin Tower / ~4 min / includes the average wait")
 - [ ] A long route (try a far city on the other continent) shows every stop;
       when they crowd, the names go and the tooltips still say everything
-- [ ] A leg into a zone above your level: its tooltip detail is amber and the
+- [x] A leg into a zone above your level: its tooltip detail is amber and the
       amber line under the strip names that stop; the line itself is not
       coloured and no badge changes (the skull is day 2)
+      (2026-09-21, a low-level Horde character to Mount Hyjal: the tooltip read
+      "Walk to the Ashenvale-Felwood road / ~8 min / into Felwood · level
+      48-55" in amber, and the line under the strip said "the Ashenvale-Felwood
+      road: into Felwood · level 48-55". The signpost again carried the last
+      crossing's name, "Darkwhisp...", not the destination)
 - [x] The total under the strip reads like "~15 min · free"
       (2026-09-21: "~14 min · free")
 - [ ] Type in the box: the results list drops over the screen and the amber
