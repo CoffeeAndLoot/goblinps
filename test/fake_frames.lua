@@ -15,6 +15,11 @@ Fake.missingTextures = {}
 Fake.laidOut = false
 function Fake.Layout() Fake.laidOut = true end
 
+-- Every character of every font is this many pixels wide. A stand-in, not
+-- the client's fonts: chosen so the dash fixture's ordinary lines fit their
+-- openings and a long one does not. Tests may change it and put it back.
+Fake.CHAR_WIDTH = 5
+
 -- Real widget methods our code calls beyond the ones modelled as full
 -- methods below, each checked against the client source. Anything else is a
 -- misspelt or invented call, and the fake raises instead of quietly doing
@@ -76,6 +81,10 @@ function Region:CreateTexture(_, layer) return region("Texture", self, layer) en
 function Region:CreateFontString(_, layer) return region("FontString", self, layer) end
 function Region:SetText(text) self.text = text or "" end
 function Region:GetText() return self.text end
+-- Modelled, not swallowed: whether a line fits its opening, and how wide the
+-- drop-down must be, are both decided from this number. It measures the text
+-- the FontString holds, as the real one does, not the width it was given.
+function Region:GetUnboundedStringWidth() return #(self.text or "") * Fake.CHAR_WIDTH end
 function Region:SetTextColor(r, g, b) self.color = { r, g, b } end
 function Region:Show() self.shown = true end
 function Region:Hide()

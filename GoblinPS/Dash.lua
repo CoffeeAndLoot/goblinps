@@ -241,6 +241,25 @@ local function build()
         eta:SetPoint("TOPRIGHT", steps[3], "BOTTOMRIGHT")
     end
 
+    -- How wide each line's opening is, for the marquee. Worked out from the
+    -- geometry and `f`, which was given an explicit size -- never read off a
+    -- FontString, which only inherits its width from two anchors and answers
+    -- 0 during build(). With no geometry the fallback stack spans the frame,
+    -- so the frame's own width is the opening.
+    local frameWidth = f:GetWidth()
+    local function slot(rect)
+        return rect and (rect.right - rect.left) * frameWidth or frameWidth
+    end
+    local stepSlot = slot(g and g.stepsText)
+    local lines = {
+        { fs = destination, slot = slot(g and g.destination) },
+        { fs = distance, slot = slot(g and g.distance) },
+        { fs = steps[1], slot = stepSlot },
+        { fs = steps[2], slot = stepSlot },
+        { fs = steps[3], slot = stepSlot },
+        { fs = eta, slot = slot(g and g.etaText) },
+    }
+
     -- A real button in the housing's socket, with the three caps the artist
     -- drew. It is the one way a trip ends now that Escape does not touch the
     -- dash. With no explicit level it would default to one above `f`, level
@@ -306,11 +325,12 @@ local function build()
            compass = compass, arrow = arrow, stepsScreen = stepsScreen,
            etaScreen = etaScreen, housingFrame = housingFrame, housing = housing,
            content = content, destination = destination, distance = distance,
-           steps = steps, eta = eta, stop = stop, stopNormal = stopNormal,
+           steps = steps, eta = eta, lines = lines, stop = stop, stopNormal = stopNormal,
            stopPressed = stopPressed, stopHover = stopHover }
     local since = 0
     f:SetScript("OnUpdate", function(_, elapsed)
         Dash.Steer(elapsed)
+        Dash.Scroll(elapsed)
         since = since + elapsed
         if since >= Dash.TICK then
             since = 0
@@ -452,6 +472,29 @@ function Dash.Steer(elapsed)
     state.compassAngle = ns.Trip.Ease(state.compassAngle, compassTarget, elapsed)
     ui.arrow:SetRotation(state.arrowAngle)
     ui.compass:SetRotation(state.compassAngle)
+end
+
+-- Called every frame. Each line keeps a marquee (Marquee.lua). A line whose
+-- text has been set to anything other than what the marquee last drew -- a
+-- step advance, a new trip, a banner -- starts again from its beginning, its
+-- fit judged afresh: the text's own width against the line's opening, which
+-- build() worked out from the geometry. A line that fits never moves, so the
+-- distance and ETA, re-set every tick, hold still.
+function Dash.Scroll(elapsed)
+    if not ui or not ui.frame:IsShown() then
+        return
+    end
+    for _, line in ipairs(ui.lines) do
+        local shown = line.fs:GetText() or ""
+        if not line.marquee or shown ~= line.drawn then
+            line.marquee = ns.Marquee.New(shown, line.fs:GetUnboundedStringWidth() <= line.slot)
+        end
+        local text = ns.Marquee.Advance(line.marquee, elapsed)
+        if text ~= shown then
+            line.fs:SetText(text)
+        end
+        line.drawn = text
+    end
 end
 
 local function finish()

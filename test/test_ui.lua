@@ -68,7 +68,7 @@ return function(h)
         end,
         SelfCheck = function() return { { name = "Fake.API", present = true } } end,
     }
-    for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Strip", "Trip", "Known", "Prefs",
+    for _, file in ipairs({ "Geo", "Travel", "Search", "Graph", "Route", "Strip", "Trip", "Marquee", "Known", "Prefs",
                             "Widgets", "Planner", "Dash", "MinimapButton", "SelfTest", "Core" }) do
         assert(loadfile("GoblinPS/" .. file .. ".lua"))("GoblinPS", ns)
     end
@@ -2326,6 +2326,89 @@ return function(h)
                 h.truthy(ok, err)
             end)
         end)
+
+        h.describe("the dash's scrolling text", function()
+            local Marquee = ns.Marquee
+            local LONG = "Far Distant Southern Crossing"
+            local function rideTo(name, seconds)
+                return { kind = "ride", seconds = seconds, to = { name = name, c = 1, x = 0, y = 0, map = 1 } }
+            end
+            local longPlan = {
+                level = 60,
+                to = ns.Search.Exact(ns.Data, "Westland", "H"),
+                result = { seconds = 400, steps = {
+                    rideTo(LONG, 200), rideTo("Delta", 100), rideTo("Another Far Distant Crossing", 100),
+                } },
+            }
+            local full = "Ride to " .. LONG
+
+            h.it("works out each line's opening from the geometry and the frame's own size", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                local g, w = ns.Data.ArtGeometry, ui.frame:GetWidth()
+                h.eq(w, Dash.SIZE[1], "measured on the frame given an explicit size")
+                local rects = { g.destination, g.distance, g.stepsText, g.stepsText, g.stepsText, g.etaText }
+                local lines = { ui.destination, ui.distance, ui.steps[1], ui.steps[2], ui.steps[3], ui.eta }
+                h.eq(#ui.lines, 6)
+                for i, line in ipairs(ui.lines) do
+                    h.truthy(line.fs == lines[i], "line " .. i .. " is the right FontString")
+                    h.truthy(math.abs(line.slot - (rects[i].right - rects[i].left) * w) < 1e-9,
+                             "line " .. i .. " slot is its rect's width times the dash's")
+                end
+            end)
+
+            h.it("scrolls a line too long for its opening, and holds a short one still", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                Dash.Scroll(0)
+                h.eq(ui.steps[1]:GetText(), full, "it starts at its start")
+                Dash.Scroll(Marquee.HOLD - 0.1)
+                h.eq(ui.steps[1]:GetText(), full, "and holds there")
+                Dash.Scroll(0.11)
+                h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full, "then drops its first character")
+                Dash.Scroll(Marquee.STEP)
+                h.eq(ui.steps[1]:GetText(), full:sub(3) .. Marquee.GAP .. full)
+                h.eq(ui.steps[2]:GetText(), "Ride to Delta", "a line that fits never moves")
+                h.eq(ui.destination:GetText(), LONG:sub(3) .. Marquee.GAP .. LONG, "the glass scrolls too")
+            end)
+
+            h.it("judges fit by the opening, never by the FontString's own width", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                -- Widths that would flip both answers if the code read them:
+                -- the long line "wide enough", the short one "too narrow".
+                ui.steps[1].width, ui.steps[2].width = 10000, 1
+                Dash.Scroll(Marquee.HOLD + 0.01)
+                ui.steps[1].width, ui.steps[2].width = nil, nil
+                h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full)
+                h.eq(ui.steps[2]:GetText(), "Ride to Delta")
+            end)
+
+            h.it("restarts a line from its start when its text changes", function()
+                Dash.Start(longPlan)
+                local ui, state = Dash.Debug()
+                Dash.Scroll(Marquee.HOLD + 3 * Marquee.STEP)
+                h.truthy(ui.steps[1]:GetText() ~= full, "well into the first name")
+                state.index = 3
+                Dash.Refresh()
+                Dash.Scroll(Marquee.STEP)
+                h.eq(ui.steps[1]:GetText(), "Ride to Another Far Distant Crossing",
+                     "a new step starts at its beginning and holds, never mid-name")
+                state.index = 1
+                Dash.Refresh()
+            end)
+
+            h.it("rides the dash's own OnUpdate, with no timer of its own", function()
+                Dash.Start(longPlan)
+                local ui = Dash.Debug()
+                standAt(5000, 5000) -- far from every target: the tick in the same frame moves nothing on
+                ui.frame.scripts.OnUpdate(ui.frame, 0)
+                ui.frame.scripts.OnUpdate(ui.frame, Marquee.HOLD + 0.01)
+                h.eq(ui.steps[1]:GetText(), full:sub(2) .. Marquee.GAP .. full, "the frame's OnUpdate drove it")
+                h.eq(ui.steps[2]:GetText(), "Ride to Delta")
+                Dash.Stop()
+            end)
+        end)
     end
 
     h.describe("the fake frames model what the dash needs", function()
@@ -2345,6 +2428,13 @@ return function(h)
             h.eq(t.vertexColor[1], 1)
             t:SetDrawLayer("OVERLAY")
             h.eq(t.drawLayer, "OVERLAY")
+        end)
+        h.it("a FontString measures the text it holds, not the width it was given", function()
+            local f = CreateFrame("Frame")
+            local fs = f:CreateFontString(nil, "OVERLAY")
+            fs:SetWidth(1)
+            fs:SetText("Abcd")
+            h.eq(fs:GetUnboundedStringWidth(), 4 * Fake.CHAR_WIDTH)
         end)
     end)
 
