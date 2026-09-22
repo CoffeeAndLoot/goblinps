@@ -196,6 +196,8 @@ return function(h, loaded)
         end)
     end)
 
+    -- The first place the search offers for the text, as /gps to picks it: a
+    -- zone's name finds a town or flight stop in that zone, never the zone.
     local function place(text, faction)
         return ns.Search.Find(data, text, faction, 1)[1]
     end
@@ -224,7 +226,8 @@ return function(h, loaded)
             h.eq(t[6], "Walk to the Ashenvale-Felwood road")
             h.eq(t[7], "Walk to the Timbermaw Hold tunnels")
             h.eq(t[8], "Walk to Darkwhisper Gorge")
-            h.eq(#t, 8)
+            h.eq(t[9], "Walk to Summit of Eternity", "on to a place in Mount Hyjal, not stopping at its border")
+            h.eq(#t, 9)
             for _, s in ipairs(r.steps) do
                 h.falsy(s.rough, "no step may fall back to a straight line")
             end
@@ -291,7 +294,8 @@ return function(h, loaded)
             local t = texts(r)
             h.eq(t[1], "Ride to the Stormwind gates")
             h.eq(t[2], "Ride to the Westfall bridge")
-            h.eq(#t, 2)
+            h.eq(t[3], "Ride to Sentinel Hill", "on to a place in Westfall, not stopping at its border")
+            h.eq(#t, 3)
         end)
     end)
 end

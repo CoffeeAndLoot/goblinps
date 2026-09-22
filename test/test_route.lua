@@ -6,6 +6,14 @@ return function(h, loaded)
     local nearDelta = { name = "Delta Inn", c = 0, x = 5000, y = 5100, map = 2 }
     local nearCharlie = { name = "Charlie Field", c = 1, x = 5000, y = 9100, map = 1 }
 
+    -- Graph still takes a zone destination (its kind == "zone" rule), though
+    -- Search no longer offers one; so these tests build it by hand, the
+    -- centre of the zone, the way Search once did.
+    local function zone(map)
+        local c, x, y = loaded.ns.Geo.ToWorld(world.Places, map, 0.5, 0.5)
+        return { kind = "zone", name = world.Places[map].name, c = c, x = x, y = y, map = map, mx = 0.5, my = 0.5 }
+    end
+
     local function kinds(result)
         local out = {}
         for i, s in ipairs(result.steps) do
@@ -124,7 +132,7 @@ return function(h, loaded)
     end)
 
     h.describe("a zone destination", function()
-        local westland = loaded.ns.Search.Find(world, "westland", "H", 1)[1]
+        local westland = zone(1)
         h.it("is reached at the first stop inside the zone", function()
             local r = Route.Plan(world, { faction = "H", known = { [4] = true }, from = nearDelta, to = westland })
             h.eq(kinds(r), "ride,zeppelin")
@@ -144,9 +152,9 @@ return function(h, loaded)
     end)
 
     h.describe("ground travel through crossings", function()
-        local northland = loaded.ns.Search.Find(world, "northland", "H", 1)[1]
+        local northland = zone(4)
         local hotel = loaded.ns.Search.Find(world, "hotel", "H", 1)[1]
-        local lostland = loaded.ns.Search.Find(world, "lostland", "H", 1)[1]
+        local lostland = zone(5)
 
         h.it("reaches the next zone at its crossing", function()
             local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = northland })

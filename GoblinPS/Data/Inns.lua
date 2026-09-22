@@ -2,12 +2,15 @@
 -- GetBindLocation() returns the SUBZONE you bound in, not the town. Sometimes
 -- that is the town ("The Crossroads"), but inside a town it is usually the
 -- inn building itself: binding in Brill reports "Gallows' End Tavern"
--- (seen in game 2026-09-20). Most names match a flight stop or a zone once a
--- leading "The" is ignored. These do not:
+-- (seen in game 2026-09-20). Most names match a flight stop once a leading
+-- "The" is ignored. These do not:
 --   stop = "<short flight stop name>"  the inn stands beside that flight stop
 --   map, mx, my                        a town with an inn and no flight master;
 --                                      map coords (0..1), APPROXIMATE until
---                                      checked from docs/manual-test-checklist.md
+--                                      checked from docs/manual-test-checklist.md.
+--                                      A town is also a destination the planner
+--                                      offers, as "<name> · <zone>".
+--   town = "<town row's name>"         an inn building inside a town listed here
 -- Add a row whenever the addon prints "Hearth: unknown inn (...)".
 local _, ns = ...
 ns.Data = ns.Data or {}
@@ -25,9 +28,10 @@ ns.Data.Inns = {
     ["Dolanaar"]          = { map = 1438, mx = 0.556, my = 0.598 }, -- Teldrassil
 }
 
--- Inn buildings, whose own name is what GetBindLocation reports. Each shares
--- the row of the town it stands in rather than repeating its coordinates, so
--- correcting the town in game corrects the tavern with it. Add a line here
--- whenever the addon prints "Hearth: unknown inn (...)" for a name that is a
--- building inside a town already listed above.
-ns.Data.Inns["Gallows' End Tavern"] = ns.Data.Inns["Brill"]
+-- Inn buildings, whose own name is what GetBindLocation reports. Each names
+-- the town it stands in rather than repeating its coordinates, so correcting
+-- the town in game corrects the tavern with it, and the planner offers the
+-- town, not the building. Add a line here whenever the addon prints
+-- "Hearth: unknown inn (...)" for a name that is a building inside a town
+-- already listed above.
+ns.Data.Inns["Gallows' End Tavern"] = { town = "Brill" }

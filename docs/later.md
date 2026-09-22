@@ -5,6 +5,7 @@ A thing here is not a commitment -- it is a note so it stops living in a chat
 log. When one graduates, it becomes a plan in `docs/superpowers/plans/` and
 comes off this list.
 
+- **Route to a quest.** Day 2. A quest's location from the game data is a point (name, map, x, y), the same shape as every destination since 2026-09-22, so the router takes it as is; what is new is finding and listing quests.
 - **Dress the settings panel with art.** Plan 9, 2026-09-22, built the panel
   plain: the gadget palette's body and brass, flat `-` / `+` buttons, no new
   parts, because the art is Codex's and nothing was asked of Codex. A dressed

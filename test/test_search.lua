@@ -33,20 +33,39 @@ return function(h, loaded)
             h.eq(found[1].name, "Alpha")
             h.eq(found[1].nodeID, 1)
         end)
-        h.it("puts names that start with the text first", function()
-            local found = Search.Find(world, "e", "H")
-            h.eq(found[1].name, "Eastland")
+        h.it("ranks a name that starts with the text, then one that contains it, then its zone", function()
+            local found = Search.Find(world, "e", "A", 20)
+            local names, ranks = {}, {}
+            for i, item in ipairs(found) do
+                names[i], ranks[i] = item.name, item.rank
+            end
+            h.eq(table.concat(names, ","), "Echo,Charlie,Hotel,Juliet,Quiet Hollow,Foxtrot,Golf")
+            h.eq(table.concat(ranks, ","), "1,2,2,2,2,3,3", "Foxtrot and Golf match only by their zone, Isle")
         end)
         h.it("hides the other faction's flight stops", function()
             h.eq(#Search.Find(world, "echo", "H"), 0)
             h.eq(#Search.Find(world, "echo", "A"), 1)
         end)
-        h.it("gives a zone its centre as the target", function()
-            local zone = Search.Find(world, "westland", "H")[1]
-            h.eq(zone.kind, "zone")
-            h.eq(zone.c, 1)
-            h.eq(zone.x, 5000)
-            h.eq(zone.y, 5000)
+        h.it("finds the places in a zone by the zone's name, never the zone", function()
+            local names = {}
+            for i, item in ipairs(Search.Find(world, "westland", "H")) do
+                names[i] = item.name
+                h.eq(item.rank, 3)
+                h.eq(item.zone, "Westland")
+                h.truthy(item.kind ~= "zone", item.name .. " is a zone")
+            end
+            h.eq(table.concat(names, ","), "Alpha,Bravo,Charlie,Juliet,Quiet Hollow",
+                 "Echo is Alliance; Delta is in Eastland")
+        end)
+        h.it("offers an inn town as a place of kind town, with its zone", function()
+            local town = Search.Find(world, "quiet", "H")[1]
+            h.eq(town.kind, "town")
+            h.eq(town.name, "Quiet Hollow")
+            h.eq(town.zone, "Westland")
+            h.eq(town.map, 1)
+            h.eq(town.c, 1)
+            h.eq(town.x, 5000)
+            h.eq(town.y, 7500)
         end)
         h.it("returns nothing for empty text", function()
             h.eq(#Search.Find(world, "", "H"), 0)
@@ -57,20 +76,29 @@ return function(h, loaded)
     end)
 
     h.describe("Search.Candidates", function()
-        h.it("offers every zone and every stop the faction may use", function()
-            local zones, stops, names = 0, 0, {}
+        h.it("offers every stop the faction may use and every inn town, never a zone", function()
+            local stops, towns, names = 0, 0, {}
             for _, item in ipairs(Search.Candidates(world, "H")) do
-                if item.kind == "zone" then
-                    zones = zones + 1
-                else
+                h.truthy(item.kind == "stop" or item.kind == "town", item.name .. " is a " .. item.kind)
+                if item.kind == "stop" then
                     stops = stops + 1
+                else
+                    towns = towns + 1
                 end
                 names[item.name] = true
             end
-            h.eq(zones, 5)
             h.eq(stops, 7)
+            h.eq(towns, 3, "Quiet Hollow, Juliet and Kilo")
             h.falsy(names.Echo, "an Alliance stop is not offered to the Horde")
             h.truthy(names.Charlie, "a neutral one is")
+            h.falsy(names["Nowhere Inn"], "an inn on a map we do not have is nowhere to go")
+            h.falsy(names["Delta Harbour Inn"], "an inn beside a stop is that stop")
+            h.falsy(names["Quiet Hollow Tavern"], "an inn building is its town")
+        end)
+        h.it("gives every place its zone", function()
+            for _, item in ipairs(Search.Candidates(world, "H")) do
+                h.eq(item.zone, world.Places[item.map].name, item.name)
+            end
         end)
     end)
 
@@ -82,8 +110,9 @@ return function(h, loaded)
             h.eq(Search.Exact(world, "The Delta").nodeID, 4)
             h.eq(Search.Exact(world, "the delta").nodeID, 4)
         end)
-        h.it("matches a zone whether or not either side says The", function()
-            h.eq(Search.Exact(world, "The Westland").kind, "zone")
+        h.it("does not match a zone: a zone is not a destination", function()
+            h.eq(Search.Exact(world, "Westland"), nil)
+            h.eq(Search.Exact(world, "The Westland"), nil)
         end)
         h.it("does not match on a partial name", function()
             h.eq(Search.Exact(world, "Delt"), nil)
@@ -93,11 +122,17 @@ return function(h, loaded)
         end)
         h.it("places an inn in a town with no flight master", function()
             local inn = Search.Exact(world, "quiet hollow", "H")
-            h.eq(inn.kind, "inn")
+            h.eq(inn.kind, "town")
             h.eq(inn.name, "Quiet Hollow")
+            h.eq(inn.zone, "Westland")
             h.eq(inn.c, 1)
             h.eq(inn.x, 5000)
             h.eq(inn.y, 7500)
+        end)
+        h.it("follows an inn building to the town it stands in", function()
+            local town = Search.Exact(world, "Quiet Hollow Tavern", "H")
+            h.eq(town.kind, "town")
+            h.eq(town.name, "Quiet Hollow")
         end)
         h.it("returns nil for an inn on a map we do not have", function()
             h.eq(Search.Exact(world, "Nowhere Inn", "H"), nil)

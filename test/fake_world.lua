@@ -41,6 +41,9 @@ local function world()
         Inns = {
             ["Delta Harbour Inn"] = { stop = "Delta" },                 -- an inn beside a flight stop
             ["Quiet Hollow"] = { map = 1, mx = 0.25, my = 0.5 },        -- a town with no flight master
+            ["Quiet Hollow Tavern"] = { town = "Quiet Hollow" },        -- an inn building in that town
+            ["Juliet"] = { map = 1, mx = 0.89, my = 0.9 },              -- where test_ui's player stands (1000, 1100)
+            ["Kilo"] = { map = 5, mx = 0.5, my = 0.5 },                 -- in Lostland, which has no crossing
             ["Nowhere Inn"] = { map = 99, mx = 0.5, my = 0.5 },         -- a map we do not have
             ["Loop Inn"] = { stop = "Loop Inn" },                       -- names itself as its own stop
         },

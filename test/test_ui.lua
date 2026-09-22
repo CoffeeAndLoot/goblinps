@@ -188,7 +188,7 @@ return function(h)
             local ui, state = Planner.Debug()
             Fake.Type(ui.toBox, "delt")
             h.truthy(ui.results:IsShown())
-            h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
             Fake.Click(ui.results.rows[1])
             h.falsy(ui.results:IsShown())
             h.eq(state.to.nodeID, 4)
@@ -238,11 +238,55 @@ return function(h)
             ui.toBox:SetText("Delta")
         end)
 
+        h.it("asks for a town or flight stop, not a zone", function()
+            h.eq(Planner.Debug().toBox.placeholder:GetText(), "To: a town or flight stop")
+        end)
+
+        h.it("lists the places in a zone when you type the zone's name", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "westland")
+            local want = { "Alpha", "Bravo", "Charlie", "Juliet", "Quiet Hollow" }
+            for i, name in ipairs(want) do
+                h.eq(ui.results.rows[i].label:GetText(), name .. " · Westland", "row " .. i)
+            end
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("never offers a zone in a row", function()
+            local ui = Planner.Debug()
+            Fake.Type(ui.toBox, "land")
+            local shown = 0
+            for _, row in ipairs(ui.results.rows) do
+                if row:IsShown() then
+                    shown = shown + 1
+                    h.truthy(row.item.kind ~= "zone", row.label:GetText() .. " is a zone")
+                    for _, place in pairs(ns.Data.Places) do
+                        h.truthy(row.label:GetText() ~= place.name, place.name .. " is offered as a row")
+                    end
+                end
+            end
+            h.truthy(shown > 0, "a check that saw no rows proves nothing")
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("drops the zone from a row when the place has the zone's own name", function()
+            local ui = Planner.Debug()
+            ns.Data.Inns.Isle = { map = 3, mx = 0.5, my = 0.6 } -- a city named after its zone, like Orgrimmar
+            Fake.Type(ui.toBox, "isle")
+            h.eq(ui.results.rows[1].label:GetText(), "Isle")
+            h.eq(ui.results.rows[2].label:GetText(), "Foxtrot · Isle")
+            ns.Data.Inns.Isle = nil
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
         h.it("remembers the destination and offers it when the box is empty", function()
             local ui = Planner.Debug()
             h.eq(GoblinPSDB.recents[1], "Delta")
             Fake.Type(ui.toBox, "")
-            h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
         end)
 
         h.it("offers the next real recent when the newest one no longer resolves", function()
@@ -250,7 +294,16 @@ return function(h)
             table.insert(GoblinPSDB.recents, 1, "Ghost Town")
             ui.toBox:SetText("")
             ui.toBox.scripts.OnEditFocusGained(ui.toBox)
-            h.eq(ui.results.rows[1].label:GetText(), "Delta  (flight stop)")
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
+            table.remove(GoblinPSDB.recents, 1)
+        end)
+
+        h.it("skips a recent that is a zone, saved before zones stopped being destinations", function()
+            local ui = Planner.Debug()
+            table.insert(GoblinPSDB.recents, 1, "Westland")
+            ui.toBox:SetText("")
+            ui.toBox.scripts.OnEditFocusGained(ui.toBox)
+            h.eq(ui.results.rows[1].label:GetText(), "Delta · Eastland")
             table.remove(GoblinPSDB.recents, 1)
         end)
 
@@ -306,10 +359,10 @@ return function(h)
 
         h.it("shows the zero-step case when you are already at the destination", function()
             local ui, state = Planner.Debug()
-            Fake.Type(ui.toBox, "westland")
+            Fake.Type(ui.toBox, "juliet") -- a town right where the player stands
             Fake.Click(ui.results.rows[1])
-            h.eq(state.to.name, "Westland")
-            h.eq(ui.notes:GetText(), "You're already at Westland.")
+            h.eq(state.to.name, "Juliet")
+            h.eq(ui.notes:GetText(), "You're already at Juliet.")
             h.truthy(ui.notes:IsShown())
             h.eq(ui.total:GetText(), "")
             h.falsy(ui.go.enabled)
@@ -996,7 +1049,7 @@ return function(h)
         local INSETS = 16
         local SLACK = 4
         local function labelOf(item)
-            return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
+            return item.name .. ((item.zone and item.zone ~= item.name) and (" · " .. item.zone) or "")
         end
 
         h.it("draws the drop-down only a little wider than its longest name", function()
@@ -1007,7 +1060,7 @@ return function(h)
             for _, item in ipairs(ns.Search.Candidates(ns.Data, "H")) do
                 widest = math.max(widest, #labelOf(item) * Fake.CHAR_WIDTH)
             end
-            h.eq(widest, 110, "Charlie  (flight stop) is the widest name the fake world offers")
+            h.eq(widest, 120, "Quiet Hollow · Westland is the widest label (its dot is two bytes)")
             local tl, br = ui.results.points[1], ui.results.points[2]
             h.truthy(math.abs(tl[4] - g.resultsList.left * w) < 1e-9, "its left edge stays the geometry's")
             h.truthy(math.abs(tl[5] + g.resultsList.top * fh) < 1e-9, "and its top")
@@ -1236,26 +1289,26 @@ return function(h)
         end)
 
         h.it("says so on the tooltip when the crossings table has a hole", function()
-            local ui = pickTo("lostland")
+            local ui = pickTo("lostland") -- the first place in Lostland: Kilo
             local b = ui.strip.badges[2]
             b.scripts.OnEnter(b)
-            h.eq(GameTooltip.lines[1].text, "Ride toward Lostland (no mapped path)")
+            h.eq(GameTooltip.lines[1].text, "Ride toward Kilo (no mapped path)")
             h.eq(#GameTooltip.lines, 2, "a straight line has no zone detail")
             GameTooltip:Hide()
         end)
 
-        h.it("names the signpost after the destination, not the last crossing", function()
+        h.it("names the signpost after the place searched for", function()
             local ui, state = Planner.Debug()
             Fake.Type(ui.toBox, "northland")
-            h.eq(ui.results.rows[1].label:GetText(), "Northland", "the search's first row is the zone")
+            h.eq(ui.results.rows[1].label:GetText(), "Hotel · Northland", "the search's first row is a place in it")
             Fake.Click(ui.results.rows[1])
             local steps = state.plan.result.steps
-            h.eq(ns.Route.StepText(steps[#steps]), "Ride to the North Gate",
-                 "the fixture route to Northland really ends at the crossing")
+            h.eq(ns.Route.StepText(steps[1]), "Ride to the North Gate", "through the crossing")
             local last = ui.strip.badges[#steps + 1]
-            h.eq(last.label:GetText(), "Northland")
+            h.eq(last.label:GetText(), state.to.name)
+            h.eq(last.label:GetText(), "Hotel")
             last.scripts.OnEnter(last)
-            h.eq(GameTooltip.lines[1].text, "Ride to the North Gate")
+            h.eq(GameTooltip.lines[1].text, "Ride to Hotel")
             GameTooltip:Hide()
             pickTo("delt")
         end)
@@ -1277,7 +1330,7 @@ return function(h)
         end)
 
         h.it("draws no strip without a route", function()
-            local ui = pickTo("westland")
+            local ui = pickTo("juliet")
             h.falsy(ui.strip:IsShown(), "you're already there: words, not a strip")
             h.truthy(ui.notes:IsShown())
             pickTo("delt")
@@ -1557,6 +1610,16 @@ return function(h)
             h.truthy(printed[from + 1]:find("To Delta: ~10 min, 1s", 1, true))
             h.truthy(printed[from + 2]:find("1. Ride to Alpha", 1, true))
         end)
+        h.it("takes a zone's name to the first place in it, all the way there", function()
+            local from = #printed
+            SlashCmdList.GOBLINPS("to northland")
+            h.truthy(printed[from + 1]:find("To Hotel: ", 1, true), printed[from + 1])
+            local saw = false
+            for i = from + 2, #printed do
+                saw = saw or printed[i]:find("Ride to Hotel", 1, true) ~= nil
+            end
+            h.truthy(saw, "the route goes on past the North Gate to Hotel")
+        end)
     end)
 
     -- Smoke test of the dash unit against test/fake_frames.lua. It catches our own
@@ -1594,11 +1657,11 @@ return function(h)
         -- A real step's `to` always carries a map (Graph.stopFrom sets it from
         -- the stop data); task 5's pin test needs it too, so the fixture gets
         -- one. `plan.to` is the destination a recalculation replans towards,
-        -- same as Core.PlanRoute always sets it; Westland is the zone the fake
+        -- same as Core.PlanRoute always sets it; Juliet is the town the fake
         -- player already stands in, on purpose, for the zero-step test below.
         local plan = {
             level = 60,
-            to = ns.Search.Exact(ns.Data, "Westland", "H"),
+            to = ns.Search.Exact(ns.Data, "Juliet", "H"),
             result = {
                 seconds = 600,
                 steps = {
@@ -2134,8 +2197,8 @@ return function(h)
 
             -- The only way to reach a zero-step replan is a recalculation that
             -- finds the player already at their destination (plan.to here is
-            -- Westland, the zone map 1 stands in, so PlanRoute always returns
-            -- 0 steps for it). That must finish the trip like arriving at the
+            -- Juliet, the town the player strays into, so PlanRoute returns 0
+            -- steps for it). That must finish the trip like arriving at the
             -- last step does, not leave the old step's text stuck on screen.
             h.it("finishes the trip when a recalculation finds nothing left to plan", function()
                 Dash.Start(plan)
@@ -2143,7 +2206,7 @@ return function(h)
                 standAt(100, 0); facing = 0
                 Dash.Tick("tick")
                 h.eq(state.index, 1, "still short of arriving")
-                standAt(1000, 0)
+                standAt(1000, 1100) -- Juliet: strayed far enough to replan, and already there
                 Dash.Tick("tick")
                 h.eq(ui.steps[1]:GetText(), "Arrived.", "a replan with nothing left to do ends the trip")
                 h.falsy(state.plan, "the trip is over, not stuck on the old plan")
@@ -2566,7 +2629,7 @@ return function(h)
             end
             local longPlan = {
                 level = 60,
-                to = ns.Search.Exact(ns.Data, "Westland", "H"),
+                to = ns.Search.Exact(ns.Data, "Juliet", "H"),
                 result = { seconds = 400, steps = {
                     rideTo(LONG, 200), rideTo("Delta", 100), rideTo("Another Far Distant Crossing", 100),
                 } },
@@ -2970,8 +3033,8 @@ return function(h)
 
         h.it("shows Arrived when you resume at the destination", function()
             home()
-            local westland = ns.Search.Exact(ns.Data, "Westland", "H")
-            ns.Dash.Resume(westland) -- home() is in Westland
+            local juliet = ns.Search.Exact(ns.Data, "Juliet", "H")
+            ns.Dash.Resume(juliet) -- home() is Juliet
             ns.Dash.Tick("tick")
             local ui, state = ns.Dash.Debug()
             h.eq(ui.steps[1]:GetText(), "Arrived.")
@@ -3011,6 +3074,15 @@ return function(h)
             local said = table.concat(printed, "\n", from + 1, #printed)
             h.truthy(said:find("Couldn't resume your trip to Atlantis", 1, true),
                      "never silently")
+        end)
+
+        h.it("drops a trip saved to a zone: a zone is no longer a destination", function()
+            GoblinPSDB.trips[character] = { to = "Westland" }
+            local from = #printed
+            Core.ResumeTrip()
+            h.eq(Core.SavedTripName(), nil)
+            local said = table.concat(printed, "\n", from + 1, #printed)
+            h.truthy(said:find("Couldn't resume your trip to Westland", 1, true), "never silently")
         end)
 
         h.it("opens the planner on the running trip's destination", function()
@@ -3273,7 +3345,7 @@ return function(h)
             local function rideTo(name)
                 return { kind = "ride", seconds = 200, to = { name = name, c = 1, x = 0, y = 0, map = 1 } }
             end
-            ns.Dash.Start({ level = 60, to = ns.Search.Exact(ns.Data, "Westland", "H"),
+            ns.Dash.Start({ level = 60, to = ns.Search.Exact(ns.Data, "Juliet", "H"),
                             result = { seconds = 400, steps = { rideTo("Alpha"), rideTo("Delta") } } })
             local _, dash = ns.Dash.Debug()
             where.map, where.mx, where.my = 1, 1, (10000 - 30) / 10000 -- world 30, 0: 30 yards out

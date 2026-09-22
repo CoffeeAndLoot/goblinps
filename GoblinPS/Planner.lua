@@ -287,9 +287,14 @@ local function candidates()
     return out
 end
 
--- What a result row says. The drop-down's width is measured over this too.
+-- What a result row says, "Splintertree Post · Ashenvale": the place and
+-- the zone it stands in, or the place alone when the zone has its name
+-- (Orgrimmar in Orgrimmar). The drop-down's width is measured over this too.
 local function rowLabel(item)
-    return item.name .. (item.kind == "zone" and "" or "  (flight stop)")
+    if item.zone and item.zone ~= item.name then
+        return item.name .. " · " .. item.zone
+    end
+    return item.name
 end
 
 local function showResults()
@@ -670,7 +675,7 @@ local function build()
     -- it gets three-slice art on top of its flat fallback.
     local BUTTON_CAP, BUTTON_CAP_ASPECT = 0.25, 1.0
 
-    local toBox = W.EditBox(content, 170, 20, "To: city, zone or flight stop")
+    local toBox = W.EditBox(content, 170, 20, "To: a town or flight stop")
 
     -- input-box.png is 1024x128, so 0.18 of its width is a 184x128 cap.
     local CAP, CAP_ASPECT = 0.18, 184 / 128
