@@ -62,6 +62,14 @@ return function(h, loaded)
             h.eq(table.concat(names, ","), "Alpha,Bravo,Charlie,Echo,Juliet,Quiet Hollow",
                  "Delta is in Eastland")
         end)
+        h.it("in a zone-name match, puts flight stops before towns, then alphabetical", function()
+            local names = {}
+            for i, item in ipairs(Search.Find(world, "northland", "H")) do
+                names[i] = item.name
+            end
+            h.eq(table.concat(names, ","), "Hotel,Gatehouse",
+                 "Hotel is the zone's flight stop; alphabetical order alone would put Gatehouse first")
+        end)
         h.it("offers an inn town as a place of kind town, with its zone", function()
             local town = Search.Find(world, "quiet", "H")[1]
             h.eq(town.kind, "town")

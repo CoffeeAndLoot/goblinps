@@ -84,7 +84,10 @@ end
 -- hand-written inn row's is left out too: the hand-written row says what
 -- that name is, whether a stop ("Theramore Isle") or an inn town
 -- ("Kharanos"). The generator has already dropped every town that shares a
--- name and a zone with a flight stop.
+-- name and a zone with a flight stop. The inn-row match below is by name
+-- alone, in any zone -- there is no data to say a town and an inn row of
+-- the same name are the same place otherwise -- and every real drop today
+-- happens to land in the same zone.
 function Search.Candidates(data, faction)
     local list, held, usable, written = {}, {}, {}, {}
     for _, n in pairs(data.Nodes) do
@@ -151,7 +154,11 @@ end
 
 -- Case-insensitive plain-text search. Names that start with the text come
 -- first, then names that contain it, then places whose zone's name contains
--- it; alphabetical inside each group. Every match, unless a limit is given.
+-- it; alphabetical inside each group, except that group 3 (a zone-name
+-- match) puts flight stops before towns first -- so a zone typed by name
+-- lands on its flight stop ("westfall" on Sentinel Hill), not on whichever
+-- of its places is alphabetically first (Moonbrook). Every match, unless a
+-- limit is given.
 function Search.Find(data, text, faction, limit)
     local needle = (text or ""):lower()
     if needle == "" then
@@ -171,6 +178,7 @@ function Search.Find(data, text, faction, limit)
     end
     table.sort(ranked, function(a, b)
         if a.rank ~= b.rank then return a.rank < b.rank end
+        if a.rank == 3 and a.kind ~= b.kind then return ORDER[a.kind] < ORDER[b.kind] end
         if a.name ~= b.name then return a.name < b.name end
         return before(a, b)
     end)
@@ -184,9 +192,9 @@ end
 -- Whole-name match over the same places Find offers, used for the hearthstone
 -- bind name, the recents and a saved trip. Nil when unknown, and for a zone
 -- that holds places. A bind name that is an inn beside a stop, or an inn
--- building in a town, follows its row to that place. On a name tie a stop
--- this faction may use wins, then the lowest nodeID, then a town, then a
--- zone; faction nil means any. skipInns is internal: set on the
+-- building in a town, follows its row to that place. On a name tie the
+-- usable place wins first, then kind order (stop, town, zone), then the
+-- lowest nodeID or townID; faction nil means any. skipInns is internal: set on the
 -- recursive call so an inn that (wrongly) names itself cannot recurse forever.
 function Search.Exact(data, name, faction, skipInns)
     local needle = plain(name)

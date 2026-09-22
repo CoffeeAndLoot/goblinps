@@ -266,7 +266,7 @@ def build_towns(tables, places, nodes) -> dict[int, dict]:
     for poi in sorted(tables["AreaPOI"], key=lambda p: int(p["ID"])):
         if poi["ContinentID"] not in CONTINENTS or poi["Icon"] not in TOWN_ICONS or poi["WorldStateID"] != "0":
             continue
-        map_id, how = _town_zone(places, areas, area_names, zones, poi)
+        map_id, _ = _town_zone(places, areas, area_names, zones, poi)
         if map_id is None:
             print(f"skip town {poi['ID']} {poi['Name_lang']}: no zone holds it for certain", file=sys.stderr)
             continue

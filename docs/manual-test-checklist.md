@@ -545,8 +545,6 @@ run in the client.
       row as well as over the gaps, and stops at the top and at "190-194 of
       194". If the wheel does nothing, `EnableMouseWheel`/`OnMouseWheel` is
       one more thing present on this build that does not answer: say so
-- [ ] With the cursor over a result ROW (not the gap), the mouse wheel still
-      scrolls the list
 - [ ] After scrolling, Enter picks the top row shown, not the first match
 - [ ] Typing another letter puts the list back at its top
 - [ ] ▼ with the box empty, and clicking into the empty box: the recent

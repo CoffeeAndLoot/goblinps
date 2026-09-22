@@ -330,11 +330,20 @@ local function drawResults()
 end
 
 -- One notch of the wheel moves the window one row, clamped at both ends.
--- delta is the client's: 1 for a notch up, -1 for a notch down.
+-- delta is the client's: positive for a notch up, negative for a notch
+-- down, and on this build not always exactly 1 in size (a trackpad can
+-- send a fraction) -- every Blizzard scroll handler on this build
+-- (ScrollFrameTemplate_OnMouseWheel, HybridScrollFrame_OnMouseWheel,
+-- ScrollControllerMixin) reads only its sign, never its size, and so does
+-- this: using it as a distance would jump several rows on one notch.
 local function scrollResults(delta)
+    if delta == 0 then
+        return
+    end
+    local step = (delta > 0) and -1 or 1
     local r = ui.results
     local last = math.max(0, #r.items - (r.fit or Planner.MAX_RESULTS))
-    r.offset = math.max(0, math.min(last, r.offset - delta))
+    r.offset = math.max(0, math.min(last, r.offset + step))
     drawResults()
 end
 
@@ -366,6 +375,9 @@ local function browse(item)
     ui.toBox:SetText(item.name)
     W.UpdatePlaceholder(ui.toBox)
     ui.toBox:SetFocus()
+    -- SetFocus fires OnEditFocusGained (which calls showResults) only when the
+    -- box did not already have focus; a browse row clicked while the box is
+    -- focused needs this explicit call, in the client, to refresh the list.
     showResults()
 end
 
