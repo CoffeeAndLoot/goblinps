@@ -501,7 +501,7 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [ ] The panel looks decent without art -- or ask Codex for some (`docs/later.md`)
 - [ ] Every label and value reads in full; the transport note and the amber
       line about saved data wrap inside the panel, not past it
-- [ ] About shows "GoblinPS 2026.09.22.1". If it says "(version unknown)",
+- [ ] About shows "GoblinPS 2026.09.22.2". If it says "(version unknown)",
       `C_AddOns.GetAddOnMetadata` is one more API present on this build that
       does not answer: note it in CLAUDE.md's list
 - [ ] The feedback line reads "Feedback: a GitHub page is coming soon." and
@@ -526,6 +526,47 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       whether Escape should close only the panel
 - [ ] Settings > Scrolling text: Off stops every line moving (long ones truncate); Slow, Normal and Fast change the speed at once
 - [ ] The dash arrow sits above the destination name and distance and turns in place without covering them (after Codex raises it; until then it is unchanged)
+
+## Towns, a scrolling list, a zone browser (plan 10)
+
+**Needs a full game restart, not `/reload`:** the TOC gained `Data\Towns.lua`,
+and the client reads the file list only at startup. Built 2026-09-22; not yet
+run in the client.
+
+- [ ] "kha" lists "Kharanos · Dun Morogh"; "darn" lists Darnassus as a place
+      ("Darnassus (Alliance)" to the Horde), not "Darnassus (zone)"
+- [ ] "booty bay", "gadgetzan", "everlook": one row each, your own faction's
+      stop, with no "(Alliance)" or "(Horde)" twin under it
+- [ ] "theramore": the Theramore flight stop once, and no "Theramore Isle" row
+      beside it
+- [ ] Type "a": five rows, and under them the footer "1-5 of 194" (the same
+      number for either faction), in its own line, not over the fifth row
+- [ ] The wheel over the list moves it one row a notch ("2-6 of 194"), over a
+      row as well as over the gaps, and stops at the top and at "190-194 of
+      194". If the wheel does nothing, `EnableMouseWheel`/`OnMouseWheel` is
+      one more thing present on this build that does not answer: say so
+- [ ] With the cursor over a result ROW (not the gap), the mouse wheel still
+      scrolls the list
+- [ ] After scrolling, Enter picks the top row shown, not the first match
+- [ ] Typing another letter puts the list back at its top
+- [ ] ▼ with the box empty, and clicking into the empty box: the recent
+      destinations first, then every zone A to Z with its count, "Ashenvale
+      (17)" among them; the wheel scrolls it
+- [ ] Click "Ashenvale (17)": the box reads "Ashenvale" and keeps the cursor,
+      the list shows its 17 places, and nothing is planned (the strip does
+      not change)
+- [ ] "Alterac Mountains (1)" and "Shen'dralas (1)" each list their one
+      "(zone)" row
+- [ ] Walk to a town the game's table added (Moonbrook in Westfall,
+      Deathknell in Tirisfal Glades): its position is the town's middle, where
+      the map draws its name, not a doorway. Note how far the "arrived" point
+      sits from where you would want it
+- [ ] A town's faction mark is inferred from flight masters within 600 yards:
+      note any that is wrong (to the Alliance, Maraudon reads "(Horde)"
+      because Shadowprey Village's flight master is near)
+- [ ] The drop-down is still only a little wider than its longest name, and
+      no name in it is cut off
+- [ ] About shows "GoblinPS 2026.09.22.2"
 
 ## Flight paths survive a reload
 

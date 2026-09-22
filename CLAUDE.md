@@ -14,7 +14,7 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 9 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 10 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
 crossings). Plan 4, the dash unit's first design, ran in the client twice on
 2026-09-20: the round art rendered as an oval (a square texture stretched
@@ -58,7 +58,11 @@ rest of its checklist section is still to walk. Plan 9, built 2026-09-22,
 put a settings panel behind the gear (the hearthstone's saving, four arrival
 radii, Reset, About), made the dash's too-long lines scroll like an old car
 radio (the pure `Marquee.lua`), and drew the drop-down only a little wider
-than its longest name. **Plan 9 has not been run in the client.** A
+than its longest name. **Plan 9 has not been run in the client.** Plan 10, built
+2026-09-22, made every named town on the world map a destination
+(`Data/Towns.lua`, 150 towns generated from the game's own `AreaPOI`), let
+the results list scroll on the wheel with a footer, and made the empty
+box's drop-down a zone browser. **Plan 10 has not been run in the client.** A
 schematic world map was dropped on 2026-09-20 in
 favour of the strip; the spike that proved it feasible is kept at
 `docs/research/schematic-spike/`. The product is a GPS: point to point with
@@ -66,8 +70,10 @@ an arrow, in game. The design is
 `docs/superpowers/specs/2026-09-19-goblinps-design.md`, amended for plans 7
 and 8 by
 `docs/superpowers/specs/2026-09-21-goblinps-planner-redesign-design.md`
-and for plan 9 by
-`docs/superpowers/specs/2026-09-21-goblinps-settings-and-marquee-design.md`.
+for plan 9 by
+`docs/superpowers/specs/2026-09-21-goblinps-settings-and-marquee-design.md`
+and for plan 10 by
+`docs/superpowers/specs/2026-09-22-goblinps-towns-and-browsing-design.md`.
 Write each plan after the one before it has been used in game.
 
 Everything known about the client API and data sources is in
@@ -83,13 +89,14 @@ GoblinPS/API.lua             # the ONLY file that calls Blizzard game APIs and r
                               # events (LooseEnds pattern); UI files may register UI layout events
                               # (UI_SCALE_CHANGED, DISPLAY_SIZE_CHANGED) for their own frames
 GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
+GoblinPS/Data/Towns.lua      # GENERATED from AreaPOI: every named town in its zone, an inferred faction; stops and Inns rows win
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
 GoblinPS/Strip.lua           # pure: the route strip as data -- badges, spacing, tooltips, solid/dashed legs
 GoblinPS/Marquee.lua         # pure: the dash's scrolling text, a character window
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences, arrival radii and their ranges
-GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone
+GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone; a row wins over a generated town of its name
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
 GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber warnings
                               # HAND-WRITTEN and staying that way: C_Map.GetMapLevels is dead on this

@@ -1,6 +1,10 @@
 # GoblinPS: a towns table, a scrolling list, a zone browser (plan 10)
 
 Status: **approved by the owner in chat, 2026-09-22.** They asked for it ("can we begin building up a location database for people to pick from"), agreed to generate it from the game's own table, and folded in scrolling and zone browsing ("make it scrollable... maybe by scrolling through"). Decisions the owner did not state are marked **Ruling**. This spec amends the plan 8 and plan 9 specs.
+Built 2026-09-22 by `docs/superpowers/plans/2026-09-22-goblinps-towns-and-browsing.md`
+-- not yet run in the client. Its rulings (zone by name before rectangle,
+duplicates by name and zone rather than 300 yards, event labels left out)
+are listed there.
 
 ## Why
 - Since 2026-09-22 a destination is a place, never a zone. The places are flight stops (both factions, enemy ones marked) plus six hand-written inn towns. Four zones hold no place and fall back to the zone itself. Many real towns cannot be picked: Kharanos's inn is the only way to reach Kharanos, and Darnassus is a fallback zone.
