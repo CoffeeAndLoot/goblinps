@@ -47,6 +47,20 @@ return function(h, loaded)
                  "800 yards by default")
             h.eq(Trip.Check(boat, { pos = pos, event = "zone", arrive = { boat = 300 } }), "stay")
         end)
+        h.it("advances a step through a tunnel at its far mouth, on the ride radius", function()
+            -- The fake world's Deep Tunnel: mouths at (9600, 9600) and (9600, 9200).
+            local world = dofile("test/fake_world.lua")()
+            local r = loaded.ns.Route.Plan(world, { faction = "H", known = {},
+                from = { name = "You", c = 1, x = 9000, y = 9900, map = 1 },
+                to = { name = "Deep Camp", c = 1, x = 9000, y = 9000, map = 4 } })
+            local through = r.steps[2]
+            h.eq(through.through, true)
+            h.eq(Trip.Check(through, { pos = at(9600, 9600), best = 400, event = "tick" }), "stay",
+                 "still at the near mouth")
+            h.eq(Trip.Check(through, { pos = at(9600, 9230), best = 60, event = "tick" }), "advance",
+                 "30 yards from the far mouth")
+            h.truthy(Trip.Bearing(at(9600, 9600), through.to), "the arrow aims at the far mouth")
+        end)
     end)
 
     h.describe("Trip.Bearing", function()

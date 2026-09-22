@@ -13,8 +13,15 @@ local function world()
         -- by one crossing. Isle (3) and Lostland (5) have none: Isle is an island
         -- (its two stops still ride to each other), Lostland is a hole in the table.
         -- Lostland also holds no stop and no town, so Search offers the zone itself.
+        -- The Deep Tunnel is a second, two-ended way into Northland, out in the
+        -- far corner: its Westland mouth is world (9600, 9600) and its Northland
+        -- mouth (9600, 9200), 400 yards apart, with no cross time, so the ride
+        -- between the mouths is the price. It is further from Alpha than the
+        -- North Gate is, so every route to Hotel still takes the gate.
         Crossings = {
             { a = 1, b = 4, name = "the North Gate", map = 1, mx = 0.5, my = 0.02, warn = "trolls on the bridge" },
+            { a = 1, b = 4, name = "the Deep Tunnel", map = 1, mx = 0.04, my = 0.04,
+              far = { map = 4, mx = 0.08, my = 0.04 } },
         },
         -- { low, high } level range per zone. Lostland (5) is listed here but
         -- the scripted client has no range for it, which is the fourth case

@@ -6,6 +6,8 @@ local _, ns = ...
 -- Ground travel goes zone by zone. A ride edge joins two points only when
 -- they are in the same zone (the same UiMap); a crossing is a point that
 -- belongs to both of its zones, so the router chains zones through crossings.
+-- A tunnel or a lift is a crossing with two ends, one ordinary point in each
+-- zone, joined by a "through" edge each way, so no arrow points through rock.
 -- Cities are zones and their gates are crossings. A zone with no crossing is
 -- an island: links and flights only.
 local Graph = {}
@@ -60,7 +62,17 @@ local function dockStop(data, stops, id)
     return stops[id]
 end
 
--- Is this point in zone `map`? A crossing is in both of its zones.
+-- A crossing's stop at one point, carrying the row's name, hazard and flag.
+local function crossingStop(data, key, row, map, mx, my)
+    local c, x, y = ns.Geo.ToWorld(data.Places, map, mx, my)
+    if not c then
+        return nil
+    end
+    return { key = key, name = row.name, c = c, x = x, y = y, map = map, mx = mx, my = my,
+             warn = row.warn, unverified = row.unverified }
+end
+
+-- Is this point in zone `map`? A one-ended crossing is in both of its zones.
 local function inZone(point, map)
     if point.zones then
         return point.zones[1] == map or point.zones[2] == map
@@ -84,7 +96,9 @@ end
 -- reaches the destination.
 -- Returns { stops = { [key] = stop }, edges = { [key] = { edge, ... } } }
 -- with the special keys START, DEST and HEARTH. A ride edge carries zone (the
--- UiMap it is walked in), walk and, in rough mode, rough.
+-- UiMap it is walked in), walk and, in rough mode, rough. The edge between the
+-- two ends of a two-ended crossing also carries through = true, and its zone
+-- is the one being entered.
 function Graph.Build(data, opts)
     local stops, edges = {}, {}
     local faction, known, speed = opts.faction, opts.known or {}, opts.speed
@@ -113,11 +127,23 @@ function Graph.Build(data, opts)
     end
     for i, x in ipairs(data.Crossings or {}) do
         if legal(x.faction, faction) then
-            local c, wx, wy = ns.Geo.ToWorld(data.Places, x.map, x.mx, x.my)
-            if c then
-                local key = "x" .. i
-                stops[key] = { key = key, name = x.name, c = c, x = wx, y = wy, map = x.map, mx = x.mx, my = x.my,
-                               zones = { x.a, x.b }, warn = x.warn, cross = x.cross, unverified = x.unverified }
+            local key = "x" .. i
+            local near = crossingStop(data, key, x, x.map, x.mx, x.my)
+            if near and x.far then
+                -- Two ends: each an ordinary point in its own zone, and the passage
+                -- between them is the through edge, which alone carries `cross`.
+                local far = crossingStop(data, key .. "far", x, x.far.map, x.far.mx, x.far.my)
+                if far then
+                    stops[key], stops[far.key] = near, far
+                    local seconds = x.cross or Graph.RideSeconds(near, far, speed)
+                    addEdge(edges, key, far.key, { kind = "ride", seconds = seconds, zone = far.map,
+                                                   walk = opts.walk, through = true })
+                    addEdge(edges, far.key, key, { kind = "ride", seconds = seconds, zone = near.map,
+                                                   walk = opts.walk, through = true })
+                end
+            elseif near then
+                near.zones, near.cross = { x.a, x.b }, x.cross
+                stops[key] = near
             end
         end
     end

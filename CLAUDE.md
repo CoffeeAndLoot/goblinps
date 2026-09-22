@@ -246,8 +246,9 @@ commit; re-read files before editing.
   anchors (or a width) and decide wrap or truncate. A one-anchor FontString
   fed a sentence draws over its neighbours and past the frame.
 - Ground travel is per zone: a ride edge joins two points only when they
-  share a UiMap, and a crossing belongs to both of its zones. Every place
-  handed to the router needs its `map`. A missing crossing shows up as a step
+  share a UiMap, and a crossing belongs to both of its zones. A tunnel or
+  lift is a crossing with two ends (`far`), each in its own zone, joined by a
+  through edge. Every place handed to the router needs its `map`. A missing crossing shows up as a step
   labelled "(no mapped path)"; add the row to `Data/Crossings.lua`, do not
   loosen the rule. `test/test_crossings.lua` checks every row and that each
   continent's zones all connect. A crossing's name must read correctly

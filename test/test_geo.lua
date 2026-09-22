@@ -52,6 +52,20 @@ return function(h, loaded)
             h.truthy(math.abs(near.yards - 282.8427) < 0.01)
         end)
 
+        h.it("considers both ends of a two-ended crossing, and names it either way", function()
+            local tunnel = { Places = world.Places, Docks = {}, Crossings = {
+                { name = "Deep Tunnel", map = 1, mx = 0.9, my = 0.9,       -- world 1000, 1000
+                  far = { map = 4, mx = 0.52, my = 0.52 } },               -- world 4800, 4800
+                { name = "Middling Crossing", map = 1, mx = 0.6, my = 0.6 }, -- world 4000, 4000
+            } }
+            local near = Geo.Nearest(tunnel, 1, 5000, 5000)
+            h.eq(near.name, "Deep Tunnel")
+            h.truthy(math.abs(near.yards - 282.8427) < 0.01, "measured to the far end")
+            near = Geo.Nearest(tunnel, 1, 1000, 1100)
+            h.eq(near.name, "Deep Tunnel")
+            h.truthy(math.abs(near.yards - 100) < 0.01, "measured to the near end")
+        end)
+
         h.it("returns nil when there is nothing on the continent", function()
             h.eq(Geo.Nearest({ Places = world.Places, Crossings = {}, Docks = {} }, 1, 0, 0), nil)
             h.eq(Geo.Nearest(data, 99, 0, 0), nil, "no candidate above is on continent 99")

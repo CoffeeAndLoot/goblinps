@@ -206,6 +206,35 @@ return function(h, loaded)
                                                 speed = 7, walk = true })
             h.eq(Route.StepText(walking.steps[1]), "Walk toward Lostland (no mapped path)")
         end)
+        h.it("goes to a two-ended crossing, then through it, then on", function()
+            local from = { name = "You", c = 1, x = 9000, y = 9900, map = 1 }
+            local camp = { name = "Deep Camp", c = 1, x = 9000, y = 9000, map = 4 }
+            local r = Route.Plan(world, { faction = "H", known = {}, from = from, to = camp })
+            h.eq(kinds(r), "ride,ride,ride")
+            h.eq(Route.StepText(r.steps[1]), "Ride to the Deep Tunnel")
+            h.eq(Route.StepText(r.steps[2]), "Ride through the Deep Tunnel")
+            h.eq(Route.StepText(r.steps[3]), "Ride to Deep Camp")
+            h.falsy(r.steps[1].through)
+            h.eq(r.steps[2].through, true)
+            h.eq(r.steps[2].to.map, 4, "the through step ends at the far mouth")
+            h.eq(Route.StepDetail(world, r.steps[1], 5), "in Westland · level 1-10")
+            local text, warn = Route.StepDetail(world, r.steps[2], 5)
+            h.eq(text, "into Northland · level 30-40")
+            h.eq(warn, true)
+            local walking = Route.Plan(world, { faction = "H", known = {}, from = from, to = camp,
+                                                speed = 7, walk = true })
+            h.eq(Route.StepText(walking.steps[1]), "Walk to the Deep Tunnel")
+            h.eq(Route.StepText(walking.steps[2]), "Walk through the Deep Tunnel")
+        end)
+        h.it("never drops a through step as too short to mention", function()
+            local w = dofile("test/fake_world.lua")()
+            w.Crossings[2].cross = 1
+            local from = { name = "You", c = 1, x = 9000, y = 9900, map = 1 }
+            local camp = { name = "Deep Camp", c = 1, x = 9000, y = 9000, map = 4 }
+            local r = Route.Plan(w, { faction = "H", known = {}, from = from, to = camp })
+            h.eq(Route.StepText(r.steps[2]), "Ride through the Deep Tunnel")
+            h.eq(r.steps[2].seconds, 1)
+        end)
         h.it("never uses a straight line when a chain of crossings exists", function()
             local r = Route.Plan(world, { faction = "H", known = {}, from = nearAlpha, to = hotel })
             for _, s in ipairs(r.steps) do
