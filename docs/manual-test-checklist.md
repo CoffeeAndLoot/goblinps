@@ -420,8 +420,12 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       (2026-09-21: "~14 min · free")
 - [ ] Type in the box: the results list drops over the screen and the amber
       line stays visible under it
-- [ ] Start Route closes the planner and opens the dash; `/gps` mid-trip
+- [x] Start Route closes the planner and opens the dash; `/gps` mid-trip
       shows the trip's destination in the box
+      (2026-09-21: Start Route opened the dash, and a whole trip from the
+      Crossroads to Silverpine Forest ran end to end in game -- ground legs,
+      the zeppelin and the zone crossings -- with every step advancing as it
+      should. The mid-trip `/gps` half is not yet looked at)
 - [ ] `/gps selftest` lists the fifteen strip textures, all `ok`
 - [ ] Nothing reads past the brass or overlaps: names under the end badges
       stay on the glass
