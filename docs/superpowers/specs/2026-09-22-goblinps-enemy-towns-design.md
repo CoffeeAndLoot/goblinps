@@ -1,0 +1,60 @@
+# GoblinPS: routes that go round enemy towns (plan 11)
+
+Status: **asked for by the owner in chat on 2026-09-22.** A Horde level 15 mage following the route from the Talondeep Path to Splintertree Post was walked straight through Silverwind Refuge, an Alliance town, and died there more than once. The owner agreed to the fix proposed in chat: enemy towns become penalty circles, and hand-written stopover points give the router a way round them. Decisions the owner did not state are marked **Ruling**.
+
+## Why
+Inside a zone, a ride leg is a straight line between two points. The router knows nothing about roads, cliffs or towns in between. On the real data, the straight leg from the Talondeep Path's Ashenvale mouth (42.3, 71.1) to Splintertree Post (73.3, 61.7) runs through Silverwind Refuge (50.1, 66.2).
+
+## 1. Hostile places
+A hostile place is a point with a name, a faction and a radius, built from three sources:
+- **Enemy flight stops:** every `Data/Nodes` stop whose faction is not the player's and not neutral.
+- **Enemy towns:** every `Data/Towns` row with an `f` that is not the player's.
+- **Hand-written hostile towns:** `Data/Hostile.lua` (new, HAND-WRITTEN). It lists towns the generator could not give a faction to: `["Silverwind Refuge"] = { f = "A" }`, keyed by the town's name as it appears in `Data/Towns` or `Data/Nodes`. Seeded with Silverwind Refuge, known in game on 2026-09-22 because its guards killed a level 15 Horde player. Add a row whenever a town kills you.
+
+**Ruling: the radius** is `Hostile.RADIUS = 150` yards for a town or stop, and `Hostile.CAPITAL_RADIUS = 400` for a capital (a town with icon 5 in the generated data, or a stop in one of the six capital zones). Both are named constants, and they are guesses until walked. The owner's closest reading at Silverwind was about 40 yd from its map label, so 150 errs wide.
+
+A place is hostile only to the other faction. Neutral towns (no `f`) are never hostile.
+
+## 2. The penalty
+- In `Graph.Build`, each ride edge p->q is tested against every hostile place on the same continent. If the straight segment passes within the place's radius, the edge gains `Graph.HOSTILE_SECONDS` (**Ruling: 600**, ten minutes) and carries `danger = { name, f }`. It takes the first hostile place, in stable order, as its name.
+- **Exemptions.** A hostile place is ignored for an edge when either end of the edge lies inside its circle. You are already there, or going there on purpose (an enemy town you picked, or a stopover you placed inside one knowingly). That keeps a trip TO Silverwind Refuge from being impossible.
+- It is a penalty, not a ban, so a destination is never made unreachable. The router takes a way round whenever one exists within ten minutes.
+- Flights, boats, zeppelins, trams and the hearthstone are never penalised. Through edges (tunnels) are not either: they are one passage.
+- Rough straight-line edges get the same test.
+
+## 3. Stopover points
+- `Data/Stopovers.lua` (new, HAND-WRITTEN) lists named points inside one zone that a ride may pass through: `{ name = "...", map = <zone>, mx, my, unverified = true? }`.
+- The Graph adds each as an ordinary one-zone stop, like a crossing end, joined by ride edges to every other point in its zone.
+- A step to a stopover reads "Ride to <name>" like any other. **Ruling:** stopover names describe the way: "the road south of Silverwind Refuge".
+- It starts empty, with a header explaining the format and how to measure one with `/gps where`. The owner is measuring the Horde way round Silverwind. Until a stopover exists, the route still goes through, now with the warning below.
+
+## 4. Saying so
+- A ride step with `danger` gets an amber detail line: "passes <name> (<Alliance|Horde>)". It replaces the level range the way a crossing's `warn` does. `Route.StepDetail` returns `warn = true` for it, so it shows in the tooltip and on the warning line under the strip, like the level warning.
+- **A destination that is itself hostile** (an enemy town or stop the player picked) gets a plan note: "<name> is a <Alliance|Horde> town: its guards will attack you." It is shown on the warning line under the strip and in chat for `/gps to`.
+- The dash's step lines already show step text. The detail is not shown on the dash, which is unchanged.
+
+## 5. Which faction is "the player's"
+`opts.faction` is what the graph already uses (`API.Faction()`, "H" or "A"). Hostile places are built per plan for that faction. With no faction, nothing is hostile.
+
+## Out of scope
+- Level-aware danger. Guards kill at any level the owner is likely to be, so danger always applies.
+- Auto-generating roads. Stopovers are hand-written.
+- Changing any existing crossing.
+
+## Tests
+- **Pure geometry:** segment-to-point distance (`Geo.SegmentDistance`) at the ends, in the middle and past both ends.
+- **Graph:**
+  - an edge through a hostile circle carries `danger` and costs 600 s more;
+  - an edge that misses the circle does not;
+  - an edge with an end inside the circle is exempt;
+  - a friendly or neutral town is never hostile;
+  - flights and through edges are never penalised;
+  - given a stopover beside the circle, the route goes round it.
+- **Route:** the "passes X (Alliance)" detail line is amber, and a hostile destination gets its note.
+- **Real data:** a Horde level 15 route from the Talondeep Path's Ashenvale mouth to Splintertree Post has a step with `danger` naming Silverwind Refuge (until a stopover exists). An Alliance route on the same line has none.
+- **Data:** every `Data/Hostile.lua` key matches a real town or stop name; every stopover sits inside its zone's rectangle.
+
+## In game (checklist)
+- Horde, Talondeep Path to Splintertree Post: the tooltip for the leg past Silverwind reads "passes Silverwind Refuge (Alliance)" in amber, and so does the line under the strip.
+- Once a stopover is added: the route goes round it, and the dash walks you round alive.
+- Pick an enemy town on purpose: the warning line says its guards will attack you.
