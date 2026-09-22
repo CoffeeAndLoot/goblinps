@@ -10,3 +10,6 @@ docs/research/schematic-spike/out/
 # and images/parts/export_tga.py rebuilds these from them at any time. The
 # addon's own shipped textures are made by tools/ and land in GoblinPS/Media/.
 images/parts/*.tga
+
+# Codex's own instructions: it lives here but belongs to that agent, never the repo.
+AGENTS.md
