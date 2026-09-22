@@ -34,6 +34,19 @@ return function(h, loaded)
         h.it("advances a boat that docked", function()
             h.eq(Trip.Check({ kind = "boat", to = target }, { pos = at(1500, 9000), event = "zone" }), "advance")
         end)
+        h.it("judges arrival by the radius it is handed", function()
+            local ride = { kind = "ride", to = target }
+            local pos = at(1000, 8970) -- 30 yards out
+            h.eq(Trip.Check(ride, { pos = pos, event = "tick", arrive = { ride = 20 } }), "stay")
+            h.eq(Trip.Check(ride, { pos = pos, event = "tick", arrive = { ride = 40 } }), "advance")
+        end)
+        h.it("falls back to Trip.ARRIVE for a kind it is not handed", function()
+            local boat = { kind = "boat", to = target }
+            local pos = at(1500, 9000) -- 500 yards out
+            h.eq(Trip.Check(boat, { pos = pos, event = "zone", arrive = { ride = 20 } }), "advance",
+                 "800 yards by default")
+            h.eq(Trip.Check(boat, { pos = pos, event = "zone", arrive = { boat = 300 } }), "stay")
+        end)
     end)
 
     h.describe("Trip.Bearing", function()

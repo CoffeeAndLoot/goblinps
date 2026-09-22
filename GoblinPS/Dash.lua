@@ -572,6 +572,7 @@ function Dash.Tick(event)
     local pos = ns.Core.Here()
     local verdict = ns.Trip.Check(step, {
         pos = pos, onTaxi = ns.API.OnTaxi(), event = event, best = state.best,
+        arrive = ns.Core.ArriveRadii(),
     })
 
     if verdict == "pause" then

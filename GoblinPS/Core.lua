@@ -50,6 +50,11 @@ end
 function Core.MinimapPrefs() return prefs().minimap end
 function Core.HearthSaving() return prefs().hearthSaving end
 function Core.SetHearthSaving(seconds) prefs().hearthSaving = seconds end
+function Core.Arrive(key) return prefs().arrive[key] end
+function Core.SetArrive(key, yards) prefs().arrive[key] = yards end
+-- The player's radii by Trip step kind; the dash hands this to Trip.Check.
+function Core.ArriveRadii() return Prefs.ArriveRadii(prefs()) end
+function Core.ResetSettings() Prefs.Reset(prefs()) end
 
 -- Escape closes a frame only through its global name.
 function Core.CloseOnEscape(frame, globalName)
