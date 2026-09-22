@@ -2,6 +2,12 @@
 
 Status: **asked for by the owner in chat on 2026-09-22.** A Horde level 15 mage following the route from the Talondeep Path to Splintertree Post was walked straight through Silverwind Refuge, an Alliance town, and died there more than once. The owner agreed to the fix proposed in chat: enemy towns become penalty circles, and hand-written stopover points give the router a way round them. Decisions the owner did not state are marked **Ruling**.
 
+Built 2026-09-22 by `docs/superpowers/plans/2026-09-22-goblinps-enemy-towns.md`
+-- not yet run in the client. Its rulings (a capital is the place named after
+its zone, the constants in `Graph.lua`, split neutral towns never hostile, a
+leg named after a flight master before a marked town, and the Talondeep
+route now going round by the Ashenvale-Felwood road) are listed there.
+
 ## Why
 Inside a zone, a ride leg is a straight line between two points. The router knows nothing about roads, cliffs or towns in between. On the real data, the straight leg from the Talondeep Path's Ashenvale mouth (42.3, 71.1) to Splintertree Post (73.3, 61.7) runs through Silverwind Refuge (50.1, 66.2).
 

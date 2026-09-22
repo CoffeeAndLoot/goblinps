@@ -14,7 +14,7 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 10 are built.** Plans 1 to 3 are merged to `main` and
+**Status: plans 1 to 11 are built.** Plans 1 to 3 are merged to `main` and
 confirmed in the client (2026-09-20: routing core, planner window, ground
 crossings). Plan 4, the dash unit's first design, ran in the client twice on
 2026-09-20: the round art rendered as an oval (a square texture stretched
@@ -62,7 +62,12 @@ than its longest name. **Plan 9 has not been run in the client.** Plan 10, built
 2026-09-22, made every named town on the world map a destination
 (`Data/Towns.lua`, 150 towns generated from the game's own `AreaPOI`), let
 the results list scroll on the wheel with a footer, and made the empty
-box's drop-down a zone browser. **Plan 10 has not been run in the client.** A
+box's drop-down a zone browser. **Plan 10 has not been run in the client.**
+Plan 11, built 2026-09-22, made a ride leg that passes an enemy town cost
+ten minutes more, so the router goes round it and says so in amber when it
+cannot; a town's faction now comes only from the owner's
+`tools/town-factions.csv`, and `Data/Stopovers.lua` holds ways round.
+**Plan 11 has not been run in the client.** A
 schematic world map was dropped on 2026-09-20 in
 favour of the strip; the spike that proved it feasible is kept at
 `docs/research/schematic-spike/`. The product is a GPS: point to point with
@@ -72,8 +77,10 @@ and 8 by
 `docs/superpowers/specs/2026-09-21-goblinps-planner-redesign-design.md`
 for plan 9 by
 `docs/superpowers/specs/2026-09-21-goblinps-settings-and-marquee-design.md`
-and for plan 10 by
-`docs/superpowers/specs/2026-09-22-goblinps-towns-and-browsing-design.md`.
+for plan 10 by
+`docs/superpowers/specs/2026-09-22-goblinps-towns-and-browsing-design.md`
+and for plan 11 by
+`docs/superpowers/specs/2026-09-22-goblinps-enemy-towns-design.md`.
 Write each plan after the one before it has been used in game.
 
 Everything known about the client API and data sources is in
@@ -89,7 +96,7 @@ GoblinPS/API.lua             # the ONLY file that calls Blizzard game APIs and r
                               # events (LooseEnds pattern); UI files may register UI layout events
                               # (UI_SCALE_CHANGED, DISPLAY_SIZE_CHANGED) for their own frames
 GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
-GoblinPS/Data/Towns.lua      # GENERATED from AreaPOI: every named town in its zone, an inferred faction; stops and Inns rows win
+GoblinPS/Data/Towns.lua      # GENERATED from AreaPOI: every named town in its zone, a faction only from tools/town-factions.csv; stops and Inns rows win
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
 GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
@@ -98,6 +105,7 @@ GoblinPS/Marquee.lua         # pure: the dash's scrolling text, a character wind
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences, arrival radii and their ranges
 GoblinPS/Data/Inns.lua       # HAND-WRITTEN: hearthstone bind names Search cannot find alone; a row wins over a generated town of its name
 GoblinPS/Data/Crossings.lua  # HAND-WRITTEN: zone-to-zone crossings and city gates (coords are estimates until walked)
+GoblinPS/Data/Stopovers.lua  # HAND-WRITTEN: named points a ride may bend through round an enemy town; empty until walked
 GoblinPS/Data/Zones.lua      # HAND-WRITTEN: level range per zone, for the amber warnings
                               # HAND-WRITTEN and staying that way: C_Map.GetMapLevels is dead on this
                               # build (answers for no zone), so /gps probe zones can only report that
@@ -119,6 +127,7 @@ test/fake_frames.lua         # fake frame API: smoke-tests OUR window code, not 
 tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
 tools/make_art.py            # builds shipped textures from images/parts/*.png, scales and pads them, generates Data/Art.lua
 tools/catalog.lock           # pinned client build
+tools/town-factions.csv      # HAND-WRITTEN by the owner: A, H or N per generated town; the only source of a town's faction
 test/run.lua                 # desktop Lua test runner
 docs/                        # specs, research, manual test checklist
 docs/build-log/              # why plans 2 and 3 went the way they did: rulings and review findings
@@ -284,6 +293,23 @@ commit; re-read files before editing.
   and resume, so a waypoint the player drops mid-trip is theirs only until
   the next move -- it survives ending the trip in general only if it was
   dropped after GoblinPS's last move, typically on the trip's last step.
+- **An enemy town is a penalty, never a ban, and only a known one.** A ride
+  leg whose straight line passes the other side's flight master, or a town
+  the owner marked in `tools/town-factions.csv`, within its radius costs
+  `Graph.HOSTILE_SECONDS` more and carries `danger`; flights, links, the
+  hearthstone and a tunnel's through leg are never charged. The penalty
+  steers the router but is never shown: every edge keeps its real `seconds`,
+  and the player is only ever shown real travel time, never the penalty.
+  Only a chosen end of a leg excuses it from the circle -- where you stand,
+  where the hearthstone lands you, where you are going, or a stopover -- so
+  every enemy town stays reachable on purpose; a gate, a tunnel mouth or a
+  flight master on the way is never exempt (exempting any end let an
+  Alliance walk go in at Orgrimmar's front gate and out at its west gate
+  unwarned). No code guesses a town's faction (the nearest-flight-master
+  guess made caves and rivers into towns). A route that walks through a town
+  is fixed by marking it, or with a `Data/Stopovers.lua` row measured in
+  game, never by removing the edge or shrinking the radius until a test
+  passes.
 - **"Zero lint warnings" is not licence to silence one instead of fixing
   it.** `.luacheckrc` carries per-file `max_line_length = false` for five
   files, four of them generated -- nobody reads generated Lua, and line

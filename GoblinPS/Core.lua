@@ -403,7 +403,7 @@ local function slash(msg)
         else
             Core.SetHearthSaving(math.floor(minutes * 60 + 0.5))
             if minutes == 0 then
-                say("Hearthstone: always used when it is faster, however small the saving.")
+                say("Hearthstone: always used whenever it is no slower, however small the saving.")
             else
                 say(("Hearthstone: used only when it saves at least %s."):format(
                     Route.FormatTime(Core.HearthSaving())))
