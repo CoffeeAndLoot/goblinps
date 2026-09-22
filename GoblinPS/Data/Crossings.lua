@@ -34,7 +34,7 @@ ns.Data.Crossings = {
     { a = 1411, b = 1413, name = "the Southfury bridge", map = 1411, mx = 0.345, my = 0.425 },   -- Durotar, The Barrens
     { a = 1413, b = 1412, name = "the Mulgore pass", map = 1413, mx = 0.418, my = 0.586 },  -- The Barrens, Mulgore; measured in game 2026-09-22 (the guess was ~160 yd off)
     { a = 1413, b = 1440, name = "the Mor'shan Rampart", map = 1413, mx = 0.485, my = 0.055 },   -- The Barrens, Ashenvale
-    { a = 1413, b = 1442, name = "the Stonetalon pass", map = 1413, mx = 0.357, my = 0.275 },    -- The Barrens, Stonetalon Mountains; measured in game 2026-09-22 (the guess was ~124 yd off)
+    { a = 1413, b = 1442, name = "the Stonetalon pass", map = 1442, mx = 0.834, my = 0.968 },    -- The Barrens, Stonetalon Mountains; where the zone changes, measured in game 2026-09-22 (the guess was ~124 yd off)
     { a = 1413, b = 1445, name = "the Dustwallow road", map = 1413, mx = 0.495, my = 0.785 }, -- The Barrens, Dustwallow Marsh
     { a = 1413, b = 1441, name = "the Great Lift", map = 1413, mx = 0.440, my = 0.910, cross = 45 }, -- The Barrens, Thousand Needles
     { a = 1441, b = 1444, name = "the Feralas-Thousand Needles road", map = 1441, mx = 0.085, my = 0.115 },  -- Thousand Needles, Feralas
