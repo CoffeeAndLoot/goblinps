@@ -475,9 +475,8 @@ return function(h, loaded)
                  "Walk to the Southfury bridge / Walk to the Mor'shan Rampart / Walk to Astranaar")
             for _, s in ipairs(r.steps) do
                 h.eq(s.danger, nil)
-                if not s.through and ns.Geo.SegmentDistance(s.from, s.to, orgrimmar) <= orgrimmar.radius then
-                    h.eq(s.danger and s.danger.name, "Orgrimmar", ns.Route.StepText(s) .. " passes Orgrimmar unwarned")
-                end
+                h.truthy(ns.Geo.SegmentDistance(s.from, s.to, orgrimmar) > orgrimmar.radius,
+                         ns.Route.StepText(s) .. " passes Orgrimmar")
             end
         end)
         h.it("leaves a city by its gate", function()

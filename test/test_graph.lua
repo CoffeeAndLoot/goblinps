@@ -483,13 +483,32 @@ return function(h, loaded)
         -- ride straight past it at the default speed.
         local south = { name = "South", c = 7, x = 5000, y = 5200, map = 20 }
         local north = { name = "North", c = 7, x = 5000, y = 4800, map = 20 }
-        h.it("spends the hearthstone to keep out of an enemy town when the penalty clears the bar", function()
+        local function hearthTo(inn, bar, from, to)
+            return loaded.ns.Route.Plan(vale(), { faction = "H", known = {}, from = from or south, to = to or north,
+                                                  hearth = inn, hearthSaving = bar })
+        end
+        h.it("refuses the hearthstone for a real saving under the bar; the plain route keeps its warning", function()
             -- The inn is 10 yards from North: 20 seconds by stone against 46
-            -- straight past Keep, a real saving under the 120-second bar but a
-            -- saving in cost of over ten minutes.
-            local inn = { name = "North Inn", c = 7, x = 5000, y = 4790, map = 20 }
-            local r = loaded.ns.Route.Plan(vale(), { faction = "H", known = {}, from = south, to = north,
-                                                     hearth = inn, hearthSaving = 120 })
+            -- straight past Keep. Dodging the town is worth ten minutes to the
+            -- router, but the bar guards the cooldown in real minutes saved.
+            local r = hearthTo({ name = "North Inn", c = 7, x = 5000, y = 4790, map = 20 }, 120)
+            h.eq(r.steps[1].kind, "ride")
+            h.eq(r.steps[1].danger.name, "Keep", "the player sees the warning instead")
+        end)
+        h.it("never spends the hearthstone on a slower trip, whatever town it dodges", function()
+            -- The inn is 300 yards east of North, clear of Keep: 20 seconds by
+            -- stone plus 35 on foot against 46 straight past Keep.
+            local inn = { name = "East Inn", c = 7, x = 5300, y = 4800, map = 20 }
+            for _, bar in ipairs({ 0, 120 }) do
+                local r = hearthTo(inn, bar)
+                h.eq(r.steps[1].kind, "ride", "a bar of " .. bar .. " seconds")
+                h.eq(r.steps[1].danger.name, "Keep")
+            end
+        end)
+        h.it("still spends the hearthstone when it saves real time of at least the bar", function()
+            -- The inn is 100 yards from East: 20 seconds by stone plus 12 on
+            -- foot against a 15-minute ride past Keep.
+            local r = hearthTo({ name = "East Inn", c = 7, x = 5000, y = 1100, map = 20 }, 300, west, east)
             h.eq(r.steps[1].kind, "hearth")
             for _, s in ipairs(r.steps) do
                 h.eq(s.danger, nil)

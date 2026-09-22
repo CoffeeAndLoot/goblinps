@@ -214,10 +214,10 @@ end
 -- UiMap it is walked in), walk, danger ({ name, f }: the enemy town its
 -- straight line passes) and, in rough mode, rough. Every edge carries its
 -- real seconds and a cost, the same plus Graph.HOSTILE_SECONDS on a danger
--- edge: the router minimises cost, the player is shown seconds. The edge between the two ends of a two-ended crossing
--- also carries through = true, and its zone is the one being entered; it is
--- one passage, never charged for a town. Data/Stopovers.lua rows are stops
--- keyed "s1", "s2"...
+-- edge: the router minimises cost, the player is shown seconds. The edge
+-- between the two ends of a two-ended crossing also carries through = true,
+-- and its zone is the one being entered; it is one passage, never charged
+-- for a town. Data/Stopovers.lua rows are stops keyed "s1", "s2"...
 function Graph.Build(data, opts)
     local stops, edges = {}, {}
     local faction, known, speed = opts.faction, opts.known or {}, opts.speed

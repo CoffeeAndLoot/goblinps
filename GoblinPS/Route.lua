@@ -116,22 +116,25 @@ end
 -- a guild's Hasty Hearth perk; API.lua reads the live one), so on its own the
 -- router will spend the stone to save twenty seconds. `opts.hearthSaving` is
 -- the least it must save to be worth taking; plan both ways and keep the
--- hearthstone only when it earns its keep. Nil or 0 means the old behaviour,
--- always fastest. Refusing it never costs the player a route: the plain plan
+-- hearthstone only when it earns its keep. Nil or 0 means take it whenever
+-- it is no slower. Refusing it never costs the player a route: the plain plan
 -- is returned instead, and it is the one the player would have had anyway.
--- The saving is measured in cost, the router's own measure: a stone that
--- keeps the player out of an enemy town saves them the town's penalty too.
+-- The saving is real seconds, the unit the bar names ("must save N min"),
+-- never cost: `best` is already the router's pick by cost, and comparing cost
+-- would let an enemy town's penalty alone spend the stone, even on a slower
+-- trip. A refused stone leaves the plain route with its danger step, so the
+-- player still sees the warning.
 function Route.Plan(data, opts)
     local best = solve(data, opts)
     local bar = opts.hearthSaving or 0
-    if not opts.hearth or bar <= 0 or not best then
+    if not opts.hearth or not best then
         return best
     end
     if not (best.steps[1] and best.steps[1].kind == "hearth") then
         return best
     end
     local plain = solve(data, copy(opts, { hearth = false }))
-    if plain and plain.cost - best.cost < bar then
+    if plain and plain.seconds - best.seconds < bar then
         return plain
     end
     return best
