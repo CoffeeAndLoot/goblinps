@@ -204,7 +204,8 @@ function Planner.Refresh()
     if plan and routed and g and s then
         local m = stripMetrics(g, s)
         layout = ns.Strip.Layout(ns.Data, steps, { faction = ns.Core.Faction(), level = plan.level,
-                                                   trackWidth = m.right - m.left, badgeWidth = m.ring })
+                                                   trackWidth = m.right - m.left, badgeWidth = m.ring,
+                                                   destination = plan.to and plan.to.name })
         drawStrip(layout, m)
     end
     ui.strip:SetShown(layout ~= nil)

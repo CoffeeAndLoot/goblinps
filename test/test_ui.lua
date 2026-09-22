@@ -1154,6 +1154,22 @@ return function(h)
             GameTooltip:Hide()
         end)
 
+        h.it("names the signpost after the destination, not the last crossing", function()
+            local ui, state = Planner.Debug()
+            Fake.Type(ui.toBox, "northland")
+            h.eq(ui.results.rows[1].label:GetText(), "Northland", "the search's first row is the zone")
+            Fake.Click(ui.results.rows[1])
+            local steps = state.plan.result.steps
+            h.eq(ns.Route.StepText(steps[#steps]), "Ride to the North Gate",
+                 "the fixture route to Northland really ends at the crossing")
+            local last = ui.strip.badges[#steps + 1]
+            h.eq(last.label:GetText(), "Northland")
+            last.scripts.OnEnter(last)
+            h.eq(GameTooltip.lines[1].text, "Ride to the North Gate")
+            GameTooltip:Hide()
+            pickTo("delt")
+        end)
+
         h.it("keeps a readable strip when a badge's art will not load", function()
             local ui = pickTo("delt")
             Fake.missingTextures[art("icon-flight")] = true

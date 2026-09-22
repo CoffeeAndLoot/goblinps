@@ -134,5 +134,17 @@ return function(h, loaded)
             h.eq(layout.stops[2].tooltip[1].text, "Gate")
             h.eq(layout.stops[2].tooltip[2].text, "~4 min")
         end)
+
+        h.it("labels the signpost with the destination, and keeps the step in its tooltip", function()
+            local steps = { step("ride", "A"), step("ride", "the North Gate") }
+            local opts = { faction = "H", level = 60, trackWidth = 400, badgeWidth = 40,
+                           destination = "Northland" }
+            local layout = Strip.Layout(data, steps, opts)
+            h.eq(layout.stops[3].label, "Northland")
+            h.eq(layout.stops[3].tooltip[1].text, "Ride to the North Gate")
+
+            local without = Strip.Layout(data, steps, OPTS)
+            h.eq(without.stops[3].label, "the North Gate")
+        end)
     end)
 end

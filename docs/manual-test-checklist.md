@@ -449,6 +449,7 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
       its neighbour's; note whether the right tooltip comes up
 - [ ] No gold rectangle round Start Route or the search box, at rest or on hover
 - [ ] The scenery fills the frame's whole inside, edge to edge, behind the box and Start Route; nothing of the old dark tiled backing shows
+- [ ] A route to a zone: the signpost is labelled with the zone you searched for, and its tooltip still names the crossing you walk to (seen wrong in game 2026-09-21: "the Tirisfal-...", "Darkwhisp...")
 
 ## Flight paths survive a reload
 
