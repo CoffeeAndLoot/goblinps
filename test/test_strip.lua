@@ -144,7 +144,13 @@ return function(h, loaded)
             h.eq(layout.stops[3].tooltip[1].text, "Ride to the North Gate")
 
             local without = Strip.Layout(data, steps, OPTS)
-            h.eq(without.stops[3].label, "the North Gate")
+            h.eq(without.stops[3].label, "North Gate", "a plain crossing label drops its leading \"the\" too")
+        end)
+
+        h.it("drops a crossing's leading \"the\" from its label, but keeps it in the tooltip", function()
+            local layout = Strip.Layout(data, { step("ride", "the North Gate") }, OPTS)
+            h.eq(layout.stops[2].label, "North Gate")
+            h.eq(layout.stops[2].tooltip[1].text, "Ride to the North Gate")
         end)
     end)
 end

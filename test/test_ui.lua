@@ -2211,7 +2211,7 @@ return function(h)
                 local ui = Dash.Debug()
                 standAt(700, 0)
                 Dash.Tick("tick")
-                h.eq(ui.destination:GetText(), "the North Gate",
+                h.eq(ui.destination:GetText(), "North Gate",
                      "the glass names what the arrow points at, not the journey's end")
                 h.eq(ui.distance:GetText(), "700 yd")
             end)

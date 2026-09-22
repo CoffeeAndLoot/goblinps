@@ -9,6 +9,16 @@ function Search.ShortName(name)
     return (name:match("^([^,]+)") or name)
 end
 
+-- For a badge or the dash's small glass, not a sentence: ShortName, with a
+-- crossing's leading lowercase "the " (Data/Crossings.lua writes them that
+-- way so directions read as sentences, "Walk to the Mor'shan Rampart") cut.
+-- A capital "The" is part of the name itself ("The Barrens") and stays;
+-- match is exactly "^the " (case-sensitive, requires the trailing space) so
+-- a name that merely starts with the letters, like "theramore", is untouched.
+function Search.Label(name)
+    return (Search.ShortName(name):gsub("^the ", "", 1))
+end
+
 local function fromNode(id, n)
     return { kind = "stop", nodeID = id, name = Search.ShortName(n.name),
              c = n.c, x = n.x, y = n.y, map = n.map, mx = n.mx, my = n.my }
