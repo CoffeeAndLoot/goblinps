@@ -325,6 +325,10 @@ To measure one: stand on it, right-click the GoblinPS minimap button (or
 - [x] the Thunder Bluff lifts (Thunder Bluff and Mulgore): the west lifts,
       31.8, 66.1 on Thunder Bluff's map, 2026-09-22. The guess on Mulgore's map
       was about 314 yd off.
+- [x] the Stonetalon pass (the Barrens and Stonetalon Mountains): 35.7, 27.5 on
+      The Barrens' map, 2026-09-22. The guess was about 124 yd off. (A first
+      reading at Honor's Stand, 39.4, 29.9, was inside the Barrens short of the
+      border, and the crossings test refused it.)
 - [x] Control: the Crossroads flight master read 51.5, 30.3 in game against 51.5,
       30.4 in the generated data, 2026-09-22. The in-game readout and our map
       coordinates agree, so crossing readings plug straight in. Flight masters
