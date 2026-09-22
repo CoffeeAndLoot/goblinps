@@ -72,8 +72,9 @@ end
 -- ONLY place that calls GetSubZoneText and GetMinimapZoneText, both verified
 -- present on build 1.60.1.69913 in ZoneScriptDocumentation.lua: neither is
 -- Nilable, both answer "" rather than nothing at all, so "" is read here as
--- "no answer" and GetMinimapZoneText is tried as the fallback Blizzard's own
--- Minimap.lua uses for the same spot.
+-- "no answer" and GetMinimapZoneText -- the name Blizzard's Minimap.lua shows
+-- over the minimap -- is tried next. That fallback is our choice, not a copy of
+-- Blizzard's: their ZoneText.lua falls back to GetZoneText instead.
 function API.SubZone()
     if not (GetSubZoneText and GetMinimapZoneText) then
         return nil
