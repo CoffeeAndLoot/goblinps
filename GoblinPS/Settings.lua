@@ -14,11 +14,10 @@ ns.Settings = Settings
 
 local W = ns.Widgets
 
--- Where to send feedback. Nil until the page exists: the owner said it does
--- not yet and did not want it made, so no address is printed -- not even the
--- repository's. Set it and the About box shows it in a box to copy from,
--- because text in the game cannot be clicked open.
-Settings.FEEDBACK_URL = nil
+-- Where to send feedback: the comments on the addon's Wago page (the owner's
+-- choice, 2026-09-22). The About box shows it in a box to copy from, because
+-- text in the game cannot be clicked open.
+Settings.FEEDBACK_URL = "https://addons.wago.io/addons/goblinps"
 
 -- The stack, top to bottom: PAD 12 + title 26 + six rows 6 x 24 + the
 -- transport note 28 + Reset 28 + the amber note 28 + 8 + version 18 +
@@ -87,16 +86,8 @@ function Settings.Refresh()
         W.SetButtonEnabled(row.plus, v < row.spec.range.max)
     end
     ui.version:SetText("GoblinPS " .. (ns.API.AddOnVersion() or "(version unknown)"))
-    local url = Settings.FEEDBACK_URL
-    if url then
-        ui.feedback:SetText("Feedback: select the address below and copy it.")
-        ui.url:SetText(url)
-        ui.url:Show()
-    else
-        ui.feedback:SetText("Feedback: a GitHub page is coming soon.")
-        ui.url:SetText("")
-        ui.url:Hide()
-    end
+    ui.feedback:SetText("Feedback: copy this address and leave a comment there.")
+    ui.url:SetText(Settings.FEEDBACK_URL)
     W.UpdatePlaceholder(ui.url)
 end
 
@@ -183,7 +174,7 @@ local function build()
     local feedback = W.Text(f, "dim")
     stack(feedback, LINE)
 
-    -- The address, when there is one, in a box the player can select and copy
+    -- The address, in a box the player can select and copy
     -- from: the usual addon pattern, since game text cannot be clicked open.
     -- Typing cannot change it; focus selects all of it.
     local url = W.EditBox(f, 200, BUTTON + 2, "")
@@ -192,7 +183,7 @@ local function build()
     url:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     url:SetScript("OnTextChanged", function(self, userInput)
         if userInput then
-            self:SetText(Settings.FEEDBACK_URL or "")
+            self:SetText(Settings.FEEDBACK_URL)
             self:HighlightText()
         end
     end)

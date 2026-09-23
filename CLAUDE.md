@@ -207,6 +207,15 @@ Calendar versions (`2026.09.19`, `.2` for a second release that day), written
 only in the TOC. Commit after each change. Never push or merge to `main`
 unless the owner says so.
 
+**Releasing.** GoblinPS is on Wago Addons (project `aND9d26o`,
+https://addons.wago.io/addons/goblinps, stable channel) and the repository is
+public. A release is a tag `v<version>` whose version equals the TOC's:
+pushing it runs `.github/workflows/release-addon.yml`, which zips `GoblinPS/`,
+makes the GitHub release and uploads to Wago under Forever's live patch
+(`supported_forever_patches`); a tag containing `beta` or `alpha` publishes at
+that stability. Pushing a tag publishes to players: only on the owner's word,
+every time. The `WAGO_API_TOKEN` secret is the owner's; never read or set it.
+
 Another agent, **Codex**, owns the artwork and commits here too, on whatever
 branch is checked out; re-read files before editing. Its `AGENTS.md` is in
 `.gitignore` and is never committed. The art's placement files

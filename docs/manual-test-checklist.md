@@ -539,8 +539,10 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [ ] About shows "GoblinPS 2026.09.22.3". If it says "(version unknown)",
       `C_AddOns.GetAddOnMetadata` is one more API present on this build that
       does not answer: note it in CLAUDE.md's list
-- [ ] The feedback line reads "Feedback: a GitHub page is coming soon." and
-      no address is shown
+- [ ] The feedback line reads "Feedback: copy this address and leave a comment
+      there." over the Wago page's address, in a box that selects it all on
+      click and cannot be typed over (it said "coming soon" until the first
+      release, 2026-09-22)
 - [ ] Lower "Boat, zeppelin, tram arrival" (say to 300 yd) and take a
       zeppelin: the dash advances only once you are that close to the far
       dock. Note how far from the dock's coordinates you really step off --

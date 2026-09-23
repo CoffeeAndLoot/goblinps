@@ -49,7 +49,7 @@ lives in `_classic_beta_`, not `_retail_`.
 
 ## Feedback
 
-The comments on its Wago page.
+The comments on its Wago page: https://addons.wago.io/addons/goblinps
 
 ## Licence
 
