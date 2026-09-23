@@ -5,6 +5,11 @@ A thing here is not a commitment -- it is a note so it stops living in a chat
 log. When one graduates, it becomes a plan in `docs/superpowers/plans/` and
 comes off this list.
 
+- **Saved routes for farming.** The owner, 2026-09-22, for the README's
+  "coming later": keep a loop a player runs often (a farming circuit, a
+  daily round) and start it with a click. Needs saves to load, which this
+  beta client does not do yet (CLAUDE.md's SavedVariables rule), so it waits
+  on Blizzard.
 - **Two drop-downs: a zone, then a place in it.** The owner, 2026-09-22,
   after walking the zone browser: one list for the zone, a second for the
   places in the chosen zone. Today the one list does both (a zone row fills
