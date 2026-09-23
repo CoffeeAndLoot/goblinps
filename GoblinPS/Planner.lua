@@ -423,10 +423,7 @@ local function wireBox(box)
     box:SetScript("OnEditFocusGained", function(self)
         -- Select the whole name so typing replaces it, like a browser
         -- address bar, instead of the player deleting the old destination
-        -- by hand first. Verified present on SimpleEditBoxAPIDocumentation.lua.
-        -- Wrapped, not `showResults` itself: the client calls a script with
-        -- the box as its first argument, and showResults(text) would read
-        -- that frame as the query.
+        -- by hand first. Wrapped for the reason browseAll() gives.
         self:HighlightText()
         showResults()
     end)
