@@ -141,7 +141,10 @@ return function(h, loaded)
             local steps = { through(false), step("ride", "Hotel, Northland", { zone = 4 }) }
             local layout = Strip.Layout(data, steps, OPTS)
             h.eq(layout.stops[2].badge, "icon-ride")
-            h.eq(layout.stops[2].label, "Deep Tunnel")
+            -- Not the last stop, so the label is Northland, the zone the tunnel
+            -- comes out in -- the crossing's own name, "Deep Tunnel", would sit
+            -- right beside the next stop's badge and read as two of the same.
+            h.eq(layout.stops[2].label, "Northland")
             local tip = layout.stops[2].tooltip
             h.eq(tip[1].text, "Ride through the Deep Tunnel")
             h.eq(tip[2].text, "~4 min")
@@ -149,7 +152,30 @@ return function(h, loaded)
             steps[1] = through(true)
             layout = Strip.Layout(data, steps, OPTS)
             h.eq(layout.stops[2].badge, "icon-walk")
+            h.eq(layout.stops[2].label, "Northland", "still the zone, not the crossing, once walked")
             h.eq(layout.stops[2].tooltip[1].text, "Walk through the Deep Tunnel")
+        end)
+
+        h.it("labels a through step by the zone it enters only when it is not the last stop", function()
+            local function through(zone, extra)
+                local s = step("ride", "the Deep Tunnel", { zone = zone, through = true })
+                for k, v in pairs(extra or {}) do
+                    s[k] = v
+                end
+                return s
+            end
+            -- Last step: opts.destination still wins, unchanged from any other kind.
+            local layout = Strip.Layout(data, { step("ride", "A"), through(4) },
+                                        { faction = "H", level = 60, trackWidth = 400, badgeWidth = 40,
+                                          destination = "Hotel" })
+            h.eq(layout.stops[3].label, "Hotel")
+            -- Last step, no destination given: falls back to the crossing's own
+            -- name, same as any other last step without one.
+            layout = Strip.Layout(data, { step("ride", "A"), through(4) }, OPTS)
+            h.eq(layout.stops[3].label, "Deep Tunnel")
+            -- The zone has no Places row: keep the crossing's name.
+            layout = Strip.Layout(data, { through(999), step("ride", "Hotel, Northland", { zone = 4 }) }, OPTS)
+            h.eq(layout.stops[2].label, "Deep Tunnel", "no Places row for zone 999, so the old label stands")
         end)
 
         h.it("has no warning when nothing is amber", function()

@@ -55,10 +55,16 @@ function Strip.Layout(data, steps, opts)
         local tooltip = tooltipFor(data, step, opts.level)
         -- The last stop's label names what the player searched for, not the
         -- crossing the route happens to end at; its tooltip and the warning
-        -- line below still name the step's own place. Every label also runs
-        -- through Search.Label, so a crossing's leading "the" is dropped
-        -- under the badge while the tooltip keeps it as a sentence.
-        local label = ns.Search.Label((i == gaps and opts.destination) or step.to.name)
+        -- line below still name the step's own place. A through step that is
+        -- not the last stop is a tunnel or lift's near mouth: its own name is
+        -- the crossing's, same as the through step right after it, so two
+        -- badges in a row would read the same. Label it with the zone the
+        -- through step comes out in instead, when that zone has a name to
+        -- give it. Every label also runs through Search.Label, so a
+        -- crossing's leading "the" is dropped under the badge while the
+        -- tooltip keeps it as a sentence.
+        local through = i < gaps and step.through and data.Places[step.zone] and data.Places[step.zone].name
+        local label = ns.Search.Label((i == gaps and opts.destination) or through or step.to.name)
         layout.stops[i + 1] = { x = i / gaps, badge = i == gaps and "node-destination" or badgeFor(step),
                                 label = label, tooltip = tooltip }
         layout.legs[i] = { from = i, to = i + 1, style = i == 1 and "solid" or "dashed",

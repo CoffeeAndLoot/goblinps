@@ -373,6 +373,7 @@ To measure one: stand on it, right-click the GoblinPS minimap button (or
       tunnel's Stonetalon mouth, then reads 'through the Talondeep Path' and
       points at the Ashenvale mouth. (Splintertree Post no longer goes this
       way since plan 11: it takes the Stonetalon pass and the Mor'shan Rampart.)
+- [ ] The strip for that route reads Talondeep Path, then Ashenvale, not the tunnel's name twice
 - [x] Control: the Crossroads flight master read 51.5, 30.3 in game against 51.5,
       30.4 in the generated data, 2026-09-22. The in-game readout and our map
       coordinates agree, so crossing readings plug straight in. Flight masters

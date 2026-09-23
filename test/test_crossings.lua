@@ -372,6 +372,36 @@ return function(h, loaded)
                 h.falsy(s.rough)
             end
         end)
+        -- Seen in game 2026-09-22: the strip drew "Talondeep Path" twice in a
+        -- row, once for the Stonetalon mouth and once for the through step
+        -- that ends at the Ashenvale mouth -- both stops named after the same
+        -- crossing. The through stop's label must read the zone it comes out
+        -- in instead.
+        h.it("labels the Talondeep Path's through stop Ashenvale, not the crossing twice", function()
+            local sunRock
+            for _, n in pairs(data.Nodes) do
+                if n.name:find("Sun Rock Retreat", 1, true) == 1 then
+                    sunRock = n
+                end
+            end
+            h.truthy(sunRock, "no Sun Rock Retreat flight master")
+            local from = { name = "You", c = sunRock.c, x = sunRock.x, y = sunRock.y,
+                           map = sunRock.map, mx = sunRock.mx, my = sunRock.my }
+            local to = ns.Search.Exact(data, "Zoram'gar Outpost", "H")
+            h.truthy(to, "no Zoram'gar Outpost")
+            local walker = ns.Travel.For(20)
+            local r = ns.Route.Plan(data, { faction = "H", known = {}, from = from, to = to,
+                                            speed = walker.speed, walk = walker.walk })
+            h.truthy(r, "no route")
+            h.eq(table.concat(texts(r), " / "),
+                 "Walk to the Talondeep Path / Walk through the Talondeep Path / Walk to Zoram'gar Outpost")
+            local layout = ns.Strip.Layout(data, r.steps,
+                                           { trackWidth = 600, badgeWidth = 40, faction = "H", level = 20 })
+            h.eq(#layout.stops, 4)
+            h.eq(layout.stops[2].label, "Talondeep Path")
+            h.eq(layout.stops[3].label, "Ashenvale")
+            h.eq(layout.stops[4].label, "Zoram'gar Outpost")
+        end)
         -- The owner's route on 2026-09-22: from the Talondeep Path's Ashenvale
         -- mouth, measured in game at 42.3, 71.1, the straight line to
         -- Splintertree Post runs 97 yards from Silverwind Refuge (50.1, 66.2),
