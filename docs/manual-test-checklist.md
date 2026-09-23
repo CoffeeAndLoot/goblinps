@@ -3,35 +3,58 @@
 Frames and live game data cannot run outside the client. Add an entry for
 every UI change.
 
-## Start here: a suggested order for the next session
+## Before the first Wago upload (decided 2026-09-22)
 
-Plans 2 and 3 are built and reviewed, and neither has been run in the client.
-**This is a recommendation, not a gate.** Whether it is enough to merge is the
-repository owner's call; what follows is only the order that gets the most
-answered per minute in game, cheapest and most decisive first. The sections
-below hold the full detail, and nothing here replaces them.
+The short pass that has to come back clean before a release goes up. It
+covers only what has never loaded in the client: plans 9 to 11 and the To
+box change. Everything else below is already seen or is measuring data, and
+none of it holds up a release. A FAIL here is fixed before upload; each line
+points at its full section for the detail.
 
-**This needs a full game restart, not `/reload`: the TOC changed after plan 3.**
+**Start with a full game restart, not `/reload`,** if you have not had one
+since plan 11 (the TOC gained `Data\Stopovers.lua`).
 
-1. **Does it still load?** `/gps` opens the planner, and `/gps selftest`
-   passes. If either fails nothing else matters, and the answer will be in
-   the first Lua error.
-2. ~~**Click a destination in the dropdown.**~~ Done 2026-09-20: typed "S",
-   clicked Stonetalon Mountains in the list, the route drew. The plan 2 click
-   fix works in the client.
-3. **`/gps probe zones`.** One command, and it replaces reading sixty zone
-   tooltips by hand. Then log out so SavedVariables is written, and say so.
-4. **Orgrimmar's west gate.** Stand in the gateway and record the position.
-   Every Horde route north depends on this one row and it fails quietly, not
-   loudly, when it is wrong.
-5. **The other five suspect crossings**, listed under "Which crossings to
-   check first". Fifty of the fifty-six rows are already provably inside both
-   of their zones; these are not.
-6. **`/run print(GetUnitSpeed("player"))` while mounted.** Yards per second,
-   directly. Every ground time the addon prints scales off this number, and
-   it is currently assumed rather than measured.
-
-Everything after that is worth doing, but none of it changes an answer above.
+1. [ ] **It loads.** No Lua error at login, `/gps` opens the planner, and
+       `/gps selftest` passes.
+2. [ ] **Flight paths, fresh.** Straight after logging in the planner reads
+       "No flight paths yet: open a flight map."; open one at a flight master
+       and it reads "Flight paths known: N". (A stranger meets this every
+       session until Blizzard fixes saves.)
+3. [ ] **Settings panel.** The gear opens it over the planner; every - and +
+       moves its value and stops at its end; Reset puts back 5 min, 40, 150,
+       800 and 300 yd; Close and Escape close it; every line reads inside the
+       panel. (Plan 9.)
+4. [ ] **About** shows "GoblinPS" and the TOC's version, not "(version
+       unknown)". (Plan 9.)
+5. [ ] **Scrolling dash text.** On a trip with a long step line, it holds,
+       creeps left a character at a time, wraps round and holds again; a short
+       line holds still. Settings > Scrolling text > Off stops it. (Plan 9.)
+6. [ ] **The drop-down** is only a little wider than its longest name, and no
+       name in it is cut off. (Plan 9.)
+7. [ ] **The wheel.** Type "a": five rows and the footer "1-5 of 194"; the
+       wheel moves it a row a notch; Enter then picks the top row shown.
+       (Plan 10.)
+8. [ ] **The zone browser.** The drop-down button with the box empty: recent
+       destinations, then every zone with its count. Click "Ashenvale (17)":
+       the box reads "Ashenvale", the list shows its places, and the strip
+       does not change. (Plan 10.)
+9. [ ] **Places.** "kha" lists "Kharanos · Dun Morogh"; "booty bay" is one
+       row, your own side's stop, with no twin. (Plan 10.)
+10. [ ] **The To box.** Pick a place, click into the box and type: the old
+        name is replaced. With that name still in the box, the drop-down
+        button shows the recents and zone browser, not one row. (2026-09-22.)
+11. [ ] **A tunnel.** Horde, Sun Rock Retreat to Zoram'gar Outpost: "Walk to
+        the Talondeep Path / Walk through the Talondeep Path / Walk to
+        Zoram'gar Outpost", about 13 minutes at level 20. Start Route: the dash
+        points at the Stonetalon mouth, then at the Ashenvale mouth, never
+        through the rock.
+12. [ ] **Round an enemy town.** Horde, level 15, at the Talondeep Path's
+        Ashenvale mouth, to Splintertree Post: by the Ashenvale-Felwood road,
+        about 11 minutes, no amber line. Walk it with the dash and say whether
+        anything attacks. (Plan 11.)
+13. [ ] **An enemy town picked on purpose.** Horde, pick Silverwind Refuge:
+        the line under the strip reads "Silverwind Refuge is an Alliance town:
+        its guards will attack you." (Plan 11.)
 
 ## Probes to run before any code (WoW Forever beta, 1.60.1.69913)
 
@@ -336,9 +359,10 @@ To measure one: stand on it, right-click the GoblinPS minimap button (or
       Ashenvale mouth is 42.3, 71.1 on Ashenvale's map. It is now a two-ended
       crossing (`far`): a mouth in each zone, joined by a through leg priced at
       its 45 s walk (`cross`), so the arrow never points through the rock.
-- [ ] Sun Rock Retreat to Splintertree Post: the dash points at the tunnel's
-      Stonetalon mouth, then reads 'through the Talondeep Path' and points at
-      the Ashenvale mouth
+- [ ] Horde, Sun Rock Retreat to Zoram'gar Outpost: the dash points at the
+      tunnel's Stonetalon mouth, then reads 'through the Talondeep Path' and
+      points at the Ashenvale mouth. (Splintertree Post no longer goes this
+      way since plan 11: it takes the Stonetalon pass and the Mor'shan Rampart.)
 - [x] Control: the Crossroads flight master read 51.5, 30.3 in game against 51.5,
       30.4 in the generated data, 2026-09-22. The in-game readout and our map
       coordinates agree, so crossing readings plug straight in. Flight masters
