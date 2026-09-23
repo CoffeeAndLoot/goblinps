@@ -32,7 +32,7 @@ class LoadTables(unittest.TestCase):
                 bg.load_tables(Path(tmp))
 
     def test_read_lock_strips_whitespace(self):
-        self.assertEqual(bg.read_lock(ROOT / "tools" / "catalog.lock"), "1.60.1.69913")
+        self.assertEqual(bg.read_lock(ROOT / "tools" / "catalog.lock"), "1.60.1.69977")
 
 
 class Faction(unittest.TestCase):
