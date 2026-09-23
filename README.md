@@ -15,7 +15,7 @@ is it worth burning the hearthstone? GoblinPS does the sums. You handle the loot
 
 ![GoblinPS: Less walkin'. More earnin'. A goblin trade prince presents the real planner, showing a route to Silverwind Refuge.](https://raw.githubusercontent.com/CoffeeAndLoot/goblinps/main/images/readme/goblinps-planner-demo.jpg)
 
-[View the original planner capture](images/readme/planner.jpg).
+[View the original planner capture](https://raw.githubusercontent.com/CoffeeAndLoot/goblinps/main/images/readme/planner.jpg).
 
 ## What's in it for you?
 
