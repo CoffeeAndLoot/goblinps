@@ -35,7 +35,11 @@ def capture(name, size):
 
 
 hero = Image.open(ROOT/'trade-prince-background.jpg').convert('RGBA')
-lettering(hero,(620,55),'GOBLINPS',78,'#b3ee52',True)
+brand_font = font(78, True)
+brand_x = 620
+for letters, color in [('G', '#b3ee52'), ('oblin', '#d3ad65'), ('PS', '#b3ee52')]:
+    lettering(hero, (brand_x,55), letters,78,color,True)
+    brand_x += brand_font.getlength(letters)
 lettering(hero,(624,151),'THE GOBLIN POSITIONING SYSTEM',23,'#d3ad65',True)
 lettering(hero,(620,210),"LESS WALKIN'.",55,'#ffe1a0',True)
 lettering(hero,(620,270),"MORE EARNIN'.",55,'#ffe1a0',True)
