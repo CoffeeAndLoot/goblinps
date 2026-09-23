@@ -5,6 +5,14 @@ A thing here is not a commitment -- it is a note so it stops living in a chat
 log. When one graduates, it becomes a plan in `docs/superpowers/plans/` and
 comes off this list.
 
+- **Two drop-downs: a zone, then a place in it.** The owner, 2026-09-22,
+  after walking the zone browser: one list for the zone, a second for the
+  places in the chosen zone. Today the one list does both (a zone row fills
+  the box and lists its places), which works; this is an idea, not a fault.
+- **The drop-down is still wider than it needs to be.** Seen 2026-09-22
+  after plan 9 narrowed it to the widest label: it hugs the widest label the
+  search can ever offer, so it is wide even when every row shown is short.
+  Not a priority.
 - **Place the three towns the generator cannot.** Plan 10, 2026-09-22:
   Dun Algaz, Scholomance and Ivar's Patch sit in two or three zone rectangles
   with no AreaID or area row to choose between them, so `build_graph.py`

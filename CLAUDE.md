@@ -23,8 +23,7 @@ stray. Ground travel goes zone by zone through named crossings, walking or
 riding by level. The gear opens a settings panel. Right-clicking the minimap
 button (or `/gps where`) gives a copyable position line for measuring data.
 
-**Status (2026-09-22): plans 1 to 11 are built; plans 1 to 10 are on
-`main`.** This project draws a hard line between **verified in source** and
+**Status (2026-09-22): plans 1 to 11 are built and on `main`.** This project draws a hard line between **verified in source** and
 **verified in game**, because its history is faults that passed every desktop
 test and showed only on screen. Seen in the client so far:
 
@@ -43,13 +42,15 @@ test and showed only on screen. Seen in the client so far:
   after `/reload` is blocked by the client: saves never load (rule below).
 - The signpost naming the destination and labels without "the": seen
   2026-09-22. The where-am-I line is in use for measuring.
-- **Not yet run in the client:** plan 9 (settings panel, scrolling dash text,
-  narrower drop-down, the scrolling-speed setting), the raised arrow, its
-  darker tint and the spaced name and distance, places not zones (enemy
-  stops marked, a zone only when it holds no place), two-ended crossings,
-  plan 10 (`Data/Towns.lua`, wheel scrolling, the zone browser) and plan 11
-  (routes round enemy towns, on branch `enemy-towns`). Do not write that
-  they have been.
+- Walked 2026-09-22 before the first Wago upload (the checklist's first
+  section): plan 9's settings panel, About, scrolling dash text and its Off
+  setting; plan 10's wheel scrolling, zone browser and places; the To box
+  selecting on focus; the hearthstone badge; and plan 11's warning for an
+  enemy town picked on purpose.
+- **Not yet run in the client:** the raised arrow and its darker tint, a walk
+  through a two-ended crossing (the Talondeep Path), a route walked round an
+  enemy town, and a stopover (none exist yet). Do not write that they have
+  been.
 
 What is still estimated is **data, not code**: most crossing coordinates
 (five measured so far -- see the checklist's "Measured in game so far"), the

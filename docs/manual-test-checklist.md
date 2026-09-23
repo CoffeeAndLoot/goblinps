@@ -14,33 +14,33 @@ detail is in the section for the plan a line names.
 **Start with a full game restart, not `/reload`,** if you have not had one
 since plan 11 (the TOC gained `Data\Stopovers.lua`).
 
-1. [ ] **It loads.** No Lua error at login, `/gps` opens the planner, and
+1. [x] **It loads.** No Lua error at login, `/gps` opens the planner, and
        `/gps selftest` passes.
-2. [ ] **Flight paths, fresh.** Straight after logging in the planner reads
+2. [x] **Flight paths, fresh.** Straight after logging in the planner reads
        "No flight paths yet: open a flight map."; open one at a flight master
        and it reads "Flight paths known: N". (A stranger meets this every
        session until Blizzard fixes saves.)
-3. [ ] **Settings panel.** The gear opens it over the planner; every - and +
+3. [x] **Settings panel.** The gear opens it over the planner; every - and +
        moves its value and stops at its end; Reset puts back 5 min, 40, 150,
        800 and 300 yd; Close and Escape close it; every line reads inside the
        panel. (Plan 9.)
-4. [ ] **About** shows "GoblinPS" and the TOC's version, not "(version
+4. [x] **About** shows "GoblinPS" and the TOC's version, not "(version
        unknown)". (Plan 9.)
-5. [ ] **Scrolling dash text.** On a trip with a long step line, it holds,
+5. [x] **Scrolling dash text.** On a trip with a long step line, it holds,
        creeps left a character at a time, wraps round and holds again; a short
        line holds still. Settings > Scrolling text > Off stops it. (Plan 9.)
 6. [ ] **The drop-down** is only a little wider than its longest name, and no
        name in it is cut off. (Plan 9.)
-7. [ ] **The wheel.** Type "a": five rows and the footer "1-5 of 194"; the
+7. [x] **The wheel.** Type "a": five rows and the footer "1-5 of 194"; the
        wheel moves it a row a notch; Enter then picks the top row shown.
        (Plan 10.)
-8. [ ] **The zone browser.** The drop-down button with the box empty: recent
+8. [x] **The zone browser.** The drop-down button with the box empty: recent
        destinations, then every zone with its count. Click "Ashenvale (17)":
        the box reads "Ashenvale", the list shows its places, and the strip
        does not change. (Plan 10.)
-9. [ ] **Places.** "kha" lists "Kharanos · Dun Morogh"; "booty bay" is one
+9. [x] **Places.** "kha" lists "Kharanos · Dun Morogh"; "booty bay" is one
        row, your own side's stop, with no twin. (Plan 10.)
-10. [ ] **The To box.** Pick a place, click into the box and type: the old
+10. [x] **The To box.** Pick a place, click into the box and type: the old
         name is replaced. With that name still in the box, the drop-down
         button shows the recents and zone browser, not one row. (2026-09-22.)
 11. [ ] **A tunnel.** Horde, Sun Rock Retreat to Zoram'gar Outpost: "Walk to
@@ -52,9 +52,19 @@ since plan 11 (the TOC gained `Data\Stopovers.lua`).
         Ashenvale mouth, to Splintertree Post: by the Ashenvale-Felwood road,
         about 11 minutes, no amber line. Walk it with the dash and say whether
         anything attacks. (Plan 11.)
-13. [ ] **An enemy town picked on purpose.** Horde, pick Silverwind Refuge:
+13. [x] **An enemy town picked on purpose.** Horde, pick Silverwind Refuge:
         the line under the strip reads "Silverwind Refuge is an Alliance town:
         its guards will attack you." (Plan 11.)
+
+Walked 2026-09-22 by the owner: 1-5, 7-10 and 13 pass. 6 fails but is
+waived: the list is still wider than it needs to be, and the owner ruled it
+not a priority (`docs/later.md`).
+9: "booty bay" planned Hearthstone to Crossroads, walk to Ratchet Docks, boat
+to Booty Bay Docks, walk to Booty Bay, about 9 minutes: the first time the
+hearthstone badge was seen. 13: Silverwind Refuge showed the guards line
+under the strip, by the Stonetalon pass and the Talondeep Path, about 14
+minutes; the strip labels both tunnel mouths "Talondeep Path". 11 and 12 are
+still to walk.
 
 ## Probes to run before any code (WoW Forever beta, 1.60.1.69913)
 
