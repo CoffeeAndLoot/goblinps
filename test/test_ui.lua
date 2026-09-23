@@ -1276,6 +1276,40 @@ return function(h)
             ui.toBox:ClearFocus()
         end)
 
+        h.it("focusing the box selects its whole text, ready to be typed over", function()
+            local ui = open()
+            ui.toBox:SetText("Splintertree Post")
+            ui.toBox.scripts.OnEditFocusGained(ui.toBox)
+            h.truthy(ui.toBox.highlighted ~= nil, "focus gained highlights the box")
+            h.eq(ui.toBox.highlighted[1], 0, "the whole name, start")
+            h.eq(ui.toBox.highlighted[2], -1, "the whole name, end")
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
+        h.it("the dropdown button browses even with a picked destination already in the box", function()
+            local ui, state = open()
+            ui.toBox:SetText("Splintertree Post") -- a name already picked, not typed to search
+            Fake.MouseDown(ui.frame) -- drop focus and put the list away, same as the test above
+            local to, plan = state.to, state.plan
+            Fake.Click(ui.dropdown)
+            h.truthy(ui.results:IsShown(), "the button opens the list even though the box is not empty")
+            local items = ui.results.items
+            -- the same recents-then-zone-browser rows an empty box shows, not a
+            -- one-row match on "Splintertree Post" -- candidates() must ignore
+            -- the box's text, only showResults()'s caller decides that
+            h.eq(items[1].name, GoblinPSDB.recents[1], "the newest recent first")
+            h.truthy(items[1].kind ~= "browse", "a recent is a place")
+            h.eq(items[#items].kind, "browse")
+            h.eq(items[#items].name, "Westland", "and the last zone, A to Z, at the end")
+            h.eq(ui.toBox:GetText(), "Splintertree Post", "the button does not touch the box's text")
+            h.truthy(state.to == to and state.plan == plan, "the current route is untouched")
+            Fake.Click(ui.dropdown)
+            h.falsy(ui.results:IsShown(), "a second click still puts it away")
+            ui.toBox:SetText("Delta")
+            ui.toBox:ClearFocus()
+        end)
+
         h.it("a zone row fills the box and lists that zone's places, and is never routed to", function()
             local ui, state = open()
             local saved, to, plan = GoblinPSDB.recents, state.to, state.plan

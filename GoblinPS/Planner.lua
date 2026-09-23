@@ -269,11 +269,13 @@ local function dismiss()
     hideResults()
 end
 
--- Every match for the text, however many: the list shows `fit` of them at a
--- time and the wheel moves over the rest. With an empty box, the recent
--- destinations, then the zone browser's rows.
-local function candidates()
-    local text = ui.toBox:GetText()
+-- Every match for `text`, however many: the list shows `fit` of them at a
+-- time and the wheel moves over the rest. With an empty query, the recent
+-- destinations, then the zone browser's rows. Defaults to the box's own
+-- text so the common caller (typing) can leave it out; the dropdown button
+-- passes "" explicitly to browse regardless of what the box holds.
+local function candidates(text)
+    text = text or ui.toBox:GetText()
     if text ~= "" then
         return ns.Search.Find(ns.Data, text, ns.Core.Faction())
     end
@@ -350,7 +352,10 @@ local function scrollResults(delta)
     drawResults()
 end
 
-local function showResults()
+-- `text` is optional and passed straight to candidates(): nil means "the
+-- box's own text" (typing, Enter, a plain re-open), "" means "browse
+-- everything regardless of what the box holds" (the dropdown button).
+local function showResults(text)
     -- The settings panel sits above this list (Settings.Open sets its frame
     -- level for exactly that), but a higher level only wins a DRAW -- it does
     -- not stop this list from opening under the panel and being clickable
@@ -362,13 +367,23 @@ local function showResults()
         return
     end
     -- A fresh list always starts at its top: typing resets the window.
-    ui.results.items, ui.results.offset = candidates(), 0
+    ui.results.items, ui.results.offset = candidates(text), 0
     if #ui.results.items == 0 then
         hideResults()
         return
     end
     drawResults()
     ui.results:Show()
+end
+
+-- The dropdown button's own opener: always the empty-query list (recent
+-- destinations, then the zone browser), never a filter on whatever the box
+-- already holds. A plain `showResults` cannot be handed to the button's
+-- OnClick and also stay usable as the box's OnEditFocusGained script, which
+-- the client calls with the box itself as the first argument -- that frame
+-- would arrive here as `text` and break the "" check above.
+local function browseAll()
+    showResults("")
 end
 
 -- A zone browser row is a way in, never a destination: it puts the zone's
@@ -405,7 +420,16 @@ local function wireBox(box)
             showResults()
         end
     end)
-    box:SetScript("OnEditFocusGained", showResults)
+    box:SetScript("OnEditFocusGained", function(self)
+        -- Select the whole name so typing replaces it, like a browser
+        -- address bar, instead of the player deleting the old destination
+        -- by hand first. Verified present on SimpleEditBoxAPIDocumentation.lua.
+        -- Wrapped, not `showResults` itself: the client calls a script with
+        -- the box as its first argument, and showResults(text) would read
+        -- that frame as the query.
+        self:HighlightText()
+        showResults()
+    end)
     box:SetScript("OnEditFocusLost", function()
         -- The client drops edit focus on mouse-down, before a click on a row
         -- completes. With the cursor on the list, leave it for that click.
@@ -723,7 +747,7 @@ local function build()
         if ui.results:IsShown() then
             hideResults()
         else
-            showResults()
+            browseAll()
         end
     end)
     local dropdownArt = art(dropdown, "dropdown-button", "ARTWORK")

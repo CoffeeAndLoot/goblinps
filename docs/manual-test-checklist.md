@@ -752,3 +752,11 @@ still unconfirmed.
       first design's five parts (`dash-body`, `dash-screen`, `dash-compass`,
       `dash-eta-plate`, `arrow`), which are kept on disk on purpose; only
       `arrow` is drawn, so a FAIL on the other four costs nothing today
+
+## To box: select on focus, dropdown always browses (2026-09-22)
+
+- [ ] Pick a destination, then click into the To box and type: the old name
+      is replaced, not typed alongside
+- [ ] With a destination's name sitting in the To box, click the dropdown
+      button: it shows recent destinations then the zone browser, the same
+      list an empty box would show
