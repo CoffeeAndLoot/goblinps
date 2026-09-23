@@ -1,0 +1,33 @@
+name: Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Lua and luacheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1 luarocks
+          sudo luarocks install luacheck
+
+      - name: Run unit tests
+        run: lua5.1 test/run.lua
+
+      - name: Lint
+        run: luacheck GoblinPS test
+
+      # test/tools imports Pillow (make_art.py, check_art.py) and numpy
+      # (check_art.py's pixel checks), neither of which ships with Python;
+      # everything else under test/tools is stdlib only.
+      - name: Install Python test dependencies
+        run: pip install Pillow numpy
+
+      - name: Run Python tool tests
+        run: python3 -m unittest discover -s test/tools
