@@ -14,74 +14,58 @@ Plain Lua 5.1 against the Blizzard API, **no libraries** (no Ace3, no vendored
 libs). Sibling projects `D:\healme` and `D:\looseEnds` share these conventions;
 borrow patterns from them, not code.
 
-**Status: plans 1 to 11 are built.** Plans 1 to 3 are merged to `main` and
-confirmed in the client (2026-09-20: routing core, planner window, ground
-crossings). Plan 4, the dash unit's first design, ran in the client twice on
-2026-09-20: the round art rendered as an oval (a square texture stretched
-across a non-square frame, `5858643`) and the compass vanished behind the
-brass (its stacked layers drawn at different sizes, `2d58322`); both were
-seen on screen and fixed. The device was then redesigned around a second art
-set -- plan 5, this work: the current step's name and distance on the glass,
-three step lines in a lit panel, the ETA on its own plate, a stop button with
-hover and pressed states, every position read from a generated geometry
-file. Plan 5 ran in the client on 2026-09-20 and drew wrong: the compass
-and arrow sat off the device and every line of text was invisible, because
-build() read sizes from frames that only inherit them (`2a9e856`). The art,
-the stop button and the housing were right on the first try. Plan 6 re-clad
-the planner window the same way it redid the dash: sixteen art parts, a
-placement geometry file (`images/parts/planner-geometry.json`) copied into
-`GoblinPS/Data/Art.lua`, and `Planner.lua` now hand-types no coordinate.
-**Plan 6 has not been run in the client.** Do not write that it has: this
-project draws a hard line between verified in source and verified in game,
-and this branch's own history is faults that passed every desktop test and
-were only visible on screen. `/gps` opens the planner;
-`/gps to <place>` prints a route in chat, with ground travel going zone by
-zone through named crossings and walk-or-ride by level. Start Route closes
-the planner and opens the dash unit: an arrow pointing at the current step,
-showing distance and time left, advancing when you arrive and replanning
-when you stray. What is still estimated is **data, not code**: crossing
-coordinates, the two mount speeds, `cross` times and some zone level ranges.
-The addon says so in amber where it matters;
-`docs/manual-test-checklist.md` lists what to walk. Plan 7, built 2026-09-21,
-made a trip end only on Stop: the dash comes off `UISpecialFrames`, hiding it
-no longer ends the trip, and the destination is saved by name in the
-account-wide `GoblinPSDB.trips` so a `/reload` or logout resumes it --
-once the client loads saves, which build 1.60.1.69913 does not (see the
-SavedVariables rule below).
-**Plan 7 has not been run in the client**, for the same reason as plan 6
-above: verified in source is not verified in game. Plan 8, built 2026-09-21,
-rebuilt the planner to the mockup: one search box, the route strip drawn by
-the pure `Strip.lua`, a tooltip on every stop, wide only. Plan 8 was first seen in the client on
-2026-09-21 and drew as designed: the window sealed against a plain sky, the
-strip's badges on the line, solid then dashed, and the tooltips right. The
-rest of its checklist section is still to walk. Plan 9, built 2026-09-22,
-put a settings panel behind the gear (the hearthstone's saving, four arrival
-radii, Reset, About), made the dash's too-long lines scroll like an old car
-radio (the pure `Marquee.lua`), and drew the drop-down only a little wider
-than its longest name. **Plan 9 has not been run in the client.** Plan 10, built
-2026-09-22, made every named town on the world map a destination
-(`Data/Towns.lua`, 150 towns generated from the game's own `AreaPOI`), let
-the results list scroll on the wheel with a footer, and made the empty
-box's drop-down a zone browser. **Plan 10 has not been run in the client.**
-Plan 11, built 2026-09-22, made a ride leg that passes an enemy town cost
-ten minutes more, so the router goes round it and says so in amber when it
-cannot; a town's faction now comes only from the owner's
-`tools/town-factions.csv`, and `Data/Stopovers.lua` holds ways round.
-**Plan 11 has not been run in the client.** A
-schematic world map was dropped on 2026-09-20 in
-favour of the strip; the spike that proved it feasible is kept at
-`docs/research/schematic-spike/`. The product is a GPS: point to point with
-an arrow, in game. The design is
-`docs/superpowers/specs/2026-09-19-goblinps-design.md`, amended for plans 7
-and 8 by
-`docs/superpowers/specs/2026-09-21-goblinps-planner-redesign-design.md`
-for plan 9 by
-`docs/superpowers/specs/2026-09-21-goblinps-settings-and-marquee-design.md`
-for plan 10 by
-`docs/superpowers/specs/2026-09-22-goblinps-towns-and-browsing-design.md`
-and for plan 11 by
-`docs/superpowers/specs/2026-09-22-goblinps-enemy-towns-design.md`.
-Write each plan after the one before it has been used in game.
+**What it does today.** `/gps` opens the planner: one search box, the route
+drawn as a strip of badges (a tooltip on each), the total and one amber
+warning line, and Start Route. `/gps to <place>` prints the route in chat.
+Start Route opens the dash unit: an arrow pointing at the current step, the
+distance and time left, advancing when you arrive and replanning when you
+stray. Ground travel goes zone by zone through named crossings, walking or
+riding by level. The gear opens a settings panel. Right-clicking the minimap
+button (or `/gps where`) gives a copyable position line for measuring data.
+
+**Status (2026-09-22): plans 1 to 11 are built; plans 1 to 10 are on
+`main`.** This project draws a hard line between **verified in source** and
+**verified in game**, because its history is faults that passed every desktop
+test and showed only on screen. Seen in the client so far:
+
+- Plans 1-3 (routing core, planner, ground crossings): confirmed 2026-09-20.
+- Plans 4-5 (the dash): both drew wrong on first run and were fixed on
+  screen -- an oval from a stretched square texture (`5858643`), a compass
+  behind the brass (`2d58322`), the compass and every line of text misplaced
+  because build() read sizes from frames that only inherit them (`2a9e856`).
+  Since then the smooth-turning arrow was seen (2026-09-21).
+- Plans 6 and 8 (the planner art, then the planner rebuilt to the mockup):
+  seen 2026-09-21 -- sealed against a plain sky, the strip's badges on the
+  line, the tooltips, the level warning, the zeppelin wait, Close and the gear
+  on the brass, scenery edge to edge. A whole trip from the Crossroads to
+  Silverpine Forest ran end to end on the dash.
+- Plan 7 (only Stop ends a trip): Escape leaves the dash alone (seen). Resume
+  after `/reload` is blocked by the client: saves never load (rule below).
+- The signpost naming the destination and labels without "the": seen
+  2026-09-22. The where-am-I line is in use for measuring.
+- **Not yet run in the client:** plan 9 (settings panel, scrolling dash text,
+  narrower drop-down, the scrolling-speed setting), the raised arrow, its
+  darker tint and the spaced name and distance, places not zones (enemy
+  stops marked, a zone only when it holds no place), two-ended crossings,
+  plan 10 (`Data/Towns.lua`, wheel scrolling, the zone browser) and plan 11
+  (routes round enemy towns, on branch `enemy-towns`). Do not write that
+  they have been.
+
+What is still estimated is **data, not code**: most crossing coordinates
+(five measured so far -- see the checklist's "Measured in game so far"), the
+two mount speeds, `cross` times, some zone level ranges, the enemy-town radii,
+and town factions (only the owner's marks). The addon says so in amber where
+it matters; `docs/manual-test-checklist.md` lists what to walk.
+
+The design is `docs/superpowers/specs/2026-09-19-goblinps-design.md`,
+amended by the later specs in the same folder (planner redesign, settings and
+marquee, towns and browsing, enemy towns); each plan in
+`docs/superpowers/plans/` names its spec, and `docs/build-log/` keeps how
+each was built: rulings, review findings and fixes. A schematic world map
+was dropped on 2026-09-20 in favour of the strip (spike kept at
+`docs/research/schematic-spike/`). Ideas not yet planned live in
+`docs/later.md`. Write each plan after the one before it has been used in
+game.
 
 Everything known about the client API and data sources is in
 `docs/research/2026-09-19-api-and-data-findings.md`. Read it first. It marks
@@ -95,11 +79,14 @@ GoblinPS/GoblinPS.toc        # manifest; Interface 16001
 GoblinPS/API.lua             # the ONLY file that calls Blizzard game APIs and registers game-data
                               # events (LooseEnds pattern); UI files may register UI layout events
                               # (UI_SCALE_CHANGED, DISPLAY_SIZE_CHANGED) for their own frames
-GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py
+GoblinPS/Data/*.lua          # GENERATED from wago.tools by tools/build_graph.py (Places, Nodes, Flights, Towns)
 GoblinPS/Data/Towns.lua      # GENERATED from AreaPOI: every named town in its zone, a faction only from tools/town-factions.csv; stops and Inns rows win
 GoblinPS/Data/Links.lua      # HAND-WRITTEN: boats, zeppelins, tram
 GoblinPS/Graph.lua           # pure: nodes + edges, filtered by what the character knows
-GoblinPS/Route.lua           # pure: shortest path (Dijkstra), step list
+GoblinPS/Route.lua           # pure: shortest path (Dijkstra on cost), step list, step text and detail lines
+GoblinPS/Geo.lua             # pure: map to world yards, distances, segment distance, nearest crossing or dock
+GoblinPS/Search.lua          # pure: the places a player can pick (stops, towns, inns), zone words, the zone browser
+GoblinPS/Trip.lua            # pure: arrival, straying and bearing rules for the dash
 GoblinPS/Strip.lua           # pure: the route strip as data -- badges, spacing, tooltips, solid/dashed legs
 GoblinPS/Marquee.lua         # pure: the dash's scrolling text, a character window
 GoblinPS/Known.lua, Prefs.lua  # pure: learned flight paths; account preferences, arrival radii and their ranges
@@ -122,15 +109,17 @@ GoblinPS/Data/Art.lua        # GENERATED: texture coordinates AND placement geom
                               # shipped art parts, built by tools/make_art.py from images/parts/dash2-geometry.json
                               # and images/parts/planner-geometry.json; no coordinate is hand-typed in Dash.lua
                               # or Planner.lua
-GoblinPS/MinimapButton.lua, SelfTest.lua, Core.lua
+GoblinPS/MinimapButton.lua   # the minimap button; right-click opens the copyable where-am-I line
+GoblinPS/SelfTest.lua, Core.lua  # /gps selftest; glue, the slash commands and saved variables
 test/fake_frames.lua         # fake frame API: smoke-tests OUR window code, not Blizzard's
 tools/build_graph.py         # generator, modelled on D:\looseEnds\tools\build_catalog.py
 tools/make_art.py            # builds shipped textures from images/parts/*.png, scales and pads them, generates Data/Art.lua
 tools/catalog.lock           # pinned client build
+tools/survey_crossings.lua   # lupa script: how far each crossing sits from its two zones' shared edge
 tools/town-factions.csv      # HAND-WRITTEN by the owner: A, H or N per generated town; the only source of a town's faction
 test/run.lua                 # desktop Lua test runner
 docs/                        # specs, research, manual test checklist
-docs/build-log/              # why plans 2 and 3 went the way they did: rulings and review findings
+docs/build-log/              # how each plan was built: its ledger, rulings, briefs and review fixes
 ```
 
 Each module opens with `local addonName, ns = ...` and publishes itself on the
@@ -175,6 +164,21 @@ New-Item -ItemType Junction -Path "D:\World of Warcraft\_classic_beta_\Interface
 
 The beta client lives in `_classic_beta_`, not `_retail_`.
 
+**The owner plays from this checkout.** The junction points the game at
+`D:\goblinps\GoblinPS`, so whatever branch is checked out here is what a
+`/reload` loads, half-finished edits included. So:
+
+- Build in a separate worktree (`git worktree add ..\goblinps-wt\<name>`),
+  never in the checkout the owner is playing from, and bring finished,
+  reviewed work across with a fast-forward. Say plainly when a `/reload` is
+  safe.
+- A change that adds a file to the TOC needs a **full client restart**, not a
+  `/reload`; say so every time.
+- Measuring data in game: stand on the spot (for a crossing, where the zone
+  name flips), right-click the minimap button or `/gps where`, and paste the
+  line. `test/test_crossings.lua` refuses a crossing that is not on both
+  zones' shared edge, which catches a reading taken short of the border.
+
 ## Verifying against Blizzard's UI source
 
 Never guess a template, atlas, event or API name. The beta's exact UI source
@@ -199,8 +203,16 @@ from `D:\World of Warcraft\.build.info`, product `wow_classic_beta`).
 ## Versions and git
 
 Calendar versions (`2026.09.19`, `.2` for a second release that day), written
-only in the TOC. Commit after each change. Another agent (Codex) may also
-commit; re-read files before editing.
+only in the TOC. Commit after each change. Never push or merge to `main`
+unless the owner says so.
+
+Another agent, **Codex**, owns the artwork and commits here too, on whatever
+branch is checked out; re-read files before editing. Its `AGENTS.md` is in
+`.gitignore` and is never committed. The art's placement files
+(`images/parts/planner-geometry.json`, `dash2-geometry.json`) are rewritten by
+Codex's own scripts, so a placement change goes to Codex as a short brief in
+`docs/art-parts-brief-*.md`, never as a hand edit; then regenerate
+`Data/Art.lua` with `tools/make_art.py`.
 
 ## Rules that are easy to break
 
@@ -308,8 +320,9 @@ commit; re-read files before editing.
   edge that cuts through its middle. (Excusing any end let an Alliance walk
   go in at Orgrimmar's front gate and out at its west gate unwarned;
   excusing where you stand let a replan 145 yd from Silverwind walk through
-  its centre; charging both ends of a gate doubled detours to 20 minutes.) No code guesses a town's faction (the nearest-flight-master
-  guess made caves and rivers into towns). A route that walks through a town
+  its centre; charging both ends of a gate doubled detours to 20 minutes.)
+  No code guesses a town's faction (the nearest-flight-master guess made
+  caves and rivers into towns). A route that walks through a town
   is fixed by marking it, or with a `Data/Stopovers.lua` row measured in
   game, never by removing the edge or shrinking the radius until a test
   passes.
