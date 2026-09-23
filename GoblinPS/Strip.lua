@@ -55,12 +55,12 @@ function Strip.Layout(data, steps, opts)
         local tooltip = tooltipFor(data, step, opts.level)
         -- The last stop's label names what the player searched for, not the
         -- crossing the route happens to end at; its tooltip and the warning
-        -- line below still name the step's own place. A through step that is
-        -- not the last stop is a tunnel or lift's near mouth: its own name is
-        -- the crossing's, same as the through step right after it, so two
-        -- badges in a row would read the same. Label it with the zone the
-        -- through step comes out in instead, when that zone has a name to
-        -- give it. Every label also runs through Search.Label, so a
+        -- line below still name the step's own place. A through step ends at
+        -- a tunnel or lift's far mouth, which carries the crossing's name
+        -- just as the near mouth on the step before it does, so two badges
+        -- in a row would read the same (seen in game 2026-09-22). Label it
+        -- with the zone it comes out in instead, when that zone has a name
+        -- to give it. Every label also runs through Search.Label, so a
         -- crossing's leading "the" is dropped under the badge while the
         -- tooltip keeps it as a sentence.
         local through = i < gaps and step.through and data.Places[step.zone] and data.Places[step.zone].name
