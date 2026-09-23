@@ -8,8 +8,8 @@ every UI change.
 The short pass that has to come back clean before a release goes up. It
 covers only what has never loaded in the client: plans 9 to 11 and the To
 box change. Everything else below is already seen or is measuring data, and
-none of it holds up a release. A FAIL here is fixed before upload; each line
-points at its full section for the detail.
+none of it holds up a release. A FAIL here is fixed before upload; the full
+detail is in the section for the plan a line names.
 
 **Start with a full game restart, not `/reload`,** if you have not had one
 since plan 11 (the TOC gained `Data\Stopovers.lua`).
