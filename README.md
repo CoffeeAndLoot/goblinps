@@ -11,7 +11,9 @@ is it worth burning the hearthstone? GoblinPS does that sum for you.
 
 *Time is money, friend. Accuracy not guaranteed. No refunds.*
 
-![The GoblinPS planner: a Horde route to Silverwind Refuge by hearthstone, the Stonetalon pass and the Talondeep Path, about 14 minutes](https://raw.githubusercontent.com/CoffeeAndLoot/goblinps/main/images/readme/planner.jpg)
+![GoblinPS: Less walkin'. More earnin'. A goblin trade prince presents the real planner, showing a route to Silverwind Refuge.](https://raw.githubusercontent.com/CoffeeAndLoot/goblinps/main/images/readme/goblinps-planner-demo.jpg)
+
+[View the original planner capture](images/readme/planner.jpg).
 
 ## Why use it
 
@@ -39,6 +41,8 @@ badge on the strip is a leg of the journey, with a tooltip on each.
 
 Then follow the arrow. The dash shows where you are headed, how far, the next
 steps, and how long is left.
+
+![Follow the arrow. A goblin engineer presents the real GoblinPS dash: pick a place, get movin', and mind the red Stop button. Warranty void if eaten.](https://raw.githubusercontent.com/CoffeeAndLoot/goblinps/main/images/readme/goblinps-dash-demo.jpg)
 
 <p>
   <img alt="The GoblinPS dash in the world: a green arrow toward the next stop, 945 yards to go, the next three steps and about 17 minutes left" src="https://raw.githubusercontent.com/CoffeeAndLoot/goblinps/main/images/readme/in-game-dash.jpg" width="560">
