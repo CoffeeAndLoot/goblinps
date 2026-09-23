@@ -58,8 +58,9 @@ local function fromInn(data, bind, inn)
              c = c, x = x, y = y, map = inn.map, mx = inn.mx, my = inn.my }
 end
 
--- A generated town. Its faction is inferred (tools/build_graph.py) and often
--- absent; a town with none is nobody's enemy.
+-- A generated town. Its faction comes only from the owner's marks in
+-- tools/town-factions.csv (tools/build_graph.py), and is usually absent; a
+-- town with none is nobody's enemy.
 local function fromTown(data, id, t, faction)
     return { kind = "town", townID = id, name = t.name, zone = zoneOf(data, t.map),
              enemy = t.f and not legal(t, faction) and t.f or nil,

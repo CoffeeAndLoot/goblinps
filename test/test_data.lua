@@ -175,8 +175,24 @@ return function(h, loaded)
                     h.truthy(place.kind ~= "zone", name .. " is still only a zone")
                 end
             end
-            h.eq(ns.Search.Exact(data, "Darnassus", "H").enemy, "A", "a capital takes its own flight stop's faction")
             h.eq(ns.Search.Exact(data, "Sentinel Hill", "H").nodeID, 4, "the stop, not a town beside it")
+        end)
+
+        h.it("gives a town a faction only where the owner marked one", function()
+            -- tools/town-factions.csv, and nothing else: no faction is guessed
+            -- from nearby flight masters any more. test/tools/test_build_graph.py
+            -- checks the whole sheet against this file.
+            local byName = {}
+            for _, t in pairs(towns) do
+                byName[t.name] = t
+            end
+            h.eq(byName["Silverwind Refuge"].f, "A", "marked Alliance")
+            h.eq(byName["Warsong Labor Camp"].f, "H", "marked Horde")
+            for _, name in ipairs({ "Irontree Cavern", "Maraudon", "Falfarren River" }) do
+                h.eq(byName[name].f, nil, name .. " is not marked, so it has no faction")
+            end
+            h.eq(ns.Search.Exact(data, "Silverwind Refuge", "H").enemy, "A", "the Horde's list says (Alliance)")
+            h.eq(ns.Search.Exact(data, "Irontree Cavern", "H").enemy, nil, "and a cave is nobody's enemy")
         end)
     end)
 
@@ -204,6 +220,36 @@ return function(h, loaded)
                 h.eq(found[1].enemy, nil, name .. ": the Horde's own stop")
                 h.truthy(not found[2] or found[2].name ~= name, name .. " is offered twice to the Horde")
             end
+        end)
+    end)
+
+    h.describe("the stopovers", function()
+        -- The check returns what is wrong with the table, so it can be shown
+        -- failing on planted rows: a check that cannot fail proves nothing,
+        -- and Data/Stopovers.lua starts empty.
+        local function badStopovers(stopovers)
+            local bad = {}
+            for i, s in ipairs(stopovers) do
+                local onMap = data.Places[s.map] and s.mx and s.my and s.mx >= 0 and s.mx <= 1
+                    and s.my >= 0 and s.my <= 1
+                if not onMap or type(s.name) ~= "string" or s.name == "" or s.name:find(",", 1, true) then
+                    bad[#bad + 1] = i .. " " .. tostring(s.name)
+                end
+            end
+            return table.concat(bad, ", ")
+        end
+
+        h.it("puts every stopover on its own zone's map, under a name with no comma", function()
+            h.truthy(data.Stopovers, "Data/Stopovers.lua is not loaded")
+            h.eq(badStopovers(data.Stopovers), "")
+        end)
+        h.it("catches a stopover off its zone's map, on no zone, or with a comma in its name", function()
+            h.eq(badStopovers({
+                { name = "the road south of Silverwind Refuge", map = 1440, mx = 0.52, my = 0.70 },
+                { name = "past the edge", map = 1440, mx = 1.2, my = 0.5 },
+                { name = "on no map", map = 99999, mx = 0.5, my = 0.5 },
+                { name = "a road, Ashenvale", map = 1440, mx = 0.5, my = 0.5 },
+            }), "2 past the edge, 3 on no map, 4 a road, Ashenvale")
         end)
     end)
 

@@ -16,11 +16,14 @@ comes off this list.
   ends of Timbermaw Hold (Felwood, Winterspring) and of The Talondeep Path
   (Ashenvale, Stonetalon Mountains) share a name, so picking the higher-ID
   end comes back as the other end after a reload or from the recents.
-- **Faction-aware avoidance of enemy towns** (the plan 10 spec's step 4,
-  next). The towns now carry an inferred faction; the router does not yet
-  keep you out of the other side's. The inference is crude (Maraudon reads
-  Horde because Shadowprey's flight master is near); `AreaTable` carries a
-  `FactionGroupMask` that may say more, unverified on this build.
+- **Monster camps that are hostile to all.** The owner's Notes column in
+  `tools/town-factions.csv` says "Hostile to all" on nine camps (Boulderfist
+  Outpost, Drywhisker Gorge, Bloodtooth Camp, Demon Fall Canyon, Falfarren
+  River, Greenpaw Village, The Dor'Danil Barrow Den, The Ruins of Ordil'Aran,
+  Xavian); plan 11 reads no Notes, so a ride leg still walks straight through
+  them. A fourth faction letter (say `M`, hostile to both sides) in the
+  faction column would let `Graph.Hostile` charge a leg past one for either
+  side.
 - **Route to a quest.** Day 2. A quest's location from the game data is a point (name, map, x, y), the same shape as every destination since 2026-09-22, so the router takes it as is; what is new is finding and listing quests.
 - **Dress the settings panel with art.** Plan 9, 2026-09-22, built the panel
   plain: the gadget palette's body and brass, flat `-` / `+` buttons, no new
@@ -40,3 +43,4 @@ comes off this list.
   Search.Label/ShortName before scrolling, so a line only scrolls when it is
   genuinely long. (Left over from the marquee entry when plan 9 built the
   scrolling.)
+- **The dash says nothing when a replan brings in danger.** A replan that adds a 'passes X' leg or a hostile destination shows no warning on the dash (Dash.lua ~621); the player follows the dash, so a short banner would help.

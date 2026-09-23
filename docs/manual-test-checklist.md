@@ -501,7 +501,7 @@ Needs a full game restart, not `/reload`: the TOC gained `Strip.lua`.
 - [ ] The panel looks decent without art -- or ask Codex for some (`docs/later.md`)
 - [ ] Every label and value reads in full; the transport note and the amber
       line about saved data wrap inside the panel, not past it
-- [ ] About shows "GoblinPS 2026.09.22.2". If it says "(version unknown)",
+- [ ] About shows "GoblinPS 2026.09.22.3". If it says "(version unknown)",
       `C_AddOns.GetAddOnMetadata` is one more API present on this build that
       does not answer: note it in CLAUDE.md's list
 - [ ] The feedback line reads "Feedback: a GitHub page is coming soon." and
@@ -559,12 +559,69 @@ run in the client.
       Deathknell in Tirisfal Glades): its position is the town's middle, where
       the map draws its name, not a doorway. Note how far the "arrived" point
       sits from where you would want it
-- [ ] A town's faction mark is inferred from flight masters within 600 yards:
-      note any that is wrong (to the Alliance, Maraudon reads "(Horde)"
-      because Shadowprey Village's flight master is near)
+- [ ] A town's "(Alliance)" or "(Horde)" mark comes only from
+      `tools/town-factions.csv` since plan 11: to the Alliance, Maraudon no
+      longer reads "(Horde)"
 - [ ] The drop-down is still only a little wider than its longest name, and
       no name in it is cut off
-- [ ] About shows "GoblinPS 2026.09.22.2"
+- [ ] About shows "GoblinPS 2026.09.22.3"
+
+## Routes round enemy towns (plan 11)
+
+**Needs a full game restart, not `/reload`:** the TOC gained
+`Data\Stopovers.lua`, and the client reads the file list only at startup.
+After that one restart, editing it needs only `/reload`. Built 2026-09-22;
+not yet run in the client. Plan routes on foot with no flight path learned
+this session (straight after logging in), or the router will simply fly. A
+town is an enemy only if it has an enemy flight master or you marked it in
+`tools/town-factions.csv`; after marking one, run `python
+tools/build_graph.py` and `/reload`.
+
+- [ ] Horde, level 15, at the Talondeep Path's Ashenvale mouth (42.3, 71.1),
+      `/gps to splintertree post`: the route is "Walk to the Ashenvale-Felwood
+      road", then "Walk to Splintertree Post", about 11 minutes, no longer
+      the straight line through Silverwind Refuge (the way by the Mor'shan
+      Rampart passes Silverwing Grove, which you marked Alliance). No amber
+      line under the strip: the road is only touched, so hovering its badge
+      shows "in Ashenvale · level 18-30", not "into Felwood · level 48-55".
+      Walk it with the dash: say whether the two long legs across Ashenvale
+      are walkable, and whether anything attacks. If not, that is what a
+      stopover is for
+- [ ] Horde, from Sun Rock Retreat, `/gps to splintertree post`: down the
+      Stonetalon pass, then the Mor'shan Rampart, then Splintertree Post, and
+      not through the Talondeep Path any more
+- [ ] Horde, from Hammerfall (Arathi Highlands), `/gps to revantusk village`:
+      the last step, "Walk to Revantusk Village" (Ride from level 40), has
+      the tooltip detail "in The Hinterlands · passes Aerie Peak (Alliance)"
+      in amber: there is no way round under ten minutes. From level 35 the
+      line under the strip reads "Revantusk Village: in The Hinterlands ·
+      passes Aerie Peak (Alliance)"; below it the step before, "into The
+      Hinterlands · level 40-50", is amber first and takes the line
+- [ ] Horde, pick Silverwind Refuge: the line under the strip reads
+      "Silverwind Refuge is an Alliance town: its guards will attack you.",
+      and `/gps to silverwind refuge` prints the same line first in chat.
+      Its row in the list reads "Silverwind Refuge · Ashenvale (Alliance)"
+- [ ] Alliance, pick Splintertree Post: "Splintertree Post is a Horde town:
+      its guards will attack you." A neutral town (Booty Bay, Gadgetzan,
+      Ratchet) says nothing of the kind, to either side
+- [ ] Caves and rivers are nobody's enemy now: to the Alliance "maraudon"
+      lists Maraudon with no "(Horde)", and to the Horde "irontree" lists
+      Irontree Cavern with no "(Alliance)"
+- [ ] Walk toward Silverwind Refuge from outside and stop where its guards
+      first come for you; `/gps where` there. Note the yards from the town's
+      label (50.1, 66.2). The circle is 150 yards (`Graph.HOSTILE_RADIUS`) and
+      400 round a capital (`Graph.CAPITAL_RADIUS`); both are guesses. The
+      Undercity's 400-yard circle reaches the Tirisfal-Silverpine road (328
+      yards from its flight master), so an Alliance walk from Brill to The
+      Sepulcher is warned "passes Undercity (Horde)": check whether that road
+      is really in reach of its guards, or the capital circle is too wide
+- [ ] Once a stopover row is in `Data/Stopovers.lua` (measure it with
+      `/gps where`, divide by 100, `/reload`): a route that passed the town
+      bends through it, the step reads "Walk to <its name>", and the dash
+      walks you round alive
+- [ ] The dash's step lines are unchanged: the detail line with "passes" is
+      only in the planner's tooltips, on its warning line and in chat
+- [ ] About shows "GoblinPS 2026.09.22.3"
 
 ## Flight paths survive a reload
 

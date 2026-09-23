@@ -117,6 +117,8 @@ function Core.Here() return here() end
 --   result  Route.Plan's answer, or nil
 --   hint    Route.Hint's answer, or nil
 --   notes   plain lines for the player; the last one explains a missing route
+--   hostile the note, also first in notes, when the destination stands in an
+--           enemy town (Graph.HostileAt); the planner puts it first under the strip
 --   level   the character's level, or nil
 function Core.PlanRoute(to, from)
     local plan = { to = to, notes = {}, level = API.Level() }
@@ -129,6 +131,11 @@ function Core.PlanRoute(to, from)
     if not from then
         plan.notes[1] = "Can't tell where you are. Inside an instance?"
         return plan
+    end
+    local enemy = ns.Graph.HostileAt(ns.Data, faction, to)
+    if enemy then
+        plan.hostile = Route.HostileNote(enemy)
+        plan.notes[#plan.notes + 1] = plan.hostile
     end
     local bindName = API.HearthBindName()
     local bind = bindName and Search.Exact(ns.Data, bindName, faction) or nil
@@ -392,11 +399,11 @@ local function slash(msg)
         if rest == "" or not minutes or minutes < 0 then
             say(("Hearthstone: used only when it saves at least %s."):format(
                 Route.FormatTime(Core.HearthSaving())))
-            say("/gps hearth <minutes>   change it; 0 always takes the fastest route")
+            say("/gps hearth <minutes>   change it; 0 uses it whenever it is no slower")
         else
             Core.SetHearthSaving(math.floor(minutes * 60 + 0.5))
             if minutes == 0 then
-                say("Hearthstone: always used when it is faster, however small the saving.")
+                say("Hearthstone: always used whenever it is no slower, however small the saving.")
             else
                 say(("Hearthstone: used only when it saves at least %s."):format(
                     Route.FormatTime(Core.HearthSaving())))

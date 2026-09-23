@@ -29,6 +29,33 @@ return function(h, loaded)
         end)
     end)
 
+    h.describe("Geo.SegmentDistance", function()
+        -- A leg 100 yards long along x, on continent 1.
+        local a, b = { c = 1, x = 0, y = 0 }, { c = 1, x = 100, y = 0 }
+        local function near(got, want) return math.abs(got - want) < 0.001 end
+
+        h.it("is zero at either end", function()
+            h.eq(Geo.SegmentDistance(a, b, { c = 1, x = 0, y = 0 }), 0)
+            h.eq(Geo.SegmentDistance(a, b, { c = 1, x = 100, y = 0 }), 0)
+        end)
+        h.it("measures square to the leg in the middle", function()
+            h.truthy(near(Geo.SegmentDistance(a, b, { c = 1, x = 50, y = 30 }), 30))
+            h.truthy(near(Geo.SegmentDistance(a, b, { c = 1, x = 25, y = -40 }), 40), "either side")
+        end)
+        h.it("measures to the nearer end past either end, not to the line beyond it", function()
+            h.truthy(near(Geo.SegmentDistance(a, b, { c = 1, x = -30, y = 40 }), 50), "before a")
+            h.truthy(near(Geo.SegmentDistance(a, b, { c = 1, x = 130, y = 40 }), 50), "past b")
+        end)
+        h.it("treats a leg of no length as a point", function()
+            h.truthy(near(Geo.SegmentDistance(a, a, { c = 1, x = 3, y = 4 }), 5))
+        end)
+        h.it("is infinite off the leg's continent or with a position missing", function()
+            h.eq(Geo.SegmentDistance(a, b, { c = 0, x = 50, y = 0 }), math.huge)
+            h.eq(Geo.SegmentDistance(a, { c = 0, x = 100, y = 0 }, { c = 1, x = 50, y = 0 }), math.huge)
+            h.eq(Geo.SegmentDistance(a, b, nil), math.huge)
+        end)
+    end)
+
     h.describe("Geo.Nearest", function()
         -- Player stands at world (5000, 5000) on Westland (continent 1). Two
         -- crossings straddle it (one near, one far) plus a dock in between,

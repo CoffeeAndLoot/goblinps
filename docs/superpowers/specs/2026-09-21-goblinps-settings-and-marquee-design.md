@@ -39,7 +39,7 @@ Opened by the gear, which today says "Settings are not built yet." `/gps setting
 
 | Setting | What it does | Default | Range, step |
 |---|---|---|---|
-| Hearthstone | Use it only when it saves at least N minutes. 0 means "whenever it is faster". The same store as `/gps hearth`. | 5 min | 0–30, 1 |
+| Hearthstone | Use it only when it saves at least N minutes. 0 means "whenever it is no slower". The same store as `/gps hearth`. | 5 min | 0–30, 1 |
 | Ground arrival | Yards from a walk/ride step's target that count as arrived | 40 | 10–200, 10 |
 | Flight arrival | The same, for a flight's landing | 150 | 50–500, 25 |
 | Boat, zeppelin and tram arrival | The same, for the far dock | 800 | 100–1000, 50 |

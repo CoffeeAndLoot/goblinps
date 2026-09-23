@@ -33,8 +33,11 @@ FLIGHT_YARDS_PER_SECOND = 32.0  # calibrated against measured Classic times, wit
 # AreaPOI.Icon for a named place on the world map: 4 a town, 5 a capital, 6 a village or
 # outpost. Every other icon is a shop sign or a battleground marker.
 TOWN_ICONS = {"4", "5", "6"}
-CAPITAL_ICON = "5"
-FACTION_YARDS = 600.0  # a town takes the faction of a one-faction flight master this close
+# The game's tables give a town no faction. Only the owner's hand-written sheet, beside
+# catalog.lock, does: guessing from nearby flight masters made caves and rivers into
+# enemy towns (plan 11), so nothing here guesses any more.
+TOWN_FACTIONS = "town-factions.csv"
+FACTION_COLUMN = "faction (A/H/N)"
 
 
 def read_lock(path: Path) -> str:
@@ -234,17 +237,46 @@ def _town_zone(places, areas, area_names, zones, poi) -> tuple[int | None, str]:
     return None, "unplaced"
 
 
-def _town_faction(nodes, town, capital: bool) -> str | None:
-    """The table does not say, so: the faction of the one-faction flight masters within
-    FACTION_YARDS in the town's zone, when they are all one faction; none otherwise. A
-    capital takes the faction of the nearest one-faction flight master on its continent,
-    its own (Darnassus's is Rut'theran Village, across the water in Teldrassil)."""
-    here = (town["x"], town["y"])
-    sided = [n for n in nodes.values() if n["f"] in ("A", "H") and n["c"] == town["c"]]
-    if capital:
-        return min(sided, key=lambda n: math.dist(here, (n["x"], n["y"])))["f"] if sided else None
-    near = {n["f"] for n in sided if n["map"] == town["map"] and math.dist(here, (n["x"], n["y"])) <= FACTION_YARDS}
-    return near.pop() if len(near) == 1 else None
+def read_town_factions(path: Path) -> dict[tuple[str, str], str]:
+    """The owner's marks: (zone name, town name) -> "A", "H", "N" or "" (not marked yet).
+
+    tools/town-factions.csv has a row per generated town: zone, town, x, y, guess,
+    "faction (A/H/N)", Notes. Only zone, town and the faction column are read; guess and
+    Notes are the owner's own. A faction that is not A, H, N or blank raises. A row with
+    neither zone nor town (the bare commas a spreadsheet leaves after the last row) is
+    skipped. utf-8-sig reads the byte order mark an Excel "CSV UTF-8" save starts with."""
+    marks = {}
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = [c for c in ("zone", "town", FACTION_COLUMN) if c not in (reader.fieldnames or ())]
+        if missing:
+            raise RuntimeError(f"{path.name}: missing columns {missing}")
+        for row in reader:
+            zone, town = (row["zone"] or "").strip(), (row["town"] or "").strip()
+            if not zone and not town:
+                continue
+            faction = (row[FACTION_COLUMN] or "").strip().upper()
+            if faction not in ("", "A", "H", "N"):
+                raise RuntimeError(f"{path.name}: {town} in {zone}: "
+                                   f"faction {row[FACTION_COLUMN]!r} is not A, H, N or blank")
+            marks[(zone, town)] = faction
+    return marks
+
+
+def mark_towns(towns, places, marks) -> list[str]:
+    """Give each town the owner's faction: A or H becomes its `f`; N or blank gives none.
+
+    Returns one line for every row that names no generated town (a typo, or a town a
+    patch renamed or moved): the caller prints them and writes nothing, never guesses."""
+    by_name = {(places[t["map"]]["name"], t["name"]): t for t in towns.values()}
+    errors = []
+    for (zone, name), faction in sorted(marks.items()):
+        town = by_name.get((zone, name))
+        if town is None:
+            errors.append(f"{TOWN_FACTIONS}: no generated town {name!r} in {zone!r}")
+        elif faction in ("A", "H"):
+            town["f"] = faction
+    return errors
 
 
 def build_towns(tables, places, nodes) -> dict[int, dict]:
@@ -281,9 +313,6 @@ def build_towns(tables, places, nodes) -> dict[int, dict]:
         mx, my = spot
         town = {"name": poi["Name_lang"], "map": map_id, "mx": mx, "my": my,
                 "c": int(poi["ContinentID"]), "x": round(wx, 1), "y": round(wy, 1)}
-        faction = _town_faction(nodes, town, poi["Icon"] == CAPITAL_ICON)
-        if faction:
-            town["f"] = faction
         towns[int(poi["ID"])] = town
     return towns
 
@@ -374,6 +403,12 @@ def main(argv=None) -> int:
     nodes = build_nodes(tables, places)
     flights = build_flights(tables, nodes)
     towns = build_towns(tables, places, nodes)
+    errors = mark_towns(towns, places, read_town_factions(root / "tools" / TOWN_FACTIONS))
+    if errors:
+        for line in errors:
+            print(line, file=sys.stderr)
+        print(f"{len(errors)} row(s) of tools/{TOWN_FACTIONS} name no town: nothing written", file=sys.stderr)
+        return 1
     out = root / "GoblinPS" / "Data"
     emit(out, build, "Places", places)
     emit(out, build, "Nodes", nodes)

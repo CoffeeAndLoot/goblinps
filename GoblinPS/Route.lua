@@ -1,11 +1,18 @@
 local _, ns = ...
 
--- Pure: shortest path by seconds, the "discover X" hint, and the plain text.
+-- Pure: shortest path by cost (seconds, plus Graph's penalty on a leg past an
+-- enemy town), the "discover X" hint, and the plain text.
 local Route = {}
 ns.Route = Route
 
 Route.MIN_RIDE_SECONDS = 5   -- shorter rides mean "you are already there"
 Route.HINT_MIN_SECONDS = 120 -- only mention a saving worth having
+
+-- What an edge costs the router. Graph.Build gives every edge a cost; a graph
+-- built by hand may give only seconds.
+local function costOf(edge)
+    return edge.cost or edge.seconds
+end
 
 -- Dijkstra with a linear scan; the graph has about a hundred stops.
 local function shortest(graph)
@@ -22,7 +29,7 @@ local function shortest(graph)
         end
         done[bestKey] = true
         for _, e in ipairs(graph.edges[bestKey] or {}) do
-            local nd = best + e.seconds
+            local nd = best + costOf(e)
             if nd < (dist[e.to] or math.huge) then
                 dist[e.to] = nd
                 prev[e.to] = { from = bestKey, edge = e }
@@ -32,13 +39,22 @@ local function shortest(graph)
     return dist.DEST and prev or nil
 end
 
+-- Does the route only touch this one-ended crossing and turn back: a ride to
+-- it whose next step is a ride on in the same zone? Then it never enters the
+-- crossing's other zone, and its detail line must not say it does.
+local function turnsBack(s, nextStep)
+    return s.kind == "ride" and s.to.zones ~= nil and not s.through and nextStep ~= nil
+        and nextStep.kind == "ride" and not nextStep.through and nextStep.zone == s.zone
+end
+
 -- One "Fly to X" per flight master visit; drop rides too short to mention,
--- but never the way through a tunnel: that step is the tunnel.
+-- but never the way through a tunnel (that step is the tunnel) and never a
+-- step past an enemy town (its warning must reach the player).
 local function tidy(raw)
     local steps = {}
-    for _, s in ipairs(raw) do
+    for i, s in ipairs(raw) do
         local last = steps[#steps]
-        local tooShort = s.kind == "ride" and not s.through and s.seconds < Route.MIN_RIDE_SECONDS
+        local tooShort = s.kind == "ride" and not s.through and not s.danger and s.seconds < Route.MIN_RIDE_SECONDS
         if last and last.kind == "fly" and s.kind == "fly" and last.to.key == s.from.key then
             last.to = s.to
             last.seconds = last.seconds + s.seconds
@@ -46,34 +62,40 @@ local function tidy(raw)
         elseif not tooShort then
             steps[#steps + 1] = { kind = s.kind, from = s.from, to = s.to, seconds = s.seconds,
                                   copper = s.copper, zone = s.zone, walk = s.walk, rough = s.rough,
-                                  through = s.through }
+                                  through = s.through, danger = s.danger,
+                                  turn = turnsBack(s, raw[i + 1]) or nil }
         end
     end
     return steps
 end
 
--- Returns { steps, raw, seconds, copper } or nil when there is no route.
+-- Returns { steps, raw, seconds, cost, copper } or nil when there is no
+-- route: seconds is the real travel time, cost what the router minimised.
 -- A step is { kind, from = stop, to = stop, seconds, copper }; a ground step
--- also carries zone, walk, rough and through (the passage of a two-ended crossing).
+-- also carries zone, walk, rough, through (the passage of a two-ended
+-- crossing), danger ({ name, f }: the enemy town its straight line passes)
+-- and turn (true on a ride to a crossing the route only touches, going on in
+-- the same zone).
 function Route.Find(graph)
     local prev = shortest(graph)
     if not prev then
         return nil
     end
-    local raw, key = {}, "DEST"
+    local raw, key, cost = {}, "DEST", 0
     while prev[key] do
         local p = prev[key]
+        cost = cost + costOf(p.edge)
         table.insert(raw, 1, { kind = p.edge.kind, from = graph.stops[p.from], to = graph.stops[key],
                                seconds = p.edge.seconds, copper = p.edge.copper,
                                zone = p.edge.zone, walk = p.edge.walk, rough = p.edge.rough,
-                               through = p.edge.through })
+                               through = p.edge.through, danger = p.edge.danger })
         key = p.from
     end
     local seconds, copper = 0, 0
     for _, s in ipairs(raw) do
         seconds, copper = seconds + s.seconds, copper + s.copper
     end
-    return { steps = tidy(raw), raw = raw, seconds = seconds, copper = copper }
+    return { steps = tidy(raw), raw = raw, seconds = seconds, cost = cost, copper = copper }
 end
 
 -- Zone by zone through crossings. Only when no such route exists, once more
@@ -105,13 +127,18 @@ end
 -- a guild's Hasty Hearth perk; API.lua reads the live one), so on its own the
 -- router will spend the stone to save twenty seconds. `opts.hearthSaving` is
 -- the least it must save to be worth taking; plan both ways and keep the
--- hearthstone only when it earns its keep. Nil or 0 means the old behaviour,
--- always fastest. Refusing it never costs the player a route: the plain plan
+-- hearthstone only when it earns its keep. Nil or 0 means take it whenever
+-- it is no slower. Refusing it never costs the player a route: the plain plan
 -- is returned instead, and it is the one the player would have had anyway.
+-- The saving is real seconds, the unit the bar names ("must save N min"),
+-- never cost: `best` is already the router's pick by cost, and comparing cost
+-- would let an enemy town's penalty alone spend the stone, even on a slower
+-- trip. A refused stone leaves the plain route with its danger step, so the
+-- player still sees the warning.
 function Route.Plan(data, opts)
     local best = solve(data, opts)
     local bar = opts.hearthSaving or 0
-    if not opts.hearth or bar <= 0 or not best then
+    if not opts.hearth or not best then
         return best
     end
     if not (best.steps[1] and best.steps[1].kind == "hearth") then
@@ -127,7 +154,9 @@ end
 -- Would knowing every flight path help? Returns { names = { first two short
 -- names }, more = count of further unknown stops beyond those two (0 if
 -- none), seconds = saved or nil when there was no route at all }, or nil
--- when it would not.
+-- when it would not. It must help both ways: better by cost, the router's
+-- measure, and by real seconds, the only saving the hint may state. A route
+-- that only goes round an enemy town, no faster, earns no "save" line.
 function Route.Hint(data, opts, result)
     local all, o = {}, {}
     for id in pairs(data.Nodes) do
@@ -141,7 +170,8 @@ function Route.Hint(data, opts, result)
     if not better then
         return nil
     end
-    if result and result.seconds - better.seconds < Route.HINT_MIN_SECONDS then
+    if result and (result.cost - better.cost < Route.HINT_MIN_SECONDS
+                   or result.seconds - better.seconds < Route.HINT_MIN_SECONDS) then
         return nil
     end
     local all_names, seen, known = {}, {}, opts.known or {}
@@ -207,6 +237,19 @@ function Route.StepText(step)
     return VERB[step.kind] .. " " .. ns.Search.ShortName(step.to.name)
 end
 
+local FACTION = { A = "Alliance", H = "Horde" }
+
+-- "passes Silverwind Refuge (Alliance)"
+local function passes(danger)
+    return "passes " .. danger.name .. " (" .. FACTION[danger.f] .. ")"
+end
+
+-- The plan note for a destination inside an enemy town's circle (Graph.HostileAt).
+function Route.HostileNote(place)
+    return ("%s is %s %s town: its guards will attack you."):format(
+        place.name, place.f == "A" and "an" or "a", FACTION[place.f])
+end
+
 local function levels(range)
     if not range then
         return ""
@@ -216,44 +259,58 @@ end
 
 -- The small line under a ground step: where it takes you and what to expect.
 -- Returns text, warn. warn is true when the zone starts well above the
--- character's level, the crossing carries a hazard note, or it is
--- unconfirmed. Other step kinds have no detail ("", false). A hazard or an
--- unconfirmed note replaces the level range on the line (never both: the
--- line does not wrap, and the hazard is the part that must not be cut off).
+-- character's level, the leg passes an enemy town, the crossing carries a
+-- hazard note, or it is unconfirmed. Other step kinds have no detail ("",
+-- false). An enemy town, a hazard or an unconfirmed note replaces the level
+-- range on the line (never both: the line does not wrap, and the warning is
+-- the part that must not be cut off), the enemy town first.
 function Route.StepDetail(data, step, level)
     if WAITS[step.kind] then
         return "includes the average wait", false
     end
-    if step.kind ~= "ride" or not step.zone then
+    if step.kind ~= "ride" then
+        return "", false
+    end
+    if not step.zone then
+        -- A rough straight line has no zone to name, but may still pass a town.
+        if step.danger then
+            return passes(step.danger), true
+        end
         return "", false
     end
     local places, zones = data.Places or {}, data.Zones or {}
     local gate = step.to.zones
     local zone = step.zone
     local text
-    -- The zone being entered: where a step through a tunnel comes out, or a gate's other side.
-    local entered = step.through and step.to.map or gate and (gate[1] == step.zone and gate[2] or gate[1])
+    -- The zone being entered: where a step through a tunnel comes out, or a
+    -- gate's other side -- unless the route only touches the gate and turns
+    -- back, when it stays in this zone.
+    local entered = step.through and step.to.map
+        or gate and not step.turn and (gate[1] == step.zone and gate[2] or gate[1])
     if entered then
         zone = entered
         text = "into " .. (places[zone] and places[zone].name or "the next zone")
     else
         text = "in " .. (places[zone] and places[zone].name or "this zone")
         -- Do not say the obvious: "Walk to Orgrimmar" already says where you land.
-        if places[zone] and ns.Search.ShortName(step.to.name) == places[zone].name then
+        if places[zone] and ns.Search.ShortName(step.to.name) == places[zone].name and not step.danger then
             return "", false
         end
     end
     local warn = ns.Travel.Dangerous(zones[zone], level)
-    if step.to.warn or step.to.unverified then
+    if step.danger or step.to.warn or step.to.unverified then
         warn = true
     else
         text = text .. levels(zones[zone])
+    end
+    if step.danger then
+        text = text .. " · " .. passes(step.danger)
     end
     if step.to.warn then
         text = text .. " · " .. step.to.warn
     end
     if step.to.unverified then
-        text = text .. " · crossing not confirmed"
+        text = text .. (step.to.stopover and " · stopover not confirmed" or " · crossing not confirmed")
     end
     return text, warn
 end

@@ -226,9 +226,12 @@ function Planner.Refresh()
     if plan and routed then
         total = ns.Route.FormatTime(plan.result.seconds) .. " · " .. ns.Route.FormatMoney(plan.result.copper)
         -- One amber line under the strip. What the player must know first
-        -- wins: a stop in a dangerous place, then a note about the route
-        -- itself, then a flight path worth discovering.
-        if layout and layout.warning then
+        -- wins: a destination whose guards will attack, then a stop in a
+        -- dangerous place, then a note about the route itself, then a flight
+        -- path worth discovering.
+        if plan.hostile then
+            hint = plan.hostile
+        elseif layout and layout.warning then
             hint = layout.warning
         elseif notes ~= "" then
             hint = notes

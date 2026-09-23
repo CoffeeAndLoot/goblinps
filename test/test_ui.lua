@@ -1524,6 +1524,29 @@ return function(h)
             h.truthy(ui.strip:IsShown())
         end)
 
+        h.it("warns under the strip, before anything else, when the destination is an enemy town", function()
+            -- Echo is an Alliance flight master and the fake player is Horde.
+            -- Westland is made a 70-80 zone for the test, so the route's own
+            -- steps are amber too and the note has to win the line.
+            local savedZone = ns.Data.Zones[1]
+            ns.Data.Zones[1] = { 70, 80 }
+            local ok, err = pcall(function()
+                local ui = pickTo("echo")
+                local _, state = Planner.Debug()
+                local note = "Echo is an Alliance town: its guards will attack you."
+                h.eq(state.plan.hostile, note)
+                h.eq(state.plan.notes[1], note, "and first among the notes, for /gps to")
+                h.truthy(ui.strip:IsShown(), "it is still a route")
+                h.eq(ui.hint:GetText(), note)
+            end)
+            ns.Data.Zones[1] = savedZone -- put the fixture back even when an assertion failed
+            local ui = pickTo("delt")
+            local _, state = Planner.Debug()
+            h.truthy(ok, err)
+            h.eq(state.plan.hostile, nil, "Delta is nobody's enemy")
+            h.falsy(ui.hint:GetText():find("guards", 1, true))
+        end)
+
         h.it("hides the strip rather than error when the strip geometry is missing", function()
             -- I2: stripMetrics indexed ns.Data.ArtGeometry.planner.strip with no
             -- guard, so an Art.lua shipped without that table threw on every
@@ -1630,11 +1653,16 @@ return function(h)
             SlashCmdList.GOBLINPS("hearth")
             h.truthy(table.concat(printed, " ", from + 1, #printed):find("~12 min", 1, true))
         end)
-        h.it("zero means always take the fastest route, and says so plainly", function()
+        h.it("zero uses the stone whenever it is no slower, and says so plainly", function()
             local from = #printed
             SlashCmdList.GOBLINPS("hearth 0")
             h.eq(GoblinPSDB.hearthSaving, 0)
             h.truthy(table.concat(printed, " ", from + 1, #printed):find("however small", 1, true))
+            -- The bar compares real seconds with ties kept (plan 11), so the
+            -- help must not promise "the fastest route".
+            from = #printed
+            SlashCmdList.GOBLINPS("hearth")
+            h.truthy(table.concat(printed, " ", from + 1, #printed):find("0 uses it whenever it is no slower", 1, true))
         end)
         h.it("refuses nonsense without changing the setting", function()
             SlashCmdList.GOBLINPS("hearth 5")
@@ -1806,6 +1834,13 @@ return function(h)
                 saw = saw or printed[i]:find("Ride to Delta", 1, true) ~= nil
             end
             h.truthy(saw, "the route goes on past the East Dock to Delta")
+        end)
+        h.it("says first when the destination is an enemy town", function()
+            local from = #printed
+            SlashCmdList.GOBLINPS("to echo")
+            h.truthy(printed[from + 1]:find("Echo is an Alliance town: its guards will attack you.", 1, true),
+                     printed[from + 1])
+            h.truthy(printed[from + 2]:find("To Echo: ", 1, true), printed[from + 2])
         end)
     end)
 

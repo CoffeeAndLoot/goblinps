@@ -258,6 +258,29 @@ return function(h, loaded)
             h.eq(text, "into Northland · trolls on the bridge")
             h.eq(warn, true)
         end)
+        -- The final review, 2026-09-22: the Horde way round Silverwind Refuge
+        -- touches the Ashenvale-Felwood road and turns back into Ashenvale,
+        -- and its amber line said "into Felwood · level 48-55" to a level 15.
+        h.it("says in, not into, at a crossing the route only touches and turns back from", function()
+            local gate = { key = "x1", name = "the North Gate", zones = { 1, 4 } }
+            local graph = {
+                stops = { START = { key = "START", name = "You", map = 1 }, x1 = gate,
+                          DEST = { key = "DEST", name = "Hotel", map = 1 } },
+                edges = { START = { { to = "x1", kind = "ride", seconds = 60, copper = 0, zone = 1 } },
+                          x1 = { { to = "DEST", kind = "ride", seconds = 60, copper = 0, zone = 1 } } },
+            }
+            local turning = Route.Find(graph)
+            h.eq(turning.steps[1].turn, true)
+            local text, warn = Route.StepDetail(world, turning.steps[1], 5)
+            h.eq(text, "in Westland · level 1-10")
+            h.eq(warn, false)
+            graph.edges.x1[1].zone = 4
+            local going = Route.Find(graph)
+            h.falsy(going.steps[1].turn)
+            text, warn = Route.StepDetail(world, going.steps[1], 5)
+            h.eq(text, "into Northland · level 30-40")
+            h.eq(warn, true)
+        end)
         h.it("warns about a zone well above the character", function()
             local last = r.steps[#r.steps]
             local text, warn = Route.StepDetail(world, last, 5)
@@ -298,6 +321,36 @@ return function(h, loaded)
             h.eq(text, "into Eastland · crossing not confirmed")
             h.eq(warn, true)
         end)
+        h.it("names the enemy town a leg passes, in amber, in place of the level range", function()
+            local step = { kind = "ride", zone = 1, to = { name = "Bravo, Westland" },
+                           danger = { name = "Keep", f = "A" } }
+            local text, warn = Route.StepDetail(world, step, 60)
+            h.eq(text, "in Westland · passes Keep (Alliance)")
+            h.eq(warn, true)
+            step.danger.f = "H"
+            h.eq((Route.StepDetail(world, step, 60)), "in Westland · passes Keep (Horde)")
+        end)
+        h.it("says so even on a step that arrives at the zone itself, and before a crossing's hazard", function()
+            local keep = { name = "Keep", f = "A" }
+            h.eq((Route.StepDetail(world, { kind = "ride", zone = 1, to = { name = "Westland" }, danger = keep }, 60)),
+                 "in Westland · passes Keep (Alliance)")
+            local gate = { name = "the test gate", zones = { 1, 2 }, warn = "trolls on the bridge" }
+            h.eq((Route.StepDetail(world, { kind = "ride", zone = 1, to = gate, danger = keep }, 60)),
+                 "into Eastland · passes Keep (Alliance) · trolls on the bridge")
+        end)
+        h.it("names the town a rough straight line passes, having no zone to name", function()
+            local step = { kind = "ride", rough = true, to = { name = "Lostland" },
+                           danger = { name = "Keep", f = "H" } }
+            local text, warn = Route.StepDetail(world, step, 5)
+            h.eq(text, "passes Keep (Horde)")
+            h.eq(warn, true)
+        end)
+        h.it("says a stopover, not a crossing, is unconfirmed", function()
+            local stop = { name = "the north road", map = 1, stopover = true, unverified = true }
+            local text, warn = Route.StepDetail(world, { kind = "ride", zone = 1, to = stop }, 60)
+            h.eq(text, "in Westland · stopover not confirmed")
+            h.eq(warn, true)
+        end)
     end)
 
     h.describe("Route.Hint", function()
@@ -323,6 +376,15 @@ return function(h, loaded)
             h.eq(table.concat(hint.names, ","), "Alpha,Bravo")
             h.eq(hint.more, 1)
             h.eq(Route.HintText(hint), "Discover Alpha, Bravo and 1 more to save ~11 min")
+        end)
+    end)
+
+    h.describe("Route.HostileNote", function()
+        h.it("warns of a destination whose guards will attack, with the right article", function()
+            h.eq(Route.HostileNote({ name = "Silverwind Refuge", f = "A" }),
+                 "Silverwind Refuge is an Alliance town: its guards will attack you.")
+            h.eq(Route.HostileNote({ name = "Splintertree Post", f = "H" }),
+                 "Splintertree Post is a Horde town: its guards will attack you.")
         end)
     end)
 
