@@ -5,7 +5,7 @@ Guidance for Claude Code when working in this repository.
 ## What this is
 
 GoblinPS ("Goblin Positioning System") is a World of Warcraft addon for the
-**WoW Forever** client (beta build 1.60.1.69913, interface `16001`): a route
+**WoW Forever** client (beta build 1.60.1.69977, interface `16001`): a route
 planner. Pick a destination, get the fastest route from where you stand using
 flight paths *this character has discovered*, boats, zeppelins, the tram and
 the hearthstone. Forever has no flying, so travel is a real puzzle.
@@ -183,14 +183,14 @@ The beta client lives in `_classic_beta_`, not `_retail_`.
 
 Never guess a template, atlas, event or API name. The beta's exact UI source
 is the **`forever` branch** of github.com/Gethe/wow-ui-source (its
-`version.txt` reads `1.60.1.69913`). Clone it shallow into a scratch folder
+`version.txt` reads the build, `1.60.1.69977` today). Clone it shallow into a scratch folder
 and grep:
 
 ```
 git clone --depth 1 --branch forever https://github.com/Gethe/wow-ui-source.git
 ```
 
-A local clone already lives at `D:\wow-api\1.60.1.69913` (check its
+A local clone already lives at `D:\wow-api\1.60.1.69977` (check its
 `version.txt`; `git pull` or re-clone when the beta updates). The sibling
 folder `D:\wow-api\12.1.5.69594` is **Retail** source: fine for HealMe, never
 the authority for GoblinPS.
@@ -236,7 +236,8 @@ Codex's own scripts, so a placement change goes to Codex as a short brief in
   Wowhead Looter, a plain folder with no GoblinPS code, forgets its settings
   the same way. An earlier check "proved" the account-wide save loaded by
   seeing a table after a reload -- a table GoblinPS itself creates at
-  `PLAYER_LOGIN`. **A check must be able to fail**: plant a value only a
+  `PLAYER_LOGIN`. Still true on build 1.60.1.69977 (the owner, 2026-09-22).
+  **A check must be able to fail**: plant a value only a
   real load could bring back. Until a build fixes this, learned flight paths
   and a trip in progress last one session; keep the account-wide save keyed
   by `"Name-Realm"` (the right shape once loading works) and declare no

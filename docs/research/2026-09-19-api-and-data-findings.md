@@ -8,6 +8,19 @@ where stated. The in-game probes are in `docs/manual-test-checklist.md`.
 
 ## The client
 
+- **Build 1.60.1.69977 (2026-09-22)** replaced 1.60.1.69913. Checked the same
+  day: the `forever` branch of wow-ui-source (cloned to
+  `D:\wow-api\1.60.1.69977`) differs from 69913 in three files only, all
+  login and character select (`Blizzard_GlueXML/Mainline/AccountLogin.lua`,
+  `AccountLogin.xml`, `CharacterSelect.lua`); no API documentation changed.
+  Every game table GoblinPS reads (TaxiNodes, TaxiPath, TaxiPathNode, UiMap,
+  UiMapAssignment, AreaPOI, AreaTable) is byte-for-byte identical on
+  wago.tools, so the regenerated data changed only its header line.
+  **SavedVariables still do not load** on 69977 (the owner, in game). The
+  facts below marked as verified on 1.60.1.69913 -- `isUndiscovered` and
+  `C_Map.GetMapLevels` dead -- have not been re-checked on 69977; `/gps probe`
+  and `/gps probe zones` are the cheap re-checks.
+
 - Install: `D:\World of Warcraft\_classic_beta_`, product `wow_classic_beta`,
   build **1.60.1.69913**, TOC interface **16001**.
 - It is a Classic-data client on the **Retail 12.0.7 engine**: it ships
